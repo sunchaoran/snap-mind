@@ -14,7 +14,8 @@
       "Bash(npx tsc:*)",
       "Bash(npx tsup:*)",
       "Bash(pnpm add:*)",
-      "Bash(npx biome:*)"
+      "Bash(npx biome:*)",
+      "Bash(pnpm ls:*)"
     ]
   }
 }
