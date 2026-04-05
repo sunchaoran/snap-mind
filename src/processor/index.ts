@@ -1,10 +1,10 @@
 import { config } from "../config.js";
-import { openrouter } from "../vlm/openrouter.js";
 import type {
-  MergedVLMResult,
   FetchResult,
+  MergedVLMResult,
   ProcessedContent,
 } from "../types/index.js";
+import { openrouter } from "../vlm/openrouter.js";
 
 const SYSTEM_PROMPT = `你是一个内容整理助手。对给定的文章内容进行结构化处理。
 

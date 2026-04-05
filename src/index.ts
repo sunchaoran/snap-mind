@@ -1,5 +1,5 @@
-import Fastify from "fastify";
 import multipart from "@fastify/multipart";
+import Fastify from "fastify";
 import { config } from "./config.js";
 import { registerRoutes } from "./server/routes.js";
 

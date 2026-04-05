@@ -21,7 +21,7 @@ export async function registerRoutes(app: FastifyInstance) {
         .send({ success: false, error: "Missing image file" });
     }
 
-    const imageBuffer = await data.toBuffer();
+    const _imageBuffer = await data.toBuffer();
 
     // TODO: implement full processing pipeline
     // generateClipId → vlmAnalyzer → findSimilar → contentFetcher

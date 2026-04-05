@@ -1,8 +1,8 @@
 import { config } from "../config.js";
+import type { MergedVLMResult, VLMResult } from "../types/index.js";
+import { mergeVLMResults } from "./merger.js";
 import { openrouter } from "./openrouter.js";
 import { VLM_SYSTEM_PROMPT } from "./prompt.js";
-import { mergeVLMResults } from "./merger.js";
-import type { VLMResult, MergedVLMResult } from "../types/index.js";
 
 export async function analyzeScreenshot(
   imageBuffer: Buffer,
@@ -39,22 +39,25 @@ export async function analyzeScreenshot(
 }
 
 async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
-  const response = await openrouter.chat.completions.create({
-    model,
-    messages: [
-      { role: "system", content: VLM_SYSTEM_PROMPT },
-      {
-        role: "user",
-        content: [
-          { type: "image_url", image_url: { url: dataUrl } },
-          { type: "text", text: "请分析这张截图。" },
-        ],
-      },
-    ],
-    temperature: 0,
-  }, {
-    timeout: config.processing.vlmTimeout,
-  });
+  const response = await openrouter.chat.completions.create(
+    {
+      model,
+      messages: [
+        { role: "system", content: VLM_SYSTEM_PROMPT },
+        {
+          role: "user",
+          content: [
+            { type: "image_url", image_url: { url: dataUrl } },
+            { type: "text", text: "请分析这张截图。" },
+          ],
+        },
+      ],
+      temperature: 0,
+    },
+    {
+      timeout: config.processing.vlmTimeout,
+    },
+  );
 
   const text = response.choices[0]?.message?.content ?? "";
   return JSON.parse(text) as VLMResult;

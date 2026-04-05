@@ -1,4 +1,4 @@
-import type { VLMResult, MergedVLMResult, Platform, ContentType } from "../types/index.js";
+import type { MergedVLMResult, VLMResult } from "../types/index.js";
 
 /**
  * Merge N VLM results using majority voting.

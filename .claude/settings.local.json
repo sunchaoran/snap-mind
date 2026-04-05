@@ -5,7 +5,16 @@
       "Bash(git commit:*)",
       "Bash(git branch:*)",
       "Bash(git stash:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(pnpm install:*)",
+      "Bash(npm --version)",
+      "Bash(source $HOME/.nvm/nvm.sh)",
+      "Bash(nvm use:*)",
+      "Bash(corepack enable:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx tsup:*)",
+      "Bash(pnpm add:*)",
+      "Bash(npx biome:*)"
     ]
   }
 }

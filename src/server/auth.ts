@@ -1,6 +1,6 @@
 import type { FastifyRequest } from "fastify";
-import type { AuthResult } from "../types/index.js";
 import { config } from "../config.js";
+import type { AuthResult } from "../types/index.js";
 
 export class UnauthorizedError extends Error {
   constructor(message = "Unauthorized") {

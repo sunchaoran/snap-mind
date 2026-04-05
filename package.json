@@ -12,21 +12,25 @@
     "start": "node dist/index.js",
     "test": "vitest",
     "test:run": "vitest run",
-    "lint": "tsc --noEmit"
+    "lint": "biome check .",
+    "lint:fix": "biome check --fix .",
+    "format": "biome format --write .",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "fastify": "^5.3.3",
     "@fastify/multipart": "^9.0.3",
-    "openai": "^4.96.0",
-    "playwright": "^1.52.0",
+    "dotenv": "^16.5.0",
+    "fastify": "^5.3.3",
     "gray-matter": "^4.0.3",
-    "dotenv": "^16.5.0"
+    "openai": "^4.96.0",
+    "playwright": "^1.52.0"
   },
   "devDependencies": {
-    "typescript": "^5.8.3",
+    "@biomejs/biome": "^2.4.10",
     "@types/node": "^22.15.17",
-    "tsx": "^4.19.4",
     "tsup": "^8.4.0",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
     "vitest": "^2.1.9"
   }
 }

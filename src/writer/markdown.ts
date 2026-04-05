@@ -1,11 +1,11 @@
-import { readdir, readFile, writeFile, access } from "node:fs/promises";
+import { access, readdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import matter from "gray-matter";
 import { config } from "../config.js";
-import { renderClipMarkdown } from "./template.js";
+import type { ClipRecord } from "../types/index.js";
 import { generateSlug } from "../utils/slug.js";
 import type { ClipWriter } from "./interface.js";
-import type { ClipRecord } from "../types/index.js";
+import { renderClipMarkdown } from "./template.js";
 
 export class MarkdownWriter implements ClipWriter {
   private get clippingsDir() {

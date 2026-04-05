@@ -16,8 +16,7 @@ export const config = {
     baseUrl: "https://openrouter.ai/api/v1",
     models: {
       vlm: (process.env.VLM_MODELS || "google/gemini-2.5-flash").split(","),
-      processor:
-        process.env.PROCESSOR_MODEL || "google/gemini-2.5-flash",
+      processor: process.env.PROCESSOR_MODEL || "google/gemini-2.5-flash",
     },
   },
 

@@ -1,14 +1,14 @@
-import type { MergedVLMResult, FetchResult } from "../types/index.js";
+import type { FetchResult, MergedVLMResult, Platform } from "../types/index.js";
 
-const PLATFORM_L1_SUPPORT = [
+const PLATFORM_L1_SUPPORT: Platform[] = [
   "xiaohongshu",
   "twitter",
   "zhihu",
   "bilibili",
   "weixin",
-] as const;
+];
 
-const PLATFORM_L2_SUPPORT = ["weibo", "reddit", "weixin"] as const;
+const PLATFORM_L2_SUPPORT: Platform[] = ["weibo", "reddit", "weixin"];
 
 /**
  * Four-level content fetching strategy.
@@ -17,16 +17,14 @@ const PLATFORM_L2_SUPPORT = ["weibo", "reddit", "weixin"] as const;
  * L3: search engine fallback
  * L4: screenshot-only (all levels failed)
  */
-export async function fetchContent(
-  vlm: MergedVLMResult,
-): Promise<FetchResult> {
+export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
   // L1
-  if (PLATFORM_L1_SUPPORT.includes(vlm.platform as any)) {
+  if (PLATFORM_L1_SUPPORT.includes(vlm.platform)) {
     // TODO: implement L1
   }
 
   // L2
-  if (PLATFORM_L2_SUPPORT.includes(vlm.platform as any)) {
+  if (PLATFORM_L2_SUPPORT.includes(vlm.platform)) {
     // TODO: implement L2
   }
 
