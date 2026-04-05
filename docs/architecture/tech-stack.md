@@ -5,12 +5,22 @@
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
 | Runtime | Node.js (>=22) | 主开发语言 |
-| HTTP Framework | Fastify 或 Express | 轻量，接收截图 |
-| LLM Gateway | OpenRouter API | 统一调用 Claude / Gemini / GPT-4o |
+| HTTP Framework | Fastify 5 | 原生 multipart 支持，TypeScript 类型推导好，内置 pino 日志 |
+| LLM Gateway | OpenRouter API (via `openai` SDK) | 兼容 OpenAI API，切换 baseURL 即可调用多家模型 |
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
-| Web Fetch Fallback | puppeteer 或 playwright | L2/L3 级别的页面抓取 |
+| Web Fetch Fallback | Playwright | `connectOverCDP` 复用 Chrome 登录态，`networkidle` 等待更可靠 |
 | Storage | 本地文件系统 (Obsidian vault) | Markdown + 截图文件 |
-| Process Manager | PM2 或 launchd | Mac mini 上常驻运行 |
+| Process Manager | PM2 | 日志/监控开箱即用，跨平台可迁移 |
+| Logging | pino (Fastify built-in) | 结构化 JSON 日志，PM2 采集友好 |
+
+## Build & Dev Tooling
+
+| Tool | Purpose |
+|------|---------|
+| `tsx` | 开发阶段直接运行 TypeScript，零配置 |
+| `tsup` | 生产构建，基于 esbuild，秒级打包 |
+| `vitest` | 测试框架 |
+| `dotenv` | 环境变量加载 |
 
 ## LLM Models
 
@@ -41,12 +51,16 @@
   "dependencies": {
     "fastify": "^5.x",
     "@fastify/multipart": "^9.x",
+    "openai": "^4.x",
+    "playwright": "^1.x",
     "gray-matter": "^4.x",
-    "puppeteer": "^23.x"
+    "dotenv": "^16.x"
   },
   "devDependencies": {
     "typescript": "^5.x",
     "@types/node": "^22.x",
+    "tsx": "^4.x",
+    "tsup": "^8.x",
     "vitest": "^2.x"
   }
 }

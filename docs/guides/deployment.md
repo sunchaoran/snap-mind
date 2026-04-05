@@ -4,6 +4,12 @@
 
 Mac mini, 本地常驻 Node.js 服务。
 
+## Build
+
+```bash
+pnpm build     # tsup 构建到 dist/
+```
+
 ## Using PM2
 
 ```bash

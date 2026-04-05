@@ -70,7 +70,7 @@ opencli xiaohongshu download {note_id} --output ./tmp --format json
 # Step 1: 搜索获取 URL
 opencli weibo search "{keywords}" --limit 5 --format json
 
-# Step 2: puppeteer/playwright 访问 URL
+# Step 2: playwright 访问 URL
 
 # Step 3: LLM 提取正文 → markdown
 ```

@@ -46,6 +46,11 @@ export const config = {
     timeout: 15000,
   },
 
+  // Playwright (web fetch fallback)
+  playwright: {
+    cdpUrl: "http://localhost:9222", // Chrome DevTools Protocol
+  },
+
   // Obsidian Vault
   vault: {
     basePath: process.env.OBSIDIAN_VAULT_PATH!,

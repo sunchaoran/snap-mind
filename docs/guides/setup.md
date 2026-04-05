@@ -21,10 +21,13 @@ cp .env.example .env
 # Edit .env with your API keys and vault path
 
 # 3. Start development server
-pnpm dev
+pnpm dev          # tsx watch mode
 
 # 4. Run tests
 pnpm test
+
+# 5. Build for production
+pnpm build        # tsup → dist/
 ```
 
 ## Verify Installation
@@ -38,5 +41,6 @@ node --version  # should be >= 22
 
 # Test the endpoint
 curl -X POST http://localhost:3210/clip \
+  -H "Authorization: Bearer <your-api-key>" \
   -F "image=@screenshot.png"
 ```
