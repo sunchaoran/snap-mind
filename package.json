@@ -1,0 +1,5 @@
+{
+	"dependencies": {
+		"@jackwener/opencli": "^1.6.4"
+	}
+}
