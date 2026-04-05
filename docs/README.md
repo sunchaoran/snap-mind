@@ -16,17 +16,17 @@
 ## Architecture Overview
 
 ```
-龙虾 (OpenClew Agent)
+客户端 (龙虾 / Web App / iOS App)
     │
-    │  HTTP POST /clip  (image binary)
+    │  HTTP POST /clip  (image + auth)
     ▼
 ┌─────────────────────────────────────────────────┐
 │                  ClipService                     │
 │                                                  │
-│  A2AServer → VLMAnalyzer → ContentFetcher        │
+│  InputAdapter → VLMAnalyzer → ContentFetcher     │
 │       → ContentProcessor → ClipWriter            │
 │                                                  │
-│  External: OpenRouter API / opencli-rs / Vault   │
+│  External: OpenRouter API / opencli / Vault       │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -34,8 +34,8 @@
 
 | Module | Path | Description |
 |--------|------|-------------|
-| A2AServer | [modules/a2a-server.md](./modules/a2a-server.md) | HTTP 服务，接收截图，触发处理流程 |
-| VLMAnalyzer | [modules/vlm-analyzer.md](./modules/vlm-analyzer.md) | 三模型并发识别 + 投票合并 |
+| InputAdapter | [modules/input-adapter.md](./modules/input-adapter.md) | HTTP 服务 + 认证，接收截图，触发处理流程 |
+| VLMAnalyzer | [modules/vlm-analyzer.md](./modules/vlm-analyzer.md) | 可配置 N 模型识别 + 投票合并 |
 | ContentFetcher | [modules/content-fetcher.md](./modules/content-fetcher.md) | 四级策略获取原文 |
 | ContentProcessor | [modules/content-processor.md](./modules/content-processor.md) | 摘要 / 标签 / 分类 |
 | ClipWriter | [modules/clip-writer.md](./modules/clip-writer.md) | Write driver 抽象层 + MarkdownWriter |
@@ -49,7 +49,8 @@ clip-service/
 │   ├── index.ts                # 入口，启动 HTTP 服务
 │   ├── config.ts               # 配置定义
 │   ├── server/
-│   │   └── routes.ts           # HTTP 路由 (POST /clip)
+│   │   ├── routes.ts           # HTTP 路由 (POST /clip)
+│   │   └── auth.ts             # 认证中间件 (API Key / JWT)
 │   ├── vlm/
 │   │   ├── analyzer.ts         # VLMAnalyzer 主逻辑
 │   │   ├── openrouter.ts       # OpenRouter API 客户端
@@ -57,7 +58,7 @@ clip-service/
 │   │   └── merger.ts           # 投票合并逻辑
 │   ├── fetcher/
 │   │   ├── index.ts            # ContentFetcher（四级策略调度）
-│   │   ├── opencli.ts          # opencli-rs 调用封装
+│   │   ├── opencli.ts          # opencli 调用封装
 │   │   ├── web-fetch.ts        # Web fetch + LLM 正文提取
 │   │   └── search-engine.ts    # L3 搜索引擎调用
 │   ├── processor/

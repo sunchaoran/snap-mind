@@ -4,25 +4,27 @@
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| Runtime | Node.js (>=20) | 主开发语言 |
+| Runtime | Node.js (>=22) | 主开发语言 |
 | HTTP Framework | Fastify 或 Express | 轻量，接收截图 |
 | LLM Gateway | OpenRouter API | 统一调用 Claude / Gemini / GPT-4o |
-| Content Fetching | opencli-rs | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
+| Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
 | Web Fetch Fallback | puppeteer 或 playwright | L2/L3 级别的页面抓取 |
 | Storage | 本地文件系统 (Obsidian vault) | Markdown + 截图文件 |
 | Process Manager | PM2 或 launchd | Mac mini 上常驻运行 |
 
 ## LLM Models
 
-### VLM Analysis (Triple-Model Voting)
+### VLM Analysis (Configurable N-Model Voting)
 
-| Provider | Model | Purpose |
-|----------|-------|---------|
-| Anthropic | claude-sonnet-4-20250514 | 截图分析 |
-| Google | gemini-2.5-flash | 截图分析 |
-| OpenAI | gpt-4o | 截图分析 |
+模型数量可配置，必须为奇数。V1 默认单模型。
 
-> 具体模型版本可通过配置文件调整。
+| Provider | Model | Note |
+|----------|-------|------|
+| Google | gemini-2.5-flash | **V1 默认** |
+| Anthropic | claude-sonnet-4-20250514 | 可选，增强精度 |
+| OpenAI | gpt-4o | 可选，增强精度 |
+
+> 通过配置 `openrouter.models.vlm` 数组调整模型列表和数量。
 
 ### Content Processing
 
@@ -44,7 +46,7 @@
   },
   "devDependencies": {
     "typescript": "^5.x",
-    "@types/node": "^20.x",
+    "@types/node": "^22.x",
     "vitest": "^2.x"
   }
 }
@@ -52,7 +54,7 @@
 
 ### System Dependencies (Mac mini)
 
-- Node.js >= 20
-- opencli-rs (latest)
-- Chrome browser + opencli-rs Chrome Extension
+- Node.js >= 22
+- opencli (latest)
+- Chrome browser + opencli Chrome Extension
 - PM2 (`npm install -g pm2`)

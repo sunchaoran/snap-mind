@@ -5,7 +5,7 @@
 ## Source Files
 
 - `src/fetcher/index.ts` — 主逻辑（四级策略调度）
-- `src/fetcher/opencli.ts` — opencli-rs 调用封装
+- `src/fetcher/opencli.ts` — opencli 调用封装
 - `src/fetcher/web-fetch.ts` — Web fetch + LLM 正文提取
 - `src/fetcher/search-engine.ts` — L3 搜索引擎调用
 
@@ -16,7 +16,7 @@
 
 ## Platform Capability Matrix
 
-| Platform | L1: opencli-rs search+download | L2: opencli-rs search → web fetch | L3: 搜索引擎兜底 |
+| Platform | L1: opencli search+download | L2: opencli search → web fetch | L3: 搜索引擎兜底 |
 |----------|------|------|------|
 | xiaohongshu | ✅ search + download | - | ✅ |
 | twitter | ✅ search + download (thread) | - | ✅ |
@@ -31,13 +31,13 @@
 
 ```typescript
 async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
-  // L1: opencli-rs 直连 (search + download)
+  // L1: opencli 直连 (search + download)
   if (PLATFORM_L1_SUPPORT.includes(vlm.platform)) {
     const l1Result = await tryLevel1(vlm);
     if (l1Result) return { ...l1Result, fetchLevel: 1 };
   }
 
-  // L2: opencli-rs search → 拿 URL → web fetch
+  // L2: opencli search → 拿 URL → web fetch
   if (PLATFORM_L2_SUPPORT.includes(vlm.platform)) {
     const l2Result = await tryLevel2(vlm);
     if (l2Result) return { ...l2Result, fetchLevel: 2 };
@@ -52,23 +52,23 @@ async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
 }
 ```
 
-### L1: opencli-rs Direct (e.g. xiaohongshu)
+### L1: opencli Direct (e.g. xiaohongshu)
 
 ```bash
 # Step 1: 搜索
-opencli-rs xiaohongshu search "{keywords}" --limit 5 --format json
+opencli xiaohongshu search "{keywords}" --limit 5 --format json
 
 # Step 2: 从搜索结果中匹配最相关的（title/author 匹配）
 
 # Step 3: 下载完整内容
-opencli-rs xiaohongshu download {note_id} --output ./tmp --format json
+opencli xiaohongshu download {note_id} --output ./tmp --format json
 ```
 
-### L2: opencli-rs Search → Web Fetch (e.g. weibo)
+### L2: opencli Search → Web Fetch (e.g. weibo)
 
 ```bash
 # Step 1: 搜索获取 URL
-opencli-rs weibo search "{keywords}" --limit 5 --format json
+opencli weibo search "{keywords}" --limit 5 --format json
 
 # Step 2: puppeteer/playwright 访问 URL
 
@@ -83,7 +83,7 @@ opencli-rs weibo search "{keywords}" --limit 5 --format json
 # Step 3: Web fetch + LLM 提取正文
 ```
 
-## opencli-rs Invocation
+## opencli Invocation
 
 ```typescript
 import { execFile } from "child_process";
@@ -92,7 +92,7 @@ import { promisify } from "util";
 const execFileAsync = promisify(execFile);
 
 async function runOpencliRs(args: string[]): Promise<any> {
-  const { stdout } = await execFileAsync("opencli-rs", args, {
+  const { stdout } = await execFileAsync("opencli", args, {
     timeout: 15000,
     env: { ...process.env },
   });

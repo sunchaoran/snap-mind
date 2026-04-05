@@ -2,11 +2,11 @@
 
 ## Prerequisites
 
-- Node.js >= 20
+- Node.js >= 22
 - pnpm (package manager)
-- opencli-rs (latest)
+- opencli (latest)
 - Chrome browser (保持各平台登录态)
-- opencli-rs Chrome Extension
+- opencli Chrome Extension
 
 ## Quick Start
 
@@ -30,11 +30,11 @@ pnpm test
 ## Verify Installation
 
 ```bash
-# Check opencli-rs
-opencli-rs --version
+# Check opencli
+opencli --version
 
 # Check Node.js
-node --version  # should be >= 20
+node --version  # should be >= 22
 
 # Test the endpoint
 curl -X POST http://localhost:3210/clip \

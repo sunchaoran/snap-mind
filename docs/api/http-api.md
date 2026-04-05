@@ -1,5 +1,25 @@
 # HTTP API Specification
 
+## Authentication
+
+所有接口需携带认证信息，支持两种方式：
+
+| Method | Header | Use Case |
+|--------|--------|----------|
+| API Key | `Authorization: Bearer sk-xxx` | 服务间调用（龙虾等 Agent） |
+| JWT | `Authorization: Bearer eyJxxx` | 用户客户端（Web App / iOS App） |
+
+### Response: Unauthorized (401)
+
+```json
+{
+  "success": false,
+  "error": "Unauthorized"
+}
+```
+
+---
+
 ## POST /clip
 
 接收截图，触发完整处理流程，返回收藏结果。
@@ -9,6 +29,7 @@
 ```
 POST /clip
 Content-Type: multipart/form-data
+Authorization: Bearer <token>
 ```
 
 | Field | Type | Required | Description |
@@ -44,6 +65,6 @@ Content-Type: multipart/form-data
 
 ### Notes
 
-- `message` 字段供龙虾直接转发给用户，无需二次加工
+- `message` 字段可供聊天类客户端直接转发给用户
 - 失败时截图仍会保存到 vault assets 目录
 - 整体超时：90 秒

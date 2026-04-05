@@ -7,27 +7,29 @@
 ## 2. User Flow
 
 ```
-用户截图 → 发送到微信 → 龙虾(OpenClew Agent) 接收
-→ A2A 调用 ClipService HTTP API → 自动处理
-→ 龙虾回复微信确认："已收藏: 标题 [平台] #tag1 #tag2"
+客户端（龙虾 / Web App / iOS App）
+    → 认证 (API Key / JWT)
+    → POST /clip (截图)
+    → ClipService 自动处理
+    → 返回结果："已收藏: 标题 [平台] #tag1 #tag2"
 ```
 
 ## 3. Architecture Diagram
 
 ```
-龙虾 (OpenClew Agent)
+客户端 (龙虾 / Web App / iOS App)
     │
-    │  HTTP POST /clip  (image binary)
+    │  HTTP POST /clip  (image + auth)
     ▼
 ┌─────────────────────────────────────────────────┐
 │                  ClipService                     │
 │                                                  │
-│  ┌─────────────┐                                │
-│  │  A2AServer   │  HTTP 服务，接收截图            │
-│  └──────┬──────┘                                │
+│  ┌──────────────┐                               │
+│  │ InputAdapter  │  HTTP 服务 + 认证，接收截图    │
+│  └──────┬───────┘                               │
 │         ▼                                        │
 │  ┌─────────────┐                                │
-│  │ VLMAnalyzer  │  三模型并发识别 + 投票合并      │
+│  │ VLMAnalyzer  │  可配置 N 模型识别 + 投票合并   │
 │  └──────┬──────┘                                │
 │         ▼                                        │
 │  ┌──────────────┐                               │
@@ -45,7 +47,7 @@
 │                                                  │
 │  外部依赖：                                      │
 │  ├─ OpenRouter API (Claude/Gemini/GPT-4o)       │
-│  ├─ opencli-rs (本地 CLI)                        │
+│  ├─ opencli (本地 CLI)                            │
 │  └─ Obsidian vault (本地文件系统)                │
 └─────────────────────────────────────────────────┘
 ```
@@ -58,7 +60,7 @@ handleClipRequest(imageBuffer)
     ├─ 1. generateClipId() + saveTempScreenshot()
     │
     ├─ 2. vlmAnalyzer.analyze(imageBuffer)
-    │      └─ 三模型并发调用 → 投票合并 → MergedVLMResult
+    │      └─ N 模型并发调用 → 投票合并 → MergedVLMResult
     │
     ├─ 3. clipWriter.findSimilar() → 去重检查
     │
@@ -82,7 +84,7 @@ handleClipRequest(imageBuffer)
 ## 5. Deployment Environment
 
 - **运行环境**：Mac mini，本地常驻 Node.js 服务
-- **依赖服务**：Chrome 浏览器（保持各平台登录态）、opencli-rs CLI 工具、OpenRouter API
+- **依赖服务**：Chrome 浏览器（保持各平台登录态）、opencli CLI 工具、OpenRouter API
 - **存储**：本地 Obsidian vault
 - **进程管理**：PM2 或 launchd
 

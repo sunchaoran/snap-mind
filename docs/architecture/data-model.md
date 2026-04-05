@@ -123,12 +123,8 @@ interface MergedVLMResult {
   /** 整体置信度 */
   confidence: number;
 
-  /** 三个模型的原始结果，用于 debug */
-  rawResults: {
-    claude: VLMResult;
-    gemini: VLMResult;
-    gpt4o: VLMResult;
-  };
+  /** 各模型的原始结果，用于 debug。key 为模型标识 */
+  rawResults: Record<string, VLMResult>;
 }
 ```
 

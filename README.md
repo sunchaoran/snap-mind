@@ -7,11 +7,11 @@ SnapMind (ClipService) 接收手机截图，自动完成平台识别、原文获
 ## How It Works
 
 ```
-用户截图 → 微信发送 → 龙虾接收 → SnapMind API → 自动处理 → 回复确认
+客户端（龙虾 / Web App / iOS App）→ 认证 → SnapMind API → 自动处理 → 返回结果
 ```
 
-1. **VLM 识别** — 三模型并发分析截图，投票合并出平台、作者、标题等结构化信息
-2. **原文获取** — 四级降级策略（opencli-rs → web fetch → 搜索引擎 → 仅截图）
+1. **VLM 识别** — 可配置 N 模型并发分析截图，投票合并出平台、作者、标题等结构化信息
+2. **原文获取** — 四级降级策略（opencli → web fetch → 搜索引擎 → 仅截图）
 3. **内容加工** — LLM 生成摘要、标签、分类
 4. **写入 Vault** — Markdown + frontmatter 存入 Obsidian，支持 Dataview 查询
 
@@ -25,8 +25,8 @@ pnpm dev
 
 ## Prerequisites
 
-- Node.js >= 20
-- [opencli-rs](https://github.com/nicepkg/opencli-rs) + Chrome Extension
+- Node.js >= 22
+- [opencli](https://github.com/nicepkg/opencli) + Chrome Extension
 - Chrome（保持各平台登录态）
 - Obsidian vault
 

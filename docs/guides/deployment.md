@@ -67,7 +67,7 @@ launchctl unload ~/Library/LaunchAgents/com.snapmind.clip-service.plist
 
 ## Chrome Setup
 
-确保 Chrome 浏览器保持以下平台的登录态（opencli-rs Browser 模式依赖）：
+确保 Chrome 浏览器保持以下平台的登录态（opencli Browser 模式依赖）：
 
 - Twitter / X
 - 小红书

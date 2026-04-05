@@ -8,6 +8,8 @@
 |----------|----------|-------------|
 | `OPENROUTER_API_KEY` | Yes | OpenRouter API Key |
 | `OBSIDIAN_VAULT_PATH` | Yes | Obsidian vault 绝对路径，e.g. `/Users/chaoran/ObsidianVault` |
+| `API_KEY` | Yes | 服务间调用密钥（龙虾等 Agent） |
+| `JWT_SECRET` | Yes | JWT 签名密钥（Web App / iOS App 认证） |
 | `SEARCH_API_KEY` | No | Google/Bing 搜索引擎 API Key (L3 fallback) |
 | `GOOGLE_CX` | No | Google Custom Search Engine ID |
 
@@ -21,23 +23,26 @@ export const config = {
     host: "0.0.0.0",
   },
 
+  // 认证
+  auth: {
+    apiKey: process.env.API_KEY!,
+    jwtSecret: process.env.JWT_SECRET!,
+  },
+
   // OpenRouter
   openrouter: {
     apiKey: process.env.OPENROUTER_API_KEY!,
     baseUrl: "https://openrouter.ai/api/v1",
     models: {
-      vlm: [
-        "anthropic/claude-sonnet-4-20250514",
-        "google/gemini-2.5-flash",
-        "openai/gpt-4o",
-      ],
+      // VLM 模型列表，数量必须为奇数（投票机制）。V1 默认单模型
+      vlm: ["google/gemini-2.5-flash"],
       processor: "google/gemini-2.5-flash",
     },
   },
 
-  // opencli-rs
-  opencliRs: {
-    binaryPath: "/usr/local/bin/opencli-rs",
+  // opencli
+  opencli: {
+    binaryPath: "/usr/local/bin/opencli",
     timeout: 15000,
   },
 
@@ -74,6 +79,8 @@ export const config = {
 ```bash
 OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxx
 OBSIDIAN_VAULT_PATH=/Users/chaoran/ObsidianVault
+API_KEY=sk-snapmind-xxxxxxxxxxxx
+JWT_SECRET=your-jwt-secret-here
 SEARCH_API_KEY=AIzaSyxxxxxxxxxxxx
 GOOGLE_CX=xxxxxxxxxxxx
 ```

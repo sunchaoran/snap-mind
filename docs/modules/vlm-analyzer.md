@@ -1,6 +1,6 @@
 # Module: VLMAnalyzer
 
-> 三模型并发分析截图，投票合并出结构化信息。
+> 可配置 N 模型并发分析截图，投票合并出结构化信息。
 
 ## Source Files
 
@@ -14,19 +14,46 @@
 - **Input**: `imageBuffer: Buffer` (截图二进制)
 - **Output**: `MergedVLMResult` (see [data-model](../architecture/data-model.md))
 
-## Models
+## Model Configuration
 
-通过 OpenRouter API 统一调用：
+模型数量可配置，**必须为单数**（投票机制要求多数胜出）。
 
-| Model | Provider |
-|-------|----------|
-| `anthropic/claude-sonnet-4-20250514` | Anthropic |
-| `google/gemini-2.5-flash` | Google |
-| `openai/gpt-4o` | OpenAI |
+| Config | Models | Behavior |
+|--------|--------|----------|
+| V1 默认 | 1 个模型 | 单模型直出，不投票 |
+| 增强模式 | 3 个模型 | 三取二投票合并 |
+| 更高精度 | 5 个模型 | 五取三投票合并 |
+
+### V1 Default Configuration
+
+```typescript
+// config.ts
+openrouter: {
+  models: {
+    vlm: ["google/gemini-2.5-flash"],  // V1: 单模型
+  },
+}
+```
+
+### Enhanced Configuration Example
+
+```typescript
+openrouter: {
+  models: {
+    vlm: [
+      "anthropic/claude-sonnet-4-20250514",
+      "google/gemini-2.5-flash",
+      "openai/gpt-4o",
+    ],
+  },
+}
+```
+
+> 启动时校验 `vlm.length` 必须为奇数，否则抛出配置错误。
 
 ## Prompt Design
 
-三个模型使用完全相同的 prompt + 截图，要求返回统一的 JSON 结构。
+所有模型使用完全相同的 prompt + 截图，要求返回统一的 JSON 结构。
 
 ```
 System Prompt:
@@ -68,10 +95,16 @@ System Prompt:
 ## Voting & Merge Logic
 
 ```typescript
-function mergeVLMResults(claude, gemini, gpt4o): MergedVLMResult {
-  // 1. Platform: 三取二投票；三个都不同取 confidence 最高的
-  // 2. Author: 文本相似度 ≥ 0.8，两个以上一致就采纳
-  // 3. Title: 文本相似度 ≥ 0.7，两个以上一致就采纳
+function mergeVLMResults(results: VLMResult[]): MergedVLMResult {
+  // 单模型: 直接返回，confidence 取模型自身值
+  if (results.length === 1) {
+    return directReturn(results[0]);
+  }
+
+  // 多模型: 投票合并
+  // 1. Platform: 多数胜出；全不同时取 confidence 最高的
+  // 2. Author: 文本相似度 ≥ 0.8，多数一致就采纳
+  // 3. Title: 文本相似度 ≥ 0.7，多数一致就采纳
   // 4. Keywords: 取并集，去重
   // 5. 其余字段: 取非 null 值，优先 confidence 最高的模型
   // 6. 整体置信度: 基于 platform 一致性 + 各字段覆盖度
@@ -80,7 +113,8 @@ function mergeVLMResults(claude, gemini, gpt4o): MergedVLMResult {
 
 ## Constraints
 
-- 三个模型 **并发** 调用，不串行等待
+- 所有模型 **并发** 调用，不串行等待
 - 每个模型调用设 **30 秒** 超时，超时视为该模型结果缺失
-- 1-2 个模型返回结果时，用可用结果合并
+- 部分模型返回结果时，用可用结果合并
 - 0 个模型返回结果时，整体失败，走错误处理
+- 模型数量必须为 **奇数**（1, 3, 5...）
