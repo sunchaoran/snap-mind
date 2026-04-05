@@ -4,7 +4,11 @@ import type {
   MergedVLMResult,
   ProcessedContent,
 } from "../types/index.js";
+import { parseLLMJson } from "../utils/json.js";
+import { createLogger } from "../utils/logger.js";
 import { openrouter } from "../vlm/openrouter.js";
+
+const log = createLogger("processor");
 
 const SYSTEM_PROMPT = `你是一个内容整理助手。对给定的文章内容进行结构化处理。
 
@@ -26,6 +30,23 @@ export async function processContent(
   const content =
     fetchResult.contentFull ?? vlm.contentSnippet ?? vlm.title ?? "";
 
+  const contentSource =
+    fetchResult.contentFull
+      ? "fetchedContent"
+      : vlm.contentSnippet
+        ? "vlmSnippet"
+        : "vlmTitle";
+
+  log.info(
+    {
+      contentSource,
+      contentLength: content.length,
+      fetchLevel: fetchResult.fetchLevel,
+      model: config.openrouter.models.processor,
+    },
+    "▶ processContent start",
+  );
+
   const userMessage = `标题: ${vlm.title ?? "未知"}
 来源: ${vlm.platform}
 内容:
@@ -41,12 +62,21 @@ ${content.slice(0, 32_000)}`;
   });
 
   const text = response.choices[0]?.message?.content ?? "";
-  const parsed = JSON.parse(text) as ProcessedContent;
+  const parsed = parseLLMJson<ProcessedContent>(text);
 
-  // Prefix summary when no original content was fetched
   if (fetchResult.fetchLevel === 4) {
     parsed.summary = `（基于截图识别，未获取到原文）${parsed.summary}`;
   }
+
+  log.info(
+    {
+      category: parsed.category,
+      language: parsed.language,
+      tags: parsed.tags,
+      summaryLength: parsed.summary.length,
+    },
+    "✓ processContent complete",
+  );
 
   return parsed;
 }

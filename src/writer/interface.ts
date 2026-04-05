@@ -1,7 +1,8 @@
 import type { ClipRecord } from "../types/index.js";
 
 export interface ClipWriter {
-  write(record: ClipRecord): Promise<void>;
+  /** Write a clip record and return the vault-relative file path. */
+  write(record: ClipRecord): Promise<string>;
   exists(id: string): Promise<boolean>;
   findSimilar(
     platform: string,

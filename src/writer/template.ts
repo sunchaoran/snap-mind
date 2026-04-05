@@ -28,7 +28,7 @@ export function renderClipMarkdown(record: ClipRecord): string {
     body = `## 原文\n\n${record.contentFull ?? ""}`;
   }
 
-  const screenshot = `## 截图\n\n![[assets/${record.id}.png]]`;
+  const screenshot = `## 截图\n\n![[${record.screenshotPath}]]`;
 
   return `${frontmatter}\n\n${summary}\n\n${body}\n\n${screenshot}\n`;
 }

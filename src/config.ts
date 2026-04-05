@@ -15,8 +15,8 @@ export const config = {
     apiKey: process.env.OPENROUTER_API_KEY!,
     baseUrl: "https://openrouter.ai/api/v1",
     models: {
-      vlm: (process.env.VLM_MODELS || "google/gemini-2.5-flash").split(","),
-      processor: process.env.PROCESSOR_MODEL || "google/gemini-2.5-flash",
+      vlm: (process.env.VLM_MODELS || "moonshotai/kimi-k2.5").split(","),
+      processor: process.env.PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
     },
   },
 
@@ -37,7 +37,7 @@ export const config = {
 
   processing: {
     overallTimeout: 90_000,
-    fetchTimeouts: { l1: 15_000, l2: 20_000, l3: 20_000 },
+    fetchTimeouts: { l1: 15_000, l2: 35_000, l3: 20_000 },
     vlmTimeout: 30_000,
     similarityThreshold: 0.85,
   },

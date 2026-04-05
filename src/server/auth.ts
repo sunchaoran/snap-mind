@@ -12,6 +12,11 @@ export class UnauthorizedError extends Error {
 export async function authenticate(
   request: FastifyRequest,
 ): Promise<AuthResult> {
+  // Dev mode: skip auth when no header is provided
+  if (process.env.NODE_ENV !== "production" && !request.headers.authorization) {
+    return { clientId: "dev", clientType: "agent" };
+  }
+
   const authHeader = request.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {

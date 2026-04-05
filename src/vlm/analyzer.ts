@@ -1,8 +1,12 @@
 import { config } from "../config.js";
 import type { MergedVLMResult, VLMResult } from "../types/index.js";
+import { parseLLMJson } from "../utils/json.js";
+import { createLogger, errMsg } from "../utils/logger.js";
 import { mergeVLMResults } from "./merger.js";
 import { openrouter } from "./openrouter.js";
 import { VLM_SYSTEM_PROMPT } from "./prompt.js";
+
+const log = createLogger("vlm");
 
 export async function analyzeScreenshot(
   imageBuffer: Buffer,
@@ -15,27 +19,70 @@ export async function analyzeScreenshot(
     );
   }
 
-  const base64Image = imageBuffer.toString("base64");
-  const dataUrl = `data:image/png;base64,${base64Image}`;
+  log.info(
+    { models, imageSize: `${(imageBuffer.length / 1024).toFixed(0)}KB` },
+    "▶ analyzeScreenshot start",
+  );
 
-  // Call all models concurrently
+  const base64Image = imageBuffer.toString("base64");
+  const mime = detectImageMime(imageBuffer);
+  const dataUrl = `data:${mime};base64,${base64Image}`;
+
+  const startTime = Date.now();
   const settled = await Promise.allSettled(
-    models.map((model) => callVLM(model, dataUrl)),
+    models.map((model) => {
+      log.debug({ model }, "  calling VLM model");
+      return callVLM(model, dataUrl);
+    }),
   );
 
   const results: Record<string, VLMResult> = {};
+  const errors: string[] = [];
   for (let i = 0; i < models.length; i++) {
     const result = settled[i];
     if (result.status === "fulfilled") {
       results[models[i]] = result.value;
+      log.info(
+        {
+          model: models[i],
+          platform: result.value.platform,
+          confidence: result.value.confidence,
+          author: result.value.author,
+        },
+        "  ✓ VLM model returned",
+      );
+    } else {
+      const reason = errMsg(result.reason);
+      errors.push(`${models[i]}: ${reason}`);
+      log.warn({ model: models[i], error: reason }, "  ✗ VLM model failed");
     }
   }
 
   if (Object.keys(results).length === 0) {
-    throw new Error("All VLM models failed");
+    throw new Error(`All VLM models failed:\n${errors.join("\n")}`);
   }
 
-  return mergeVLMResults(results);
+  const merged = mergeVLMResults(results);
+  const elapsed = Date.now() - startTime;
+
+  log.info(
+    {
+      elapsed: `${elapsed}ms`,
+      platform: merged.platform,
+      confidence: merged.confidence,
+      author: merged.author,
+      title: merged.title?.slice(0, 60),
+      contentType: merged.contentType,
+      hasVisibleUrl: !!merged.visibleUrl,
+      keywordCount: merged.keywords.length,
+      snippetLength: merged.contentSnippet?.length ?? 0,
+      modelsUsed: Object.keys(results).length,
+      modelsFailed: errors.length,
+    },
+    "✓ analyzeScreenshot complete",
+  );
+
+  return merged;
 }
 
 async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
@@ -60,5 +107,13 @@ async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
   );
 
   const text = response.choices[0]?.message?.content ?? "";
-  return JSON.parse(text) as VLMResult;
+  return parseLLMJson<VLMResult>(text);
+}
+
+function detectImageMime(buf: Buffer): string {
+  if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
+  if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
+  if (buf[0] === 0x52 && buf[1] === 0x49) return "image/webp";
+  if (buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
+  return "image/png";
 }

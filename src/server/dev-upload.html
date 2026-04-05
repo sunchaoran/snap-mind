@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SnapMind - Dev Upload</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-lg space-y-6">
+    <div class="text-center space-y-1">
+      <h1 class="text-2xl font-semibold tracking-tight">SnapMind</h1>
+      <p class="text-sm text-zinc-500">开发测试 · 上传截图</p>
+    </div>
+
+    <div id="dropzone"
+      class="border-2 border-dashed border-zinc-700 rounded-xl p-10 text-center cursor-pointer
+             hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
+      <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+      <div id="dropHint" class="space-y-2">
+        <svg class="mx-auto h-10 w-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="上传图标">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
+        </svg>
+        <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择文件</p>
+        <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
+      </div>
+      <img id="preview" class="hidden mx-auto max-h-64 rounded-lg" alt="preview">
+    </div>
+
+    <div class="flex gap-3">
+      <input id="apiKey" type="text" placeholder="API Key（留空使用 localStorage 缓存）"
+        class="flex-1 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm
+               placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600">
+      <button id="submitBtn" type="button" disabled
+        class="rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
+               disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
+        上传
+      </button>
+    </div>
+
+    <div id="result" class="hidden rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
+      <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
+      <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
+      <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap"></pre>
+    </div>
+
+    <div id="spinner" class="hidden text-center py-4">
+      <div class="inline-block h-5 w-5 border-2 border-zinc-600 border-t-white rounded-full animate-spin"></div>
+      <p class="text-xs text-zinc-500 mt-2">处理中，请稍候…</p>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const dropHint = document.getElementById('dropHint');
+    const submitBtn = document.getElementById('submitBtn');
+    const apiKeyInput = document.getElementById('apiKey');
+    const result = document.getElementById('result');
+    const resultHeader = document.getElementById('resultHeader');
+    const obsidianLink = document.getElementById('obsidianLink');
+    const resultBody = document.getElementById('resultBody');
+    const spinner = document.getElementById('spinner');
+
+    let selectedFile = null;
+
+    // Restore cached API key
+    apiKeyInput.value = localStorage.getItem('snapmind_dev_key') || '';
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+      selectFile(file);
+    });
+
+    function selectFile(file) {
+      selectedFile = file;
+      const url = URL.createObjectURL(file);
+      preview.src = url;
+      preview.classList.remove('hidden');
+      dropHint.classList.add('hidden');
+      submitBtn.disabled = false;
+      result.classList.add('hidden');
+    }
+
+    submitBtn.addEventListener('click', async () => {
+      if (!selectedFile) return;
+
+      const key = apiKeyInput.value.trim();
+      if (key) localStorage.setItem('snapmind_dev_key', key);
+
+      submitBtn.disabled = true;
+      spinner.classList.remove('hidden');
+      result.classList.add('hidden');
+
+      const form = new FormData();
+      form.append('image', selectedFile);
+
+      try {
+        const resp = await fetch('/clip', {
+          method: 'POST',
+          headers: key ? { 'Authorization': `Bearer ${key}` } : {},
+          body: form,
+        });
+        const data = await resp.json();
+
+        resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
+        resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
+          data.success ? 'text-emerald-400' : 'text-red-400'
+        }`;
+
+        if (data.success && data.vaultPath) {
+          const file = data.vaultPath.replace(/\.md$/, '');
+          const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
+          obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" role="img" aria-label="Obsidian"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"/></svg>
+            在 Obsidian 中打开 →</a>
+            <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
+          obsidianLink.classList.remove('hidden');
+        } else {
+          obsidianLink.classList.add('hidden');
+        }
+
+        resultBody.textContent = JSON.stringify(data, null, 2);
+        result.classList.remove('hidden');
+      } catch (err) {
+        resultHeader.textContent = '✗ 请求错误';
+        resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+        resultBody.textContent = err.message;
+        result.classList.remove('hidden');
+      } finally {
+        spinner.classList.add('hidden');
+        submitBtn.disabled = false;
+      }
+    });
+  </script>
+</body>
+</html>
