@@ -13,3 +13,4 @@ build/
 Thumbs.db
 
 .claude/
+.idea/
