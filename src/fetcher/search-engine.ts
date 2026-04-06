@@ -1,6 +1,6 @@
-import { config } from "../config.js";
-import type { MergedVLMResult } from "../types/index.js";
-import { createLogger } from "../utils/logger.js";
+import { config } from "@/config.js";
+import type { MergedVLMResult } from "@/types/index.js";
+import { createLogger } from "@/utils/logger.js";
 
 const log = createLogger("search-engine");
 
@@ -46,9 +46,14 @@ function buildQuery(vlm: MergedVLMResult): string {
     parts.push(platformName);
   }
 
-  if (vlm.author) parts.push(vlm.author);
-  if (vlm.title) parts.push(vlm.title);
-  else if (vlm.contentSnippet) parts.push(vlm.contentSnippet.slice(0, 80));
+  if (vlm.author) {
+    parts.push(vlm.author);
+  }
+  if (vlm.title) {
+    parts.push(vlm.title);
+  } else if (vlm.contentSnippet) {
+    parts.push(vlm.contentSnippet.slice(0, 80));
+  }
 
   return parts.join(" ");
 }
@@ -72,7 +77,10 @@ export async function searchForUrl(
   }
 
   log.info(
-    { provider: config.searchEngine.provider, query },
+    {
+      provider: config.searchEngine.provider,
+      query,
+    },
     "searching for original URL",
   );
 
@@ -100,18 +108,30 @@ async function googleSearch(query: string): Promise<string | null> {
     `https://www.googleapis.com/customsearch/v1?${params}`,
   );
   if (!resp.ok) {
-    log.warn({ status: resp.status }, "Google search API returned error");
+    log.warn(
+      {
+        status: resp.status,
+      },
+      "Google search API returned error",
+    );
     return null;
   }
 
   const data = (await resp.json()) as {
-    items?: { link: string; title?: string }[];
+    items?: {
+      link: string;
+      title?: string;
+    }[];
   };
 
   const url = data.items?.[0]?.link ?? null;
   if (url) {
     log.info(
-      { url, title: data.items?.[0]?.title, totalResults: data.items?.length },
+      {
+        url,
+        title: data.items?.[0]?.title,
+        totalResults: data.items?.length,
+      },
       "Google search found URL",
     );
   } else {
@@ -124,22 +144,37 @@ async function bingSearch(query: string): Promise<string | null> {
   const resp = await fetch(
     `https://api.bing.microsoft.com/v7.0/search?q=${encodeURIComponent(query)}&count=5`,
     {
-      headers: { "Ocp-Apim-Subscription-Key": config.searchEngine.apiKey! },
+      headers: {
+        "Ocp-Apim-Subscription-Key": config.searchEngine.apiKey!,
+      },
     },
   );
   if (!resp.ok) {
-    log.warn({ status: resp.status }, "Bing search API returned error");
+    log.warn(
+      {
+        status: resp.status,
+      },
+      "Bing search API returned error",
+    );
     return null;
   }
 
   const data = (await resp.json()) as {
-    webPages?: { value?: { url: string; name?: string }[] };
+    webPages?: {
+      value?: {
+        url: string;
+        name?: string;
+      }[];
+    };
   };
 
   const url = data.webPages?.value?.[0]?.url ?? null;
   if (url) {
     log.info(
-      { url, title: data.webPages?.value?.[0]?.name },
+      {
+        url,
+        title: data.webPages?.value?.[0]?.name,
+      },
       "Bing search found URL",
     );
   } else {

@@ -1,10 +1,10 @@
-import { config } from "../config.js";
-import type { MergedVLMResult, VLMResult } from "../types/index.js";
-import { parseLLMJson } from "../utils/json.js";
-import { createLogger, errMsg } from "../utils/logger.js";
-import { mergeVLMResults } from "./merger.js";
-import { openrouter } from "./openrouter.js";
-import { VLM_SYSTEM_PROMPT } from "./prompt.js";
+import { config } from "@/config.js";
+import type { MergedVLMResult, VLMResult } from "@/types/index.js";
+import { parseLLMJson } from "@/utils/json.js";
+import { createLogger, errMsg } from "@/utils/logger.js";
+import { mergeVLMResults } from "@/vlm/merger.js";
+import { openrouter } from "@/vlm/openrouter.js";
+import { VLM_SYSTEM_PROMPT } from "@/vlm/prompt.js";
 
 const log = createLogger("vlm");
 
@@ -20,7 +20,10 @@ export async function analyzeScreenshot(
   }
 
   log.info(
-    { models, imageSize: `${(imageBuffer.length / 1024).toFixed(0)}KB` },
+    {
+      models,
+      imageSize: `${(imageBuffer.length / 1024).toFixed(0)}KB`,
+    },
     "▶ analyzeScreenshot start",
   );
 
@@ -31,7 +34,12 @@ export async function analyzeScreenshot(
   const startTime = Date.now();
   const settled = await Promise.allSettled(
     models.map((model) => {
-      log.debug({ model }, "  calling VLM model");
+      log.debug(
+        {
+          model,
+        },
+        "  calling VLM model",
+      );
       return callVLM(model, dataUrl);
     }),
   );
@@ -54,7 +62,13 @@ export async function analyzeScreenshot(
     } else {
       const reason = errMsg(result.reason);
       errors.push(`${models[i]}: ${reason}`);
-      log.warn({ model: models[i], error: reason }, "  ✗ VLM model failed");
+      log.warn(
+        {
+          model: models[i],
+          error: reason,
+        },
+        "  ✗ VLM model failed",
+      );
     }
   }
 
@@ -90,12 +104,23 @@ async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
     {
       model,
       messages: [
-        { role: "system", content: VLM_SYSTEM_PROMPT },
+        {
+          role: "system",
+          content: VLM_SYSTEM_PROMPT,
+        },
         {
           role: "user",
           content: [
-            { type: "image_url", image_url: { url: dataUrl } },
-            { type: "text", text: "请分析这张截图。" },
+            {
+              type: "image_url",
+              image_url: {
+                url: dataUrl,
+              },
+            },
+            {
+              type: "text",
+              text: "请分析这张截图。",
+            },
           ],
         },
       ],
@@ -111,9 +136,17 @@ async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
 }
 
 function detectImageMime(buf: Buffer): string {
-  if (buf[0] === 0x89 && buf[1] === 0x50) return "image/png";
-  if (buf[0] === 0xff && buf[1] === 0xd8) return "image/jpeg";
-  if (buf[0] === 0x52 && buf[1] === 0x49) return "image/webp";
-  if (buf[0] === 0x47 && buf[1] === 0x49) return "image/gif";
+  if (buf[0] === 0x89 && buf[1] === 0x50) {
+    return "image/png";
+  }
+  if (buf[0] === 0xff && buf[1] === 0xd8) {
+    return "image/jpeg";
+  }
+  if (buf[0] === 0x52 && buf[1] === 0x49) {
+    return "image/webp";
+  }
+  if (buf[0] === 0x47 && buf[1] === 0x49) {
+    return "image/gif";
+  }
   return "image/png";
 }

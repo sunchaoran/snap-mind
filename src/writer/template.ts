@@ -1,4 +1,4 @@
-import type { ClipRecord } from "../types/index.js";
+import type { ClipRecord } from "@/types/index.js";
 
 export function renderClipMarkdown(record: ClipRecord): string {
   const frontmatter = [

@@ -17,10 +17,14 @@ const rootLogger = pino({
 });
 
 export function createLogger(module: string) {
-  return rootLogger.child({ module });
+  return rootLogger.child({
+    module,
+  });
 }
 
 export function errMsg(err: unknown): string {
-  if (err instanceof Error) return err.message;
+  if (err instanceof Error) {
+    return err.message;
+  }
   return String(err);
 }

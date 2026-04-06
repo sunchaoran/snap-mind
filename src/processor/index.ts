@@ -1,12 +1,12 @@
-import { config } from "../config.js";
+import { config } from "@/config.js";
 import type {
   FetchResult,
   MergedVLMResult,
   ProcessedContent,
-} from "../types/index.js";
-import { parseLLMJson } from "../utils/json.js";
-import { createLogger } from "../utils/logger.js";
-import { openrouter } from "../vlm/openrouter.js";
+} from "@/types/index.js";
+import { parseLLMJson } from "@/utils/json.js";
+import { createLogger } from "@/utils/logger.js";
+import { openrouter } from "@/vlm/openrouter.js";
 
 const log = createLogger("processor");
 
@@ -30,12 +30,11 @@ export async function processContent(
   const content =
     fetchResult.contentFull ?? vlm.contentSnippet ?? vlm.title ?? "";
 
-  const contentSource =
-    fetchResult.contentFull
-      ? "fetchedContent"
-      : vlm.contentSnippet
-        ? "vlmSnippet"
-        : "vlmTitle";
+  const contentSource = fetchResult.contentFull
+    ? "fetchedContent"
+    : vlm.contentSnippet
+      ? "vlmSnippet"
+      : "vlmTitle";
 
   log.info(
     {
@@ -55,8 +54,14 @@ ${content.slice(0, 32_000)}`;
   const response = await openrouter.chat.completions.create({
     model: config.openrouter.models.processor,
     messages: [
-      { role: "system", content: SYSTEM_PROMPT },
-      { role: "user", content: userMessage },
+      {
+        role: "system",
+        content: SYSTEM_PROMPT,
+      },
+      {
+        role: "user",
+        content: userMessage,
+      },
     ],
     temperature: 0,
   });

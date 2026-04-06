@@ -3,8 +3,8 @@ import type {
   MergedVLMResult,
   Platform,
   VLMResult,
-} from "../types/index.js";
-import { textSimilarity } from "../utils/similarity.js";
+} from "@/types/index.js";
+import { textSimilarity } from "@/utils/similarity.js";
 
 /**
  * Merge N VLM results using majority voting.
@@ -71,7 +71,9 @@ export function mergeVLMResults(
 function votePlatform(results: VLMResult[]): Platform {
   const votes = results.map((r) => r.platform).filter(Boolean) as Platform[];
   const winner = majorityVote(votes);
-  if (winner) return winner;
+  if (winner) {
+    return winner;
+  }
 
   const best = results.reduce((a, b) => (a.confidence >= b.confidence ? a : b));
   return best.platform ?? "unknown";
@@ -93,8 +95,12 @@ function textConsensus(
   threshold: number,
 ): string | null {
   const valid = candidates.filter(Boolean) as string[];
-  if (valid.length === 0) return null;
-  if (valid.length === 1) return valid[0];
+  if (valid.length === 0) {
+    return null;
+  }
+  if (valid.length === 1) {
+    return valid[0];
+  }
 
   const groups: string[][] = [];
   for (const text of valid) {
@@ -106,7 +112,11 @@ function textConsensus(
         break;
       }
     }
-    if (!placed) groups.push([text]);
+    if (!placed) {
+      groups.push([
+        text,
+      ]);
+    }
   }
 
   const largest = groups.reduce((a, b) => (a.length >= b.length ? a : b));
@@ -122,11 +132,15 @@ function uniqueKeywords(keywords: string[]): string[] {
       normalized.set(key, kw);
     }
   }
-  return [...normalized.values()];
+  return [
+    ...normalized.values(),
+  ];
 }
 
 function majorityVote<T extends string>(votes: T[]): T | null {
-  if (votes.length === 0) return null;
+  if (votes.length === 0) {
+    return null;
+  }
 
   const counts = new Map<T, number>();
   for (const v of votes) {
@@ -135,7 +149,9 @@ function majorityVote<T extends string>(votes: T[]): T | null {
 
   const threshold = Math.floor(votes.length / 2) + 1;
   for (const [value, count] of counts) {
-    if (count >= threshold) return value;
+    if (count >= threshold) {
+      return value;
+    }
   }
 
   // No majority — return the most common
@@ -156,7 +172,9 @@ function pickNonNull<T>(values: (T | null)[]): T | null {
 
 function pickLongest(values: (string | null)[]): string | null {
   const valid = values.filter(Boolean) as string[];
-  if (valid.length === 0) return null;
+  if (valid.length === 0) {
+    return null;
+  }
   return valid.reduce((a, b) => (a.length >= b.length ? a : b));
 }
 
@@ -186,7 +204,9 @@ function calculateOverallConfidence(
   ];
   let coveredFields = 0;
   for (const field of keyFields) {
-    if (results.some((r) => r[field] != null)) coveredFields++;
+    if (results.some((r) => r[field] != null)) {
+      coveredFields++;
+    }
   }
   const coverageScore = coveredFields / keyFields.length;
 
