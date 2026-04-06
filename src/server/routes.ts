@@ -2,56 +2,98 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { FastifyInstance } from "fastify";
-import { config } from "../config.js";
-import { fetchContent } from "../fetcher/index.js";
-import { processContent } from "../processor/index.js";
-import { saveScreenshot, saveSidecarJson } from "../store/screenshot.js";
-import type { ClipRecord, ClipResponse } from "../types/index.js";
-import { generateClipId } from "../utils/id.js";
-import { createLogger } from "../utils/logger.js";
-import { analyzeScreenshot } from "../vlm/analyzer.js";
-import { MarkdownWriter } from "../writer/markdown.js";
-import { authenticate, UnauthorizedError } from "./auth.js";
+import { config } from "@/config.js";
+import { fetchContent } from "@/fetcher/index.js";
+import { processContent } from "@/processor/index.js";
+import { authenticate } from "@/server/auth.js";
+import {
+  createJob,
+  getJob,
+  jobDone,
+  jobError,
+  stepDone,
+  stepSkipped,
+  stepStart,
+} from "@/server/job-store.js";
+import { saveScreenshot, saveSidecarJson } from "@/store/screenshot.js";
+import type { ClipRecord, ClipResponse } from "@/types/index.js";
+import { generateClipId } from "@/utils/id.js";
+import { createLogger } from "@/utils/logger.js";
+import { analyzeScreenshot } from "@/vlm/analyzer.js";
+import { findSimilarClip, writeClip } from "@/writer/markdown.js";
 
 const __dirname = join(fileURLToPath(import.meta.url), "..");
 const log = createLogger("pipeline");
-const writer = new MarkdownWriter();
 
 export async function registerRoutes(app: FastifyInstance) {
   app.post("/clip", async (request, reply) => {
-    try {
-      await authenticate(request);
-    } catch (err) {
-      if (err instanceof UnauthorizedError) {
-        return reply.status(401).send({ success: false, error: err.message });
-      }
-      throw err;
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
     }
 
     const data = await request.file();
     if (!data) {
-      return reply
-        .status(400)
-        .send({ success: false, error: "Missing image file" });
+      return reply.status(400).send({
+        success: false,
+        error: "Missing image file",
+      });
     }
 
     const imageBuffer = await data.toBuffer();
     const clipId = generateClipId();
+    const jobId = clipId; // reuse clipId as jobId for simplicity
 
-    const result = await withTimeout(
-      handleClip(clipId, imageBuffer),
+    createJob(jobId, clipId);
+
+    // Fire and forget — pipeline runs in background
+    withTimeout(
+      handleClip(jobId, clipId, imageBuffer),
       config.processing.overallTimeout,
     ).catch(async (error) => {
-      log.error({ clipId, error: error instanceof Error ? error.message : String(error) }, "pipeline failed");
-      return handleFailure(clipId, imageBuffer);
+      log.error(
+        {
+          clipId,
+          error: error instanceof Error ? error.message : String(error),
+        },
+        "pipeline failed",
+      );
+      const result = await handleFailure(clipId, imageBuffer);
+      jobError(jobId, result);
     });
 
-    const statusCode = result.success ? 200 : 500;
-    return reply.status(statusCode).send(result);
+    return reply.status(202).send({
+      jobId,
+    });
   });
 
+  app.get<{
+    Params: {
+      id: string;
+    };
+  }>(
+    "/jobs/:id",
+    {
+      logLevel: "warn",
+    },
+    async (request, reply) => {
+      const job = getJob(request.params.id);
+      if (!job) {
+        return reply.status(404).send({
+          error: "Job not found",
+        });
+      }
+      return job;
+    },
+  );
+
   app.get("/health", async () => {
-    return { status: "ok" };
+    return {
+      status: "ok",
+    };
   });
 
   if (process.env.NODE_ENV !== "production") {
@@ -63,49 +105,123 @@ export async function registerRoutes(app: FastifyInstance) {
 }
 
 async function handleClip(
+  jobId: string,
   clipId: string,
   imageBuffer: Buffer,
-): Promise<ClipResponse> {
+): Promise<void> {
   const pipelineStart = Date.now();
-  log.info({ clipId }, "═══════════════════════════════════════════════");
-  log.info({ clipId }, "▶ Pipeline start");
+  log.info(
+    {
+      clipId,
+    },
+    "═══════════════════════════════════════════════",
+  );
+  log.info(
+    {
+      clipId,
+    },
+    "▶ Pipeline start",
+  );
 
   // 1. VLM analysis
-  log.info({ clipId }, "── Step 1/7: VLM Screenshot Analysis ──");
+  stepStart(jobId, 0, "正在分析截图…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 1/7: VLM Screenshot Analysis ──",
+  );
   const vlmResult = await analyzeScreenshot(imageBuffer);
+  stepDone(
+    jobId,
+    0,
+    `识别为 ${vlmResult.platform}，置信度 ${vlmResult.confidence}`,
+  );
 
   // 2. Dedup check
-  log.info({ clipId }, "── Step 2/7: Dedup Check ──");
-  const existingId = await writer.findSimilar(
+  stepStart(jobId, 1, "检查是否已收藏…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 2/7: Dedup Check ──",
+  );
+  const existingId = await findSimilarClip(
     vlmResult.platform,
     vlmResult.author,
     vlmResult.title,
   );
   if (existingId) {
-    log.info({ clipId, existingId }, "⊘ duplicate found, skipping");
-    return {
+    log.info(
+      {
+        clipId,
+        existingId,
+      },
+      "⊘ duplicate found, skipping",
+    );
+    stepSkipped(jobId, 1, `已存在 (${existingId})`);
+    // Mark remaining steps as skipped
+    for (let i = 2; i < 7; i++) {
+      stepSkipped(jobId, i);
+    }
+    const result: ClipResponse = {
       success: true,
       clipId: existingId,
       message: `已存在相似收藏 (${existingId})，跳过`,
     };
+    jobDone(jobId, result);
+    return;
   }
+  stepDone(jobId, 1, "无重复");
   log.info("  no duplicate found");
 
   // 3. Fetch original content
-  log.info({ clipId }, "── Step 3/7: Content Fetch (L1→L2→L3→L4) ──");
+  stepStart(jobId, 2, "抓取原文内容…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 3/7: Content Fetch (L1→L2→L3→L4) ──",
+  );
   const fetchResult = await fetchContent(vlmResult);
+  stepDone(jobId, 2, `Level ${fetchResult.fetchLevel}`);
 
   // 4. Process content (summary/tags/category)
-  log.info({ clipId }, "── Step 4/7: Content Processing ──");
+  stepStart(jobId, 3, "生成摘要和标签…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 4/7: Content Processing ──",
+  );
   const processed = await processContent(vlmResult, fetchResult);
+  stepDone(jobId, 3, `${processed.category} / ${processed.tags.join(", ")}`);
 
   // 5. Save screenshot to vault
-  log.info({ clipId }, "── Step 5/7: Save Screenshot ──");
+  stepStart(jobId, 4, "保存截图…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 5/7: Save Screenshot ──",
+  );
   const screenshotPath = await saveScreenshot(clipId, imageBuffer);
-  log.info({ screenshotPath }, "  screenshot saved");
+  stepDone(jobId, 4);
+  log.info(
+    {
+      screenshotPath,
+    },
+    "  screenshot saved",
+  );
 
   // 6. Assemble ClipRecord
-  log.info({ clipId }, "── Step 6/7: Assemble Record ──");
+  stepStart(jobId, 5, "组装记录…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 6/7: Assemble Record ──",
+  );
   const record: ClipRecord = {
     id: clipId,
     title: vlmResult.title ?? "未知标题",
@@ -124,13 +240,26 @@ async function handleClip(
     createdAt: new Date().toISOString(),
     rawVlmResult: vlmResult,
   };
+  stepDone(jobId, 5);
 
   // 7. Write to Obsidian vault
-  log.info({ clipId }, "── Step 7/7: Write to Vault ──");
-  const vaultPath = await writer.write(record);
-  log.info({ vaultPath: `${config.vault.basePath}/${vaultPath}` }, "  vault file written");
+  stepStart(jobId, 6, "写入 Obsidian…");
+  log.info(
+    {
+      clipId,
+    },
+    "── Step 7/7: Write to Vault ──",
+  );
+  const vaultPath = await writeClip(record);
+  log.info(
+    {
+      vaultPath: `${config.vault.basePath}/${vaultPath}`,
+    },
+    "  vault file written",
+  );
 
   await saveSidecarJson(clipId, vlmResult);
+  stepDone(jobId, 6, vaultPath);
 
   const elapsed = Date.now() - pipelineStart;
   const tagStr = processed.tags.map((t) => `#${t}`).join(" ");
@@ -147,9 +276,14 @@ async function handleClip(
     },
     "✓ Pipeline complete",
   );
-  log.info({ clipId }, "═══════════════════════════════════════════════");
+  log.info(
+    {
+      clipId,
+    },
+    "═══════════════════════════════════════════════",
+  );
 
-  return {
+  const result: ClipResponse = {
     success: true,
     clipId,
     title: record.title,
@@ -160,6 +294,7 @@ async function handleClip(
     vaultPath,
     message: `已收藏: ${record.title} [${record.platform}] ${tagStr}`,
   };
+  jobDone(jobId, result);
 }
 
 async function handleFailure(
@@ -202,7 +337,7 @@ async function handleFailure(
         rawResults: {},
       },
     };
-    await writer.write(failRecord);
+    await writeClip(failRecord);
   } catch {
     // Failure record write itself failed
   }
