@@ -1,3 +1,4 @@
+import { cpSync } from "node:fs";
 import { defineConfig } from "tsup";
 
 export default defineConfig({
@@ -16,5 +17,10 @@ export default defineConfig({
     options.alias = {
       "@": "./src",
     };
+  },
+  onSuccess() {
+    cpSync("src/prompts", "dist/prompts", {
+      recursive: true,
+    });
   },
 });
