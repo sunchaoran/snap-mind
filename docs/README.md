@@ -18,13 +18,19 @@
 ```
 客户端 (龙虾 / Web App / iOS App)
     │
-    │  HTTP POST /clip  (image + auth)
+    │  POST /clip  (image + auth)
     ▼
 ┌─────────────────────────────────────────────────┐
 │                  ClipService                     │
 │                                                  │
-│  InputAdapter → VLMAnalyzer → ContentFetcher     │
-│       → ContentProcessor → ClipWriter            │
+│  InputAdapter → 创建 Job → 返回 jobId (202)      │
+│       │                                          │
+│       └─ async pipeline ─────────────────────    │
+│          VLMAnalyzer → ContentFetcher            │
+│          → ContentProcessor → ClipWriter         │
+│          (每步更新 JobStore)                      │
+│                                                  │
+│  GET /jobs/:id  → 轮询 Job 状态 + 进度           │
 │                                                  │
 │  External: OpenRouter API / opencli / Vault       │
 └─────────────────────────────────────────────────┘
@@ -49,7 +55,9 @@ clip-service/
 │   ├── index.ts                # 入口，启动 HTTP 服务
 │   ├── config.ts               # 配置定义
 │   ├── server/
-│   │   ├── routes.ts           # HTTP 路由 (POST /clip)
+│   │   ├── routes.ts           # HTTP 路由 (POST /clip, GET /jobs/:id)
+│   │   ├── job-store.ts        # 异步 Job 状态管理（内存）
+│   │   ├── dev-upload.html     # Dev 上传页面（含进度条）
 │   │   └── auth.ts             # 认证中间件 (API Key / JWT)
 │   ├── vlm/
 │   │   ├── analyzer.ts         # VLMAnalyzer 主逻辑

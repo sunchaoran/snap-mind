@@ -22,7 +22,7 @@
 
 ## POST /clip
 
-接收截图，触发完整处理流程，返回收藏结果。
+接收截图，创建异步处理 Job，立即返回 `jobId`。
 
 ### Request
 
@@ -36,35 +36,111 @@ Authorization: Bearer <token>
 |-------|------|----------|-------------|
 | image | File (png/jpg/webp) | Yes | 截图文件 |
 
-### Response: Success (200)
+### Response: Accepted (202)
 
 ```json
 {
-  "success": true,
-  "clipId": "clip_20260402_143000_a3f2",
-  "title": "Rust 异步编程指南",
-  "platform": "xiaohongshu",
-  "tags": ["rust", "async", "编程"],
-  "category": "tech",
-  "fetchLevel": 1,
-  "message": "已收藏: Rust 异步编程指南 [小红书] #rust #async #编程"
+  "jobId": "clip_20260402_143000_a3f2"
 }
 ```
 
-### Response: Error (500)
+客户端收到 `jobId` 后，通过 `GET /jobs/:id` 轮询处理进度。
+
+---
+
+## GET /jobs/:id
+
+查询 Job 的实时状态和各步骤进度。
+
+### Request
+
+```
+GET /jobs/:id
+```
+
+### Response: Running (200)
 
 ```json
 {
-  "success": false,
+  "id": "clip_20260402_143000_a3f2",
   "clipId": "clip_20260402_143000_a3f2",
-  "error": "All fetch levels failed",
-  "screenshotSaved": true,
-  "message": "处理失败，已保存原始截图，请稍后重试"
+  "status": "running",
+  "currentStep": 2,
+  "steps": [
+    { "name": "VLM 截图分析", "status": "done", "message": "识别为 xiaohongshu，置信度 0.95" },
+    { "name": "去重检查", "status": "done", "message": "无重复" },
+    { "name": "抓取原文", "status": "running", "message": "抓取原文内容…" },
+    { "name": "内容处理", "status": "pending" },
+    { "name": "保存截图", "status": "pending" },
+    { "name": "组装记录", "status": "pending" },
+    { "name": "写入 Vault", "status": "pending" }
+  ]
 }
 ```
+
+### Response: Done (200)
+
+```json
+{
+  "id": "clip_20260402_143000_a3f2",
+  "clipId": "clip_20260402_143000_a3f2",
+  "status": "done",
+  "currentStep": 6,
+  "steps": [ "..." ],
+  "result": {
+    "success": true,
+    "clipId": "clip_20260402_143000_a3f2",
+    "title": "Rust 异步编程指南",
+    "platform": "xiaohongshu",
+    "tags": ["rust", "async", "编程"],
+    "category": "tech",
+    "fetchLevel": 1,
+    "vaultPath": "Clippings/2026-04-02_xiaohongshu_rust-async.md",
+    "message": "已收藏: Rust 异步编程指南 [小红书] #rust #async #编程"
+  }
+}
+```
+
+### Response: Error (200)
+
+```json
+{
+  "id": "clip_20260402_143000_a3f2",
+  "clipId": "clip_20260402_143000_a3f2",
+  "status": "error",
+  "steps": [ "..." ],
+  "result": {
+    "success": false,
+    "clipId": "clip_20260402_143000_a3f2",
+    "error": "Pipeline processing failed",
+    "screenshotSaved": true,
+    "message": "处理失败，已保存原始截图，请稍后重试"
+  }
+}
+```
+
+### Response: Not Found (404)
+
+```json
+{
+  "error": "Job not found"
+}
+```
+
+### Step Status 枚举
+
+| Status | Description |
+|--------|-------------|
+| `pending` | 等待执行 |
+| `running` | 正在执行 |
+| `done` | 完成 |
+| `skipped` | 跳过（如去重命中后续步骤） |
+| `error` | 失败 |
 
 ### Notes
 
-- `message` 字段可供聊天类客户端直接转发给用户
+- Job 数据保存在内存中，30 分钟后自动清理
+- `result` 字段仅在 `status` 为 `done` 或 `error` 时存在
+- `result.message` 字段可供聊天类客户端直接转发给用户
 - 失败时截图仍会保存到 vault assets 目录
 - 整体超时：90 秒
