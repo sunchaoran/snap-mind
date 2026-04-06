@@ -1,12 +1,17 @@
 import { config } from "@/config.js";
-import type { MergedVLMResult, VLMResult } from "@/types/index.js";
+import type { MergedVLMResult, Platform, VLMResult } from "@/types/index.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { mergeVLMResults } from "@/vlm/merger.js";
 import { openrouter } from "@/vlm/openrouter.js";
-import { VLM_SYSTEM_PROMPT } from "@/vlm/prompt.js";
+import { buildExtractPrompt, VLM_IDENTIFY_PROMPT } from "@/vlm/prompt.js";
 
 const log = createLogger("vlm");
+
+interface IdentifyResult {
+  platform: Platform;
+  confidence: number;
+}
 
 export async function analyzeScreenshot(
   imageBuffer: Buffer,
@@ -31,6 +36,24 @@ export async function analyzeScreenshot(
   const mime = detectImageMime(imageBuffer);
   const dataUrl = `data:${mime};base64,${base64Image}`;
 
+  // Step 1: Identify platform
+  const identifyResult = await callVLMRaw<IdentifyResult>(
+    models[0],
+    dataUrl,
+    VLM_IDENTIFY_PROMPT,
+  );
+  const platform = identifyResult.platform ?? "unknown";
+  log.info(
+    {
+      platform,
+      confidence: identifyResult.confidence,
+    },
+    "  platform identified",
+  );
+
+  // Step 2: Extract with platform-specific prompt
+  const extractPrompt = buildExtractPrompt(platform);
+
   const startTime = Date.now();
   const settled = await Promise.allSettled(
     models.map((model) => {
@@ -40,7 +63,7 @@ export async function analyzeScreenshot(
         },
         "  calling VLM model",
       );
-      return callVLM(model, dataUrl);
+      return callVLMRaw<VLMResult>(model, dataUrl, extractPrompt);
     }),
   );
 
@@ -99,14 +122,18 @@ export async function analyzeScreenshot(
   return merged;
 }
 
-async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
+async function callVLMRaw<T>(
+  model: string,
+  dataUrl: string,
+  systemPrompt: string,
+): Promise<T> {
   const response = await openrouter.chat.completions.create(
     {
       model,
       messages: [
         {
           role: "system",
-          content: VLM_SYSTEM_PROMPT,
+          content: systemPrompt,
         },
         {
           role: "user",
@@ -132,7 +159,7 @@ async function callVLM(model: string, dataUrl: string): Promise<VLMResult> {
   );
 
   const text = response.choices[0]?.message?.content ?? "";
-  return parseLLMJson<VLMResult>(text);
+  return parseLLMJson<T>(text);
 }
 
 function detectImageMime(buf: Buffer): string {
