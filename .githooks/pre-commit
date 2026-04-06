@@ -2,8 +2,8 @@
 
 echo "Running lint:fix before commit..."
 
-# Capture staged files before biome runs
-staged_files=$(git diff --name-only --cached)
+# Capture only added/modified staged files before biome runs (not deletions)
+staged_files=$(git diff --name-only --diff-filter=AM --cached)
 
 pnpm lint:fix
 
