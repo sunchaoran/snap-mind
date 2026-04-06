@@ -512,7 +512,7 @@ System Prompt:
 
 {
   "summary": "3-5 句话的核心摘要，概括文章最重要的信息和观点",
-  "tags": ["3-5个具体标签，偏具体而非抽象，如 'rust' 而非 'programming'"],
+  "tags": ["3-5个具体标签，偏具体而非抽象，如 'rust' 而非 'programming'"；不允许有空格，可以有中割线，如 'open-source' 而非 'open source'],
   "category": "从以下枚举中选一个最匹配的: tech | design | product | business | finance | science | life | culture | career | other",
   "language": "内容的主要语言，如 zh、en、ja"
 }

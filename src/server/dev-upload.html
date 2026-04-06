@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapMind - Dev Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 16px 4px rgba(250, 204, 21, 0.6);
+            }
+        }
+
+        .step-running {
+            animation: glow 1.5s ease-in-out infinite;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-center p-6 gap-8">
+
+<!-- Header -->
+<div class="text-center space-y-1">
+    <h1 class="text-2xl font-semibold tracking-tight inline-flex items-center justify-center gap-2">SnapMind <span
+            class="text-xs font-medium bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">dev</span></h1>
+    <p class="text-sm text-zinc-500">截图即收藏</p>
+</div>
+
+<!-- Upload area -->
+<div class="w-full max-w-md space-y-3">
+    <div id="dropzone"
+         class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer
+             hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
+        <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+        <div id="dropHint" class="space-y-2">
+            <i data-lucide="upload" class="mx-auto h-8 w-8 text-zinc-600"></i>
+            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择</p>
+            <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
+        </div>
+        <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
+    </div>
+
+    <!-- History images -->
+    <div id="historySection" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-zinc-500">历史上传</span>
+            <button id="clearHistory" type="button" class="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">清空</button>
+        </div>
+        <div id="historyGrid" class="grid grid-cols-5 gap-2"></div>
+    </div>
+
+    <button id="submitBtn" type="button" disabled
+            class="w-full rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
+             disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
+        上传
+    </button>
+</div>
+
+<!-- Timeline -->
+<div id="timeline" class="hidden w-full max-w-3xl">
+    <div class="relative flex items-start justify-between px-4">
+        <!-- Background line (z-0) -->
+        <div class="absolute top-4 left-4 right-4 h-0.5 bg-zinc-800 rounded-full z-0"></div>
+        <!-- Progress line (z-0) -->
+        <div id="timelineFill"
+             class="absolute top-4 left-4 h-0.5 bg-emerald-500 rounded-full transition-all duration-500 z-0"
+             style="width:0"></div>
+        <!-- Step nodes sit above the line (z-10) -->
+        <div id="timelineNodes" class="relative flex justify-between w-full z-10"></div>
+    </div>
+    <!-- Current step message -->
+    <div id="stepMessage" class="mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300"></div>
+</div>
+
+<!-- Result panel -->
+<div id="result" class="hidden w-full max-w-xl rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
+    <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
+    <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
+    <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
+</div>
+
+<script>
+    const STEP_LABELS = ['识别', '去重', '抓取', '处理', '截图', '组装', '写入'];
+
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const dropHint = document.getElementById('dropHint');
+    const submitBtn = document.getElementById('submitBtn');
+    const timeline = document.getElementById('timeline');
+    const timelineFill = document.getElementById('timelineFill');
+    const timelineNodes = document.getElementById('timelineNodes');
+    const stepMessage = document.getElementById('stepMessage');
+    const result = document.getElementById('result');
+    const resultHeader = document.getElementById('resultHeader');
+    const obsidianLink = document.getElementById('obsidianLink');
+    const resultBody = document.getElementById('resultBody');
+
+    const historySection = document.getElementById('historySection');
+    const historyGrid = document.getElementById('historyGrid');
+    const clearHistory = document.getElementById('clearHistory');
+    const HISTORY_KEY = 'snapmind_upload_history';
+    const MAX_HISTORY = 5;
+
+    let selectedFile = null;
+
+    lucide.createIcons();
+
+    // --- History helpers ---
+    function getHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+    }
+
+    function saveToHistory(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const entry = { dataUrl: reader.result, name: file.name, type: file.type };
+            const history = getHistory().filter(h => h.dataUrl !== entry.dataUrl);
+            history.unshift(entry);
+            if (history.length > MAX_HISTORY) { history.pop(); }
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota exceeded */ }
+            renderHistory();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function dataUrlToFile(dataUrl, name, type) {
+        const [, base64] = dataUrl.split(',');
+        const bin = atob(base64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) { arr[i] = bin.charCodeAt(i); }
+        return new File([arr], name, { type });
+    }
+
+    function renderHistory() {
+        const history = getHistory();
+        if (!history.length) { historySection.classList.add('hidden'); return; }
+        historySection.classList.remove('hidden');
+        historyGrid.innerHTML = history.map((h, i) => `
+          <div class="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-zinc-800 hover:border-zinc-500 transition-colors aspect-square" data-idx="${i}">
+            <img src="${h.dataUrl}" alt="${h.name}" class="w-full h-full object-cover">
+          </div>
+        `).join('');
+        historyGrid.querySelectorAll('[data-idx]').forEach(el => {
+            el.addEventListener('click', () => {
+                const h = history[parseInt(el.dataset.idx, 10)];
+                const file = dataUrlToFile(h.dataUrl, h.name, h.type);
+                selectFile(file);
+            });
+        });
+    }
+
+    clearHistory.addEventListener('click', () => {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+    });
+
+    renderHistory();
+
+    // Build timeline nodes
+    timelineNodes.innerHTML = STEP_LABELS.map((label, i) => `
+      <div class="flex flex-col items-center gap-2 z-10" style="width:${100 / STEP_LABELS.length}%">
+        <div id="node-${i}"
+          class="w-8 h-8 z-10 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center
+                 text-xs font-medium text-zinc-600 transition-all duration-300">
+          ${i + 1}
+        </div>
+        <span id="label-${i}" class="text-xs text-zinc-600 transition-colors duration-300">${label}</span>
+      </div>
+    `).join('');
+
+    fileInput.addEventListener('change', (e) => {
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+        selectFile(file);
+    });
+
+    function selectFile(file) {
+        selectedFile = file;
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove('hidden');
+        dropHint.classList.add('hidden');
+        submitBtn.disabled = false;
+        result.classList.add('hidden');
+        timeline.classList.add('hidden');
+    }
+
+    function resetTimeline() {
+        for (let i = 0; i < STEP_LABELS.length; i++) {
+            const node = document.getElementById(`node-${i}`);
+            const label = document.getElementById(`label-${i}`);
+            node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-900 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
+            node.innerHTML = `${i + 1}`;
+            label.className = 'text-xs text-zinc-600 transition-colors duration-300';
+        }
+        timelineFill.style.width = '0';
+        stepMessage.textContent = '';
+    }
+
+    function updateTimeline(job) {
+        const steps = job.steps;
+        const total = steps.length;
+        const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
+
+        // Fill line: calculate based on last completed node position
+        const segment = 100 / (total - 1);
+        const fillPct = Math.min(doneCount * segment, 100);
+        timelineFill.style.width = `calc(${fillPct}%)`;
+
+        for (let i = 0; i < total; i++) {
+            const s = steps[i];
+            const node = document.getElementById(`node-${i}`);
+            const label = document.getElementById(`label-${i}`);
+
+            // Reset classes
+            node.classList.remove('step-running');
+
+            if (s.status === 'done') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-emerald-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-emerald-400 transition-all duration-300';
+                node.innerHTML = '✓';
+                label.className = 'text-xs text-emerald-400 transition-colors duration-300';
+            } else if (s.status === 'running') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-yellow-400 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-yellow-400 transition-all duration-300 step-running';
+                node.innerHTML = `<span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>`;
+                label.className = 'text-xs text-yellow-400 font-medium transition-colors duration-300';
+            } else if (s.status === 'skipped') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-600 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-500 transition-all duration-300';
+                node.innerHTML = '–';
+                label.className = 'text-xs text-zinc-500 transition-colors duration-300';
+            } else if (s.status === 'error') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-red-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-red-400 transition-all duration-300';
+                node.innerHTML = '✗';
+                label.className = 'text-xs text-red-400 transition-colors duration-300';
+            } else {
+                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
+                node.innerHTML = `${i + 1}`;
+                label.className = 'text-xs text-zinc-600 transition-colors duration-300';
+            }
+        }
+
+        // Show current step message
+        const running = steps.find(s => s.status === 'running');
+        const lastDone = [...steps].reverse().find(s => s.status === 'done');
+        if (job.status === 'done') {
+            stepMessage.textContent = '🎉 处理完成';
+            stepMessage.className = 'mt-6 text-center text-sm text-emerald-400 h-5 transition-opacity duration-300';
+        } else if (job.status === 'error') {
+            stepMessage.textContent = '处理失败';
+            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+        } else if (running) {
+            stepMessage.textContent = running.message || running.name;
+            stepMessage.className = 'mt-6 text-center text-sm text-zinc-300 h-5 transition-opacity duration-300';
+        } else if (lastDone?.message) {
+            stepMessage.textContent = lastDone.message;
+            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+        }
+    }
+
+    async function pollJob(jobId) {
+        while (true) {
+            await new Promise(r => setTimeout(r, 3_000));
+            try {
+                const resp = await fetch(`/jobs/${jobId}`);
+                if (!resp.ok) {
+                    continue;
+                }
+                const job = await resp.json();
+                updateTimeline(job);
+
+                if (job.status === 'done' || job.status === 'error') {
+                    showResult(job.result);
+                    submitBtn.disabled = false;
+                    return;
+                }
+            } catch {
+                // network hiccup, keep polling
+            }
+        }
+    }
+
+    function showResult(data) {
+        if (!data) {
+            return;
+        }
+
+        resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
+        resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
+            data.success ? 'text-emerald-400' : 'text-red-400'
+        }`;
+
+        if (data.success && data.vaultPath) {
+            const file = data.vaultPath.replace(/\.md$/, '');
+            const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
+            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+          <i data-lucide="external-link" class="h-4 w-4"></i>
+          在 Obsidian 中打开 →</a>
+          <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
+            obsidianLink.classList.remove('hidden');
+        } else if (data.success && data.clipId) {
+            // Duplicate case: search by clipId
+            const uri = `obsidian://search?query=${encodeURIComponent(data.clipId)}`;
+            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+          <i data-lucide="search" class="h-4 w-4"></i>
+          在 Obsidian 中查看已有收藏 →</a>
+          <span class="text-xs text-zinc-600 ml-2">${data.clipId}</span>`;
+            obsidianLink.classList.remove('hidden');
+        } else {
+            obsidianLink.classList.add('hidden');
+        }
+
+        resultBody.textContent = JSON.stringify(data, null, 2);
+        result.classList.remove('hidden');
+        lucide.createIcons();
+    }
+
+    submitBtn.addEventListener('click', async () => {
+        if (!selectedFile) {
+            return;
+        }
+
+        submitBtn.disabled = true;
+        result.classList.add('hidden');
+
+        resetTimeline();
+        timeline.classList.remove('hidden');
+        stepMessage.textContent = '提交中…';
+        stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+
+        const form = new FormData();
+        form.append('image', selectedFile);
+        saveToHistory(selectedFile);
+
+        try {
+            const resp = await fetch('/clip', {
+                method: 'POST',
+                body: form
+            });
+            const data = await resp.json();
+
+            if (data.jobId) {
+                pollJob(data.jobId);
+            } else {
+                showResult(data);
+                timeline.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            stepMessage.textContent = '请求失败';
+            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+            resultHeader.textContent = '✗ 请求错误';
+            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+            resultBody.textContent = err.message;
+            result.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
+    });
+</script>
+</body>
+</html>

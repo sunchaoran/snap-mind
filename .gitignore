@@ -1,13 +1,16 @@
 node_modules/
 dist/
 build/
+*.tsbuildinfo
 
 .env
 .env.*
 !.env.example
 
 *.log
-*.tsbuildinfo
 
 .DS_Store
 Thumbs.db
+
+.claude/
+.idea/

@@ -1,0 +1,19 @@
+#!/bin/sh
+
+echo "Running lint:fix before commit..."
+
+# Capture only added/modified staged files before biome runs (not deletions)
+staged_files=$(git diff --name-only --diff-filter=AM --cached)
+
+pnpm lint:fix
+
+# If lint:fix fails, abort commit
+if [ $? -ne 0 ]; then
+  echo "lint:fix failed. Commit aborted."
+  exit 1
+fi
+
+# Re-add only the files that were already staged (in case biome modified them)
+if [ -n "$staged_files" ]; then
+  echo "$staged_files" | xargs -I {} git add {}
+fi
