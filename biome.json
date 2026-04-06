@@ -20,15 +20,22 @@
         "noUnusedVariables": "warn"
       },
       "style": {
-        "noNonNullAssertion": "off"
+        "noNonNullAssertion": "off",
+        "useBlockStatements": "error"
       }
+    }
+  },
+  "json": {
+    "formatter": {
+      "trailingCommas": "none"
     }
   },
   "javascript": {
     "formatter": {
       "quoteStyle": "double",
       "trailingCommas": "all",
-      "semicolons": "always"
+      "semicolons": "always",
+      "expand": "always"
     }
   },
   "assist": {
