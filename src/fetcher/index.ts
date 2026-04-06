@@ -1,10 +1,10 @@
-import { config } from "../config.js";
-import type { FetchResult, MergedVLMResult, Platform } from "../types/index.js";
-import { errMsg, createLogger } from "../utils/logger.js";
-import { textSimilarity } from "../utils/similarity.js";
-import { runOpencli } from "./opencli.js";
-import { searchForUrl } from "./search-engine.js";
-import { fetchAndExtract, findPostUrlOnPlatform } from "./web-fetch.js";
+import { config } from "@/config.js";
+import { runOpencli } from "@/fetcher/opencli.js";
+import { searchForUrl } from "@/fetcher/search-engine.js";
+import { fetchAndExtract, findPostUrlOnPlatform } from "@/fetcher/web-fetch.js";
+import type { FetchResult, MergedVLMResult, Platform } from "@/types/index.js";
+import { createLogger, errMsg } from "@/utils/logger.js";
+import { textSimilarity } from "@/utils/similarity.js";
 
 const log = createLogger("fetcher");
 
@@ -33,19 +33,13 @@ interface OpencliSearchItem {
   title?: string;
   author?: string;
   content?: string;
-  [key: string]: unknown;
-}
-
-interface OpencliDownloadResult {
-  content?: string;
-  title?: string;
-  url?: string;
+  text?: string;
   [key: string]: unknown;
 }
 
 /**
  * Four-level content fetching strategy.
- * L1: opencli search + download
+ * L1: opencli search (results already contain full text)
  * L2: platform-aware web fetch (visibleUrl → platform search → opencli URL)
  * L3: search engine fallback
  * L4: screenshot-only (all levels failed)
@@ -62,23 +56,34 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
     "▶ fetchContent start",
   );
 
-  // L1: opencli direct (search + download)
+  // L1: opencli search (results contain full text)
   if (PLATFORM_L1_SUPPORT.includes(vlm.platform)) {
-    log.info("L1 ▶ trying opencli search + download");
+    log.info("L1 ▶ trying opencli search");
     const l1 = await tryWithTimeout(
       () => tryLevel1(vlm),
       config.processing.fetchTimeouts.l1,
     );
     if (l1) {
       log.info(
-        { url: l1.originalUrl, chars: l1.contentFull?.length },
-        "L1 ✓ opencli download succeeded",
+        {
+          url: l1.originalUrl,
+          chars: l1.contentFull?.length,
+        },
+        "L1 ✓ opencli search matched",
       );
-      return { ...l1, fetchLevel: 1 };
+      return {
+        ...l1,
+        fetchLevel: 1,
+      };
     }
     log.warn("L1 ✗ opencli failed or timed out, falling through");
   } else {
-    log.debug({ platform: vlm.platform }, "L1 ⊘ platform not in L1 support list, skipping");
+    log.debug(
+      {
+        platform: vlm.platform,
+      },
+      "L1 ⊘ platform not in L1 support list, skipping",
+    );
   }
 
   // L2: platform-aware web fetch
@@ -90,14 +95,25 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
     );
     if (l2) {
       log.info(
-        { url: l2.originalUrl, chars: l2.contentFull?.length },
+        {
+          url: l2.originalUrl,
+          chars: l2.contentFull?.length,
+        },
         "L2 ✓ web fetch succeeded",
       );
-      return { ...l2, fetchLevel: 2 };
+      return {
+        ...l2,
+        fetchLevel: 2,
+      };
     }
     log.warn("L2 ✗ platform web fetch failed or timed out, falling through");
   } else {
-    log.debug({ platform: vlm.platform }, "L2 ⊘ platform not in L2 support list, skipping");
+    log.debug(
+      {
+        platform: vlm.platform,
+      },
+      "L2 ⊘ platform not in L2 support list, skipping",
+    );
   }
 
   // L3: search engine → web fetch + LLM extract
@@ -108,20 +124,31 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
   );
   if (l3) {
     log.info(
-      { url: l3.originalUrl, chars: l3.contentFull?.length },
+      {
+        url: l3.originalUrl,
+        chars: l3.contentFull?.length,
+      },
       "L3 ✓ search engine fetch succeeded",
     );
-    return { ...l3, fetchLevel: 3 };
+    return {
+      ...l3,
+      fetchLevel: 3,
+    };
   }
   log.warn("L3 ✗ search engine failed or timed out");
 
   // L4: all failed
   log.error("✗ all levels failed → L4 screenshot-only fallback");
-  return { contentFull: null, originalUrl: null, fetchLevel: 4 };
+  return {
+    contentFull: null,
+    originalUrl: null,
+    fetchLevel: 4,
+  };
 }
 
 /**
- * L1: Use opencli to search and download full content directly.
+ * L1: Use opencli search to find and extract content.
+ * Search results already contain full text (text/content field), no download needed.
  */
 async function tryLevel1(
   vlm: MergedVLMResult,
@@ -131,7 +158,12 @@ async function tryLevel1(
     log.warn("L1   no search query could be built from VLM data");
     return null;
   }
-  log.debug({ query }, "L1   opencli search query");
+  log.debug(
+    {
+      query,
+    },
+    "L1   opencli search query",
+  );
 
   const searchResults = await runOpencli([
     vlm.platform,
@@ -142,14 +174,26 @@ async function tryLevel1(
     "--format",
     "json",
   ]).catch((err) => {
-    log.warn({ error: errMsg(err) }, "L1   opencli search command failed");
+    log.warn(
+      {
+        error: errMsg(err),
+      },
+      "L1   opencli search command failed",
+    );
     return null;
   });
 
-  if (!searchResults) return null;
+  if (!searchResults) {
+    return null;
+  }
 
   const items = normalizeSearchResults(searchResults);
-  log.debug({ count: items.length }, "L1   search returned results");
+  log.debug(
+    {
+      count: items.length,
+    },
+    "L1   search returned results",
+  );
 
   const best = findBestMatch(items, vlm);
   if (!best) {
@@ -157,35 +201,21 @@ async function tryLevel1(
     return null;
   }
   log.debug(
-    { id: best.id ?? best.note_id, title: best.title?.slice(0, 50) },
+    {
+      id: best.id ?? best.note_id,
+    },
     "L1   best match selected",
   );
 
-  const itemId = best.id ?? best.note_id;
-  if (!itemId) {
-    log.warn("L1   matched item has no id, cannot download");
-    return null;
-  }
-
-  const downloaded = (await runOpencli([
-    vlm.platform,
-    "download",
-    String(itemId),
-    "--format",
-    "json",
-  ]).catch((err) => {
-    log.warn({ error: errMsg(err) }, "L1   opencli download command failed");
-    return null;
-  })) as OpencliDownloadResult | null;
-
-  if (!downloaded?.content) {
-    log.warn("L1   download returned no content");
+  const content = best.text || best.content;
+  if (!content) {
+    log.warn("L1   matched item has no text/content field");
     return null;
   }
 
   return {
-    contentFull: downloaded.content,
-    originalUrl: downloaded.url ?? best.url ?? null,
+    contentFull: content,
+    originalUrl: best.url ?? null,
   };
 }
 
@@ -198,14 +228,32 @@ async function tryLevel2(
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // 2a: If VLM found a URL in the screenshot, try it directly
   if (vlm.visibleUrl) {
-    log.info({ url: vlm.visibleUrl }, "L2.a ▶ trying visibleUrl from screenshot");
+    log.info(
+      {
+        url: vlm.visibleUrl,
+      },
+      "L2.a ▶ trying visibleUrl from screenshot",
+    );
     const content = await fetchAndExtract(vlm.visibleUrl).catch((err) => {
-      log.warn({ error: errMsg(err) }, "L2.a ✗ visibleUrl fetch failed");
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L2.a ✗ visibleUrl fetch failed",
+      );
       return null;
     });
     if (content) {
-      log.info({ chars: content.length }, "L2.a ✓ visibleUrl content extracted");
-      return { contentFull: content, originalUrl: vlm.visibleUrl };
+      log.info(
+        {
+          chars: content.length,
+        },
+        "L2.a ✓ visibleUrl content extracted",
+      );
+      return {
+        contentFull: content,
+        originalUrl: vlm.visibleUrl,
+      };
     }
     log.warn("L2.a ✗ visibleUrl returned no extractable content");
   } else {
@@ -213,21 +261,49 @@ async function tryLevel2(
   }
 
   // 2b: Platform-aware search — use Playwright to search on the platform site
-  log.info({ platform: vlm.platform }, "L2.b ▶ trying platform site search via Playwright");
+  log.info(
+    {
+      platform: vlm.platform,
+    },
+    "L2.b ▶ trying platform site search via Playwright",
+  );
   const postUrl = await findPostUrlOnPlatform(vlm).catch((err) => {
-    log.warn({ error: errMsg(err) }, "L2.b ✗ platform search failed");
+    log.warn(
+      {
+        error: errMsg(err),
+      },
+      "L2.b ✗ platform search failed",
+    );
     return null;
   });
 
   if (postUrl) {
-    log.info({ url: postUrl }, "L2.b ✓ found post URL, fetching content");
+    log.info(
+      {
+        url: postUrl,
+      },
+      "L2.b ✓ found post URL, fetching content",
+    );
     const content = await fetchAndExtract(postUrl).catch((err) => {
-      log.warn({ error: errMsg(err) }, "L2.b ✗ post URL fetch failed");
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L2.b ✗ post URL fetch failed",
+      );
       return null;
     });
     if (content) {
-      log.info({ chars: content.length }, "L2.b ✓ post content extracted");
-      return { contentFull: content, originalUrl: postUrl };
+      log.info(
+        {
+          chars: content.length,
+        },
+        "L2.b ✓ post content extracted",
+      );
+      return {
+        contentFull: content,
+        originalUrl: postUrl,
+      };
     }
     log.warn("L2.b ✗ post URL returned no extractable content");
   } else {
@@ -252,11 +328,18 @@ async function tryLevel2(
       "--format",
       "json",
     ]).catch((err) => {
-      log.warn({ error: errMsg(err) }, "L2.c ✗ opencli search failed");
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L2.c ✗ opencli search failed",
+      );
       return null;
     });
 
-    if (!searchResults) return null;
+    if (!searchResults) {
+      return null;
+    }
 
     const items = normalizeSearchResults(searchResults);
     const best = findBestMatch(items, vlm);
@@ -265,15 +348,35 @@ async function tryLevel2(
       return null;
     }
 
-    log.info({ url: best.url }, "L2.c ▶ fetching content from opencli result URL");
+    log.info(
+      {
+        url: best.url,
+      },
+      "L2.c ▶ fetching content from opencli result URL",
+    );
     const content = await fetchAndExtract(best.url).catch((err) => {
-      log.warn({ error: errMsg(err) }, "L2.c ✗ URL fetch failed");
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L2.c ✗ URL fetch failed",
+      );
       return null;
     });
-    if (!content) return null;
+    if (!content) {
+      return null;
+    }
 
-    log.info({ chars: content.length }, "L2.c ✓ content extracted");
-    return { contentFull: content, originalUrl: best.url };
+    log.info(
+      {
+        chars: content.length,
+      },
+      "L2.c ✓ content extracted",
+    );
+    return {
+      contentFull: content,
+      originalUrl: best.url,
+    };
   }
 
   log.debug("L2.c ⊘ L1 already tried opencli for this platform, skipping");
@@ -288,13 +391,26 @@ async function tryLevel3(
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // Try visible URL from screenshot first (if L2 didn't already)
   if (vlm.visibleUrl && !PLATFORM_L2_SUPPORT.includes(vlm.platform)) {
-    log.info({ url: vlm.visibleUrl }, "L3.a ▶ trying visibleUrl");
+    log.info(
+      {
+        url: vlm.visibleUrl,
+      },
+      "L3.a ▶ trying visibleUrl",
+    );
     const content = await fetchAndExtract(vlm.visibleUrl).catch((err) => {
-      log.warn({ error: errMsg(err) }, "L3.a ✗ visibleUrl fetch failed");
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L3.a ✗ visibleUrl fetch failed",
+      );
       return null;
     });
     if (content) {
-      return { contentFull: content, originalUrl: vlm.visibleUrl };
+      return {
+        contentFull: content,
+        originalUrl: vlm.visibleUrl,
+      };
     }
   }
 
@@ -303,9 +419,19 @@ async function tryLevel3(
     return null;
   }
 
-  log.info({ provider: config.searchEngine.provider }, "L3 ▶ searching via search engine API");
+  log.info(
+    {
+      provider: config.searchEngine.provider,
+    },
+    "L3 ▶ searching via search engine API",
+  );
   const url = await searchForUrl(vlm).catch((err) => {
-    log.warn({ error: errMsg(err) }, "L3 ✗ search engine request failed");
+    log.warn(
+      {
+        error: errMsg(err),
+      },
+      "L3 ✗ search engine request failed",
+    );
     return null;
   });
 
@@ -314,34 +440,78 @@ async function tryLevel3(
     return null;
   }
 
-  log.info({ url }, "L3 ▶ fetching content from search engine result");
+  log.info(
+    {
+      url,
+    },
+    "L3 ▶ fetching content from search engine result",
+  );
   const content = await fetchAndExtract(url).catch((err) => {
-    log.warn({ error: errMsg(err) }, "L3 ✗ search result URL fetch failed");
+    log.warn(
+      {
+        error: errMsg(err),
+      },
+      "L3 ✗ search result URL fetch failed",
+    );
     return null;
   });
-  if (!content) return null;
+  if (!content) {
+    return null;
+  }
 
-  log.info({ chars: content.length }, "L3 ✓ content extracted");
-  return { contentFull: content, originalUrl: url };
+  log.info(
+    {
+      chars: content.length,
+    },
+    "L3 ✓ content extracted",
+  );
+  return {
+    contentFull: content,
+    originalUrl: url,
+  };
 }
 
 function buildSearchQuery(vlm: MergedVLMResult): string | null {
   const parts: string[] = [];
-  if (vlm.author) parts.push(vlm.author);
-  if (vlm.title) parts.push(vlm.title);
-  else if (vlm.keywords.length > 0) parts.push(vlm.keywords.join(" "));
-  else if (vlm.contentSnippet) parts.push(vlm.contentSnippet.slice(0, 80));
 
-  return parts.length > 0 ? parts.join(" ") : null;
+  // Extract clean username from author (e.g. "Berryxia.AI (@berryxia)" → "berryxia")
+  if (vlm.author) {
+    const handleMatch = vlm.author.match(/@(\w+)/);
+    parts.push(handleMatch ? handleMatch[1] : vlm.author);
+  }
+
+  // Prefer keywords over full title (shorter, less noise)
+  if (vlm.keywords.length > 0) {
+    parts.push(vlm.keywords.slice(0, 3).join(" "));
+  } else if (vlm.title) {
+    parts.push(vlm.title.slice(0, 40));
+  } else if (vlm.contentSnippet) {
+    parts.push(vlm.contentSnippet.slice(0, 80));
+  }
+
+  if (parts.length === 0) {
+    return null;
+  }
+
+  // Remove characters that may confuse CLI arg parsing
+  return parts.join(" ").replace(/[()!！？?""''「」【】]/g, "");
 }
 
 function normalizeSearchResults(raw: unknown): OpencliSearchItem[] {
-  if (Array.isArray(raw)) return raw;
+  if (Array.isArray(raw)) {
+    return raw;
+  }
   if (typeof raw === "object" && raw !== null) {
     const obj = raw as Record<string, unknown>;
-    if (Array.isArray(obj.data)) return obj.data;
-    if (Array.isArray(obj.results)) return obj.results;
-    if (Array.isArray(obj.items)) return obj.items;
+    if (Array.isArray(obj.data)) {
+      return obj.data;
+    }
+    if (Array.isArray(obj.results)) {
+      return obj.results;
+    }
+    if (Array.isArray(obj.items)) {
+      return obj.items;
+    }
   }
   return [];
 }
@@ -350,26 +520,60 @@ function findBestMatch(
   items: OpencliSearchItem[],
   vlm: MergedVLMResult,
 ): OpencliSearchItem | null {
-  if (items.length === 0) return null;
-  if (!vlm.title && !vlm.author) return items[0];
+  if (items.length === 0) {
+    return null;
+  }
 
-  let bestItem = items[0];
+  // Build reference text from VLM data for comparison
+  const refText = [
+    vlm.title,
+    vlm.contentSnippet,
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (!refText && !vlm.author) {
+    return items[0];
+  }
+
+  let bestItem: OpencliSearchItem | null = null;
   let bestScore = -1;
 
   for (const item of items) {
     let score = 0;
-    if (vlm.title && item.title) {
-      score += textSimilarity(vlm.title, item.title);
+
+    // Compare against text/content/title — different platforms use different fields
+    const itemText = item.text || item.content || item.title || "";
+    if (refText && itemText) {
+      score += textSimilarity(refText, itemText);
     }
+
     if (vlm.author && item.author) {
-      score += textSimilarity(vlm.author, item.author) * 0.5;
+      score += textSimilarity(vlm.author, item.author) * 0.3;
     }
+
     if (score > bestScore) {
       bestScore = score;
       bestItem = item;
     }
   }
 
+  // Require minimum similarity to avoid matching unrelated content
+  if (bestScore < 0.3) {
+    log.warn(
+      {
+        bestScore: bestScore.toFixed(2),
+      },
+      "L1   best match score too low, rejecting",
+    );
+    return null;
+  }
+
+  log.debug(
+    {
+      bestScore: bestScore.toFixed(2),
+    },
+    "L1   match score",
+  );
   return bestItem;
 }
 
@@ -378,18 +582,30 @@ async function tryWithTimeout<T>(
   ms: number,
 ): Promise<T | null> {
   try {
+    let timer: ReturnType<typeof setTimeout>;
     const result = await Promise.race([
       fn(),
       new Promise<null>((resolve) => {
-        setTimeout(() => {
-          log.warn({ timeoutMs: ms }, "  ⏱ step timed out");
+        timer = setTimeout(() => {
+          log.warn(
+            {
+              timeoutMs: ms,
+            },
+            "  ⏱ step timed out",
+          );
           resolve(null);
         }, ms);
       }),
     ]);
+    clearTimeout(timer!);
     return result;
   } catch (err) {
-    log.error({ error: errMsg(err) }, "  ✗ step threw unexpected error");
+    log.error(
+      {
+        error: errMsg(err),
+      },
+      "  ✗ step threw unexpected error",
+    );
     return null;
   }
 }
