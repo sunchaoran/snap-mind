@@ -1,139 +1,296 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SnapMind - Dev Upload</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SnapMind - Dev Upload</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @keyframes glow {
+            0%, 100% {
+                box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.4);
+            }
+            50% {
+                box-shadow: 0 0 16px 4px rgba(250, 204, 21, 0.6);
+            }
+        }
+
+        .step-running {
+            animation: glow 1.5s ease-in-out infinite;
+        }
+    </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex items-center justify-center p-6">
-  <div class="w-full max-w-lg space-y-6">
-    <div class="text-center space-y-1">
-      <h1 class="text-2xl font-semibold tracking-tight">SnapMind</h1>
-      <p class="text-sm text-zinc-500">开发测试 · 上传截图</p>
-    </div>
+<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-center p-6 gap-8">
 
+<!-- Header -->
+<div class="text-center space-y-1">
+    <h1 class="text-2xl font-semibold tracking-tight inline-flex items-center justify-center gap-2">SnapMind <span
+            class="text-xs font-medium bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">dev</span></h1>
+    <p class="text-sm text-zinc-500">截图即收藏</p>
+</div>
+
+<!-- Upload area -->
+<div class="w-full max-w-md space-y-3">
     <div id="dropzone"
-      class="border-2 border-dashed border-zinc-700 rounded-xl p-10 text-center cursor-pointer
+         class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer
              hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
-      <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-      <div id="dropHint" class="space-y-2">
-        <svg class="mx-auto h-10 w-10 text-zinc-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" role="img" aria-label="上传图标">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-            d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5"/>
-        </svg>
-        <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择文件</p>
-        <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
-      </div>
-      <img id="preview" class="hidden mx-auto max-h-64 rounded-lg" alt="preview">
+        <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+        <div id="dropHint" class="space-y-2">
+            <i data-lucide="upload" class="mx-auto h-8 w-8 text-zinc-600"></i>
+            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择</p>
+            <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
+        </div>
+        <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
     </div>
-
-    <div class="flex gap-3">
-      <input id="apiKey" type="text" placeholder="API Key（留空使用 localStorage 缓存）"
-        class="flex-1 rounded-lg bg-zinc-900 border border-zinc-800 px-3 py-2 text-sm
-               placeholder:text-zinc-600 focus:outline-none focus:border-zinc-600">
-      <button id="submitBtn" type="button" disabled
-        class="rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
-               disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
+    <button id="submitBtn" type="button" disabled
+            class="w-full rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
+             disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
         上传
-      </button>
-    </div>
+    </button>
+</div>
 
-    <div id="result" class="hidden rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
-      <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
-      <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
-      <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap"></pre>
+<!-- Timeline -->
+<div id="timeline" class="hidden w-full max-w-3xl">
+    <div class="relative flex items-start justify-between px-4">
+        <!-- Background line (z-0) -->
+        <div class="absolute top-4 left-4 right-4 h-0.5 bg-zinc-800 rounded-full z-0"></div>
+        <!-- Progress line (z-0) -->
+        <div id="timelineFill"
+             class="absolute top-4 left-4 h-0.5 bg-emerald-500 rounded-full transition-all duration-500 z-0"
+             style="width:0"></div>
+        <!-- Step nodes sit above the line (z-10) -->
+        <div id="timelineNodes" class="relative flex justify-between w-full z-10"></div>
     </div>
+    <!-- Current step message -->
+    <div id="stepMessage" class="mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300"></div>
+</div>
 
-    <div id="spinner" class="hidden text-center py-4">
-      <div class="inline-block h-5 w-5 border-2 border-zinc-600 border-t-white rounded-full animate-spin"></div>
-      <p class="text-xs text-zinc-500 mt-2">处理中，请稍候…</p>
-    </div>
-  </div>
+<!-- Result panel -->
+<div id="result" class="hidden w-full max-w-xl rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
+    <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
+    <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
+    <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
+</div>
 
-  <script>
+<script>
+    const STEP_LABELS = ['识别', '去重', '抓取', '处理', '截图', '组装', '写入'];
+
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
     const dropHint = document.getElementById('dropHint');
     const submitBtn = document.getElementById('submitBtn');
-    const apiKeyInput = document.getElementById('apiKey');
+    const timeline = document.getElementById('timeline');
+    const timelineFill = document.getElementById('timelineFill');
+    const timelineNodes = document.getElementById('timelineNodes');
+    const stepMessage = document.getElementById('stepMessage');
     const result = document.getElementById('result');
     const resultHeader = document.getElementById('resultHeader');
     const obsidianLink = document.getElementById('obsidianLink');
     const resultBody = document.getElementById('resultBody');
-    const spinner = document.getElementById('spinner');
 
     let selectedFile = null;
 
-    // Restore cached API key
-    apiKeyInput.value = localStorage.getItem('snapmind_dev_key') || '';
+    lucide.createIcons();
+
+    // Build timeline nodes
+    timelineNodes.innerHTML = STEP_LABELS.map((label, i) => `
+      <div class="flex flex-col items-center gap-2 z-10" style="width:${100 / STEP_LABELS.length}%">
+        <div id="node-${i}"
+          class="w-8 h-8 z-10 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center
+                 text-xs font-medium text-zinc-600 transition-all duration-300">
+          ${i + 1}
+        </div>
+        <span id="label-${i}" class="text-xs text-zinc-600 transition-colors duration-300">${label}</span>
+      </div>
+    `).join('');
 
     fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-      selectFile(file);
+        const file = e.target.files[0];
+        if (!file) {
+            return;
+        }
+        selectFile(file);
     });
 
     function selectFile(file) {
-      selectedFile = file;
-      const url = URL.createObjectURL(file);
-      preview.src = url;
-      preview.classList.remove('hidden');
-      dropHint.classList.add('hidden');
-      submitBtn.disabled = false;
-      result.classList.add('hidden');
+        selectedFile = file;
+        preview.src = URL.createObjectURL(file);
+        preview.classList.remove('hidden');
+        dropHint.classList.add('hidden');
+        submitBtn.disabled = false;
+        result.classList.add('hidden');
+        timeline.classList.add('hidden');
     }
 
-    submitBtn.addEventListener('click', async () => {
-      if (!selectedFile) return;
+    function resetTimeline() {
+        for (let i = 0; i < STEP_LABELS.length; i++) {
+            const node = document.getElementById(`node-${i}`);
+            const label = document.getElementById(`label-${i}`);
+            node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-900 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
+            node.innerHTML = `${i + 1}`;
+            label.className = 'text-xs text-zinc-600 transition-colors duration-300';
+        }
+        timelineFill.style.width = '0';
+        stepMessage.textContent = '';
+    }
 
-      const key = apiKeyInput.value.trim();
-      if (key) localStorage.setItem('snapmind_dev_key', key);
+    function updateTimeline(job) {
+        const steps = job.steps;
+        const total = steps.length;
+        const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
 
-      submitBtn.disabled = true;
-      spinner.classList.remove('hidden');
-      result.classList.add('hidden');
+        // Fill line: calculate based on last completed node position
+        const segment = 100 / (total - 1);
+        const fillPct = Math.min(doneCount * segment, 100);
+        timelineFill.style.width = `calc(${fillPct}%)`;
 
-      const form = new FormData();
-      form.append('image', selectedFile);
+        for (let i = 0; i < total; i++) {
+            const s = steps[i];
+            const node = document.getElementById(`node-${i}`);
+            const label = document.getElementById(`label-${i}`);
 
-      try {
-        const resp = await fetch('/clip', {
-          method: 'POST',
-          headers: key ? { 'Authorization': `Bearer ${key}` } : {},
-          body: form,
-        });
-        const data = await resp.json();
+            // Reset classes
+            node.classList.remove('step-running');
+
+            if (s.status === 'done') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-emerald-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-emerald-400 transition-all duration-300';
+                node.innerHTML = '✓';
+                label.className = 'text-xs text-emerald-400 transition-colors duration-300';
+            } else if (s.status === 'running') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-yellow-400 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-yellow-400 transition-all duration-300 step-running';
+                node.innerHTML = `<span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>`;
+                label.className = 'text-xs text-yellow-400 font-medium transition-colors duration-300';
+            } else if (s.status === 'skipped') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-600 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-500 transition-all duration-300';
+                node.innerHTML = '–';
+                label.className = 'text-xs text-zinc-500 transition-colors duration-300';
+            } else if (s.status === 'error') {
+                node.className = 'w-8 h-8 rounded-full border-2 border-red-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-red-400 transition-all duration-300';
+                node.innerHTML = '✗';
+                label.className = 'text-xs text-red-400 transition-colors duration-300';
+            } else {
+                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
+                node.innerHTML = `${i + 1}`;
+                label.className = 'text-xs text-zinc-600 transition-colors duration-300';
+            }
+        }
+
+        // Show current step message
+        const running = steps.find(s => s.status === 'running');
+        const lastDone = [...steps].reverse().find(s => s.status === 'done');
+        if (job.status === 'done') {
+            stepMessage.textContent = '🎉 处理完成';
+            stepMessage.className = 'mt-6 text-center text-sm text-emerald-400 h-5 transition-opacity duration-300';
+        } else if (job.status === 'error') {
+            stepMessage.textContent = '处理失败';
+            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+        } else if (running) {
+            stepMessage.textContent = running.message || running.name;
+            stepMessage.className = 'mt-6 text-center text-sm text-zinc-300 h-5 transition-opacity duration-300';
+        } else if (lastDone?.message) {
+            stepMessage.textContent = lastDone.message;
+            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+        }
+    }
+
+    async function pollJob(jobId) {
+        while (true) {
+            await new Promise(r => setTimeout(r, 3_000));
+            try {
+                const resp = await fetch(`/jobs/${jobId}`);
+                if (!resp.ok) {
+                    continue;
+                }
+                const job = await resp.json();
+                updateTimeline(job);
+
+                if (job.status === 'done' || job.status === 'error') {
+                    showResult(job.result);
+                    submitBtn.disabled = false;
+                    return;
+                }
+            } catch {
+                // network hiccup, keep polling
+            }
+        }
+    }
+
+    function showResult(data) {
+        if (!data) {
+            return;
+        }
 
         resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
         resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
-          data.success ? 'text-emerald-400' : 'text-red-400'
+            data.success ? 'text-emerald-400' : 'text-red-400'
         }`;
 
         if (data.success && data.vaultPath) {
-          const file = data.vaultPath.replace(/\.md$/, '');
-          const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
-          obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-            <svg class="h-4 w-4" fill="currentColor" viewBox="0 0 24 24" role="img" aria-label="Obsidian"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 15l-5-5 1.41-1.41L11 14.17l7.59-7.59L20 8l-9 9z"/></svg>
-            在 Obsidian 中打开 →</a>
-            <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
-          obsidianLink.classList.remove('hidden');
+            const file = data.vaultPath.replace(/\.md$/, '');
+            const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
+            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+          <i data-lucide="external-link" class="h-4 w-4"></i>
+          在 Obsidian 中打开 →</a>
+          <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
+            obsidianLink.classList.remove('hidden');
+        } else if (data.success && data.clipId) {
+            // Duplicate case: search by clipId
+            const uri = `obsidian://search?query=${encodeURIComponent(data.clipId)}`;
+            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
+          <i data-lucide="search" class="h-4 w-4"></i>
+          在 Obsidian 中查看已有收藏 →</a>
+          <span class="text-xs text-zinc-600 ml-2">${data.clipId}</span>`;
+            obsidianLink.classList.remove('hidden');
         } else {
-          obsidianLink.classList.add('hidden');
+            obsidianLink.classList.add('hidden');
         }
 
         resultBody.textContent = JSON.stringify(data, null, 2);
         result.classList.remove('hidden');
-      } catch (err) {
-        resultHeader.textContent = '✗ 请求错误';
-        resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-        resultBody.textContent = err.message;
-        result.classList.remove('hidden');
-      } finally {
-        spinner.classList.add('hidden');
-        submitBtn.disabled = false;
-      }
+        lucide.createIcons();
+    }
+
+    submitBtn.addEventListener('click', async () => {
+        if (!selectedFile) {
+            return;
+        }
+
+        submitBtn.disabled = true;
+        result.classList.add('hidden');
+
+        resetTimeline();
+        timeline.classList.remove('hidden');
+        stepMessage.textContent = '提交中…';
+        stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+
+        const form = new FormData();
+        form.append('image', selectedFile);
+
+        try {
+            const resp = await fetch('/clip', {
+                method: 'POST',
+                body: form
+            });
+            const data = await resp.json();
+
+            if (data.jobId) {
+                pollJob(data.jobId);
+            } else {
+                showResult(data);
+                timeline.classList.add('hidden');
+                submitBtn.disabled = false;
+            }
+        } catch (err) {
+            stepMessage.textContent = '请求失败';
+            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+            resultHeader.textContent = '✗ 请求错误';
+            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+            resultBody.textContent = err.message;
+            result.classList.remove('hidden');
+            submitBtn.disabled = false;
+        }
     });
-  </script>
+</script>
 </body>
 </html>
