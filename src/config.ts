@@ -22,7 +22,7 @@ export const config = {
 
   opencli: {
     binaryPath: process.env.OPENCLI_PATH || "opencli",
-    timeout: 15_000,
+    timeout: 120_000,
   },
 
   playwright: {
@@ -36,9 +36,13 @@ export const config = {
   },
 
   processing: {
-    overallTimeout: 90_000,
-    fetchTimeouts: { l1: 15_000, l2: 35_000, l3: 20_000 },
-    vlmTimeout: 30_000,
+    overallTimeout: 100_000,
+    fetchTimeouts: {
+      l1: 35_000,
+      l2: 35_000,
+      l3: 20_000,
+    },
+    vlmTimeout: 35_000,
     similarityThreshold: 0.85,
   },
 
