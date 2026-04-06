@@ -1,36 +1,78 @@
 import type { FastifyRequest } from "fastify";
-import { config } from "../config.js";
-import type { AuthResult } from "../types/index.js";
+import { config } from "@/config.js";
+import type { AuthResult } from "@/types/index.js";
 
-export class UnauthorizedError extends Error {
-  constructor(message = "Unauthorized") {
-    super(message);
-    this.name = "UnauthorizedError";
-  }
+export interface UnauthorizedError {
+  readonly _tag: "UnauthorizedError";
+  readonly message: string;
 }
+
+export function unauthorizedError(message = "Unauthorized"): UnauthorizedError {
+  return {
+    _tag: "UnauthorizedError",
+    message,
+  };
+}
+
+export function isUnauthorizedError(err: unknown): err is UnauthorizedError {
+  return (
+    typeof err === "object" &&
+    err !== null &&
+    "_tag" in err &&
+    err._tag === "UnauthorizedError"
+  );
+}
+
+export type AuthenticateResult =
+  | {
+      ok: true;
+      value: AuthResult;
+    }
+  | {
+      ok: false;
+      error: UnauthorizedError;
+    };
 
 export async function authenticate(
   request: FastifyRequest,
-): Promise<AuthResult> {
+): Promise<AuthenticateResult> {
   // Dev mode: skip auth when no header is provided
   if (process.env.NODE_ENV !== "production" && !request.headers.authorization) {
-    return { clientId: "dev", clientType: "agent" };
+    return {
+      ok: true,
+      value: {
+        clientId: "dev",
+        clientType: "agent",
+      },
+    };
   }
 
   const authHeader = request.headers.authorization;
 
   if (!authHeader?.startsWith("Bearer ")) {
-    throw new UnauthorizedError("Missing or invalid Authorization header");
+    return {
+      ok: false,
+      error: unauthorizedError("Missing or invalid Authorization header"),
+    };
   }
 
   const token = authHeader.slice(7);
 
   // API Key authentication
   if (token === config.auth.apiKey) {
-    return { clientId: "agent", clientType: "agent" };
+    return {
+      ok: true,
+      value: {
+        clientId: "agent",
+        clientType: "agent",
+      },
+    };
   }
 
   // JWT authentication — TODO: implement JWT validation
   // For now, reject non-API-Key tokens
-  throw new UnauthorizedError("Invalid token");
+  return {
+    ok: false,
+    error: unauthorizedError("Invalid token"),
+  };
 }
