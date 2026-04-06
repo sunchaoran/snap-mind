@@ -43,6 +43,16 @@
         </div>
         <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
     </div>
+
+    <!-- History images -->
+    <div id="historySection" class="hidden">
+        <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-zinc-500">历史上传</span>
+            <button id="clearHistory" type="button" class="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">清空</button>
+        </div>
+        <div id="historyGrid" class="grid grid-cols-5 gap-2"></div>
+    </div>
+
     <button id="submitBtn" type="button" disabled
             class="w-full rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
              disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
@@ -89,9 +99,66 @@
     const obsidianLink = document.getElementById('obsidianLink');
     const resultBody = document.getElementById('resultBody');
 
+    const historySection = document.getElementById('historySection');
+    const historyGrid = document.getElementById('historyGrid');
+    const clearHistory = document.getElementById('clearHistory');
+    const HISTORY_KEY = 'snapmind_upload_history';
+    const MAX_HISTORY = 5;
+
     let selectedFile = null;
 
     lucide.createIcons();
+
+    // --- History helpers ---
+    function getHistory() {
+        try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+    }
+
+    function saveToHistory(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+            const entry = { dataUrl: reader.result, name: file.name, type: file.type };
+            const history = getHistory().filter(h => h.dataUrl !== entry.dataUrl);
+            history.unshift(entry);
+            if (history.length > MAX_HISTORY) { history.pop(); }
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota exceeded */ }
+            renderHistory();
+        };
+        reader.readAsDataURL(file);
+    }
+
+    function dataUrlToFile(dataUrl, name, type) {
+        const [, base64] = dataUrl.split(',');
+        const bin = atob(base64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) { arr[i] = bin.charCodeAt(i); }
+        return new File([arr], name, { type });
+    }
+
+    function renderHistory() {
+        const history = getHistory();
+        if (!history.length) { historySection.classList.add('hidden'); return; }
+        historySection.classList.remove('hidden');
+        historyGrid.innerHTML = history.map((h, i) => `
+          <div class="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-zinc-800 hover:border-zinc-500 transition-colors aspect-square" data-idx="${i}">
+            <img src="${h.dataUrl}" alt="${h.name}" class="w-full h-full object-cover">
+          </div>
+        `).join('');
+        historyGrid.querySelectorAll('[data-idx]').forEach(el => {
+            el.addEventListener('click', () => {
+                const h = history[parseInt(el.dataset.idx, 10)];
+                const file = dataUrlToFile(h.dataUrl, h.name, h.type);
+                selectFile(file);
+            });
+        });
+    }
+
+    clearHistory.addEventListener('click', () => {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
+    });
+
+    renderHistory();
 
     // Build timeline nodes
     timelineNodes.innerHTML = STEP_LABELS.map((label, i) => `
@@ -266,6 +333,7 @@
 
         const form = new FormData();
         form.append('image', selectedFile);
+        saveToHistory(selectedFile);
 
         try {
             const resp = await fetch('/clip', {
