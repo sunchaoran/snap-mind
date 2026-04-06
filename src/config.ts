@@ -36,14 +36,16 @@ export const config = {
   },
 
   processing: {
-    overallTimeout: 100_000,
+    overallTimeout: 180_000,
     fetchTimeouts: {
-      l1: 35_000,
+      l1: 80_000,
       l2: 35_000,
       l3: 20_000,
     },
     vlmTimeout: 35_000,
     similarityThreshold: 0.85,
+    /** Max fetch level to attempt (1-4). Levels beyond this will not run; if the max level fails, pipeline errors instead of falling through. */
+    maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
   },
 
   searchEngine: {
