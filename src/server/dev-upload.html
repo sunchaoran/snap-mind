@@ -104,6 +104,11 @@
     <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
 </div>
 
+<button id="clearAllNotesBtn" type="button"
+        class="fixed bottom-4 right-4 rounded-md border border-red-950 bg-red-950/70 px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-900/60 hover:border-red-900 hover:text-red-300 transition-colors">
+    删除所有笔记
+</button>
+
 <script>
     const STEP_LABELS = ['识别', '去重', '抓取', '处理', '截图', '组装', '写入'];
 
@@ -126,6 +131,7 @@
     const batchCounter = document.getElementById('batchCounter');
     const batchBar = document.getElementById('batchBar');
     const batchItems = document.getElementById('batchItems');
+    const clearAllNotesBtn = document.getElementById('clearAllNotesBtn');
 
     const historySection = document.getElementById('historySection');
     const historyGrid = document.getElementById('historyGrid');
@@ -522,6 +528,41 @@
                 result.classList.remove('hidden');
                 submitBtn.disabled = false;
             }
+        }
+    });
+
+    clearAllNotesBtn.addEventListener('click', async () => {
+        const confirmed = confirm('确认清空 snap-mind 目录下的所有笔记和附件吗？该操作仅影响此应用生成的内容。');
+        if (!confirmed) { return; }
+
+        clearAllNotesBtn.disabled = true;
+        clearAllNotesBtn.textContent = '删除中…';
+        try {
+            const resp = await fetch('/dev/clear-snap-mind', { method: 'POST' });
+            const data = await resp.json();
+            if (!resp.ok || !data.success) {
+                throw new Error(data.error || '清空失败');
+            }
+
+            resultHeader.textContent = '✓ 已清空';
+            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-emerald-400';
+            obsidianLink.classList.add('hidden');
+            resultBody.textContent = JSON.stringify(data, null, 2);
+            result.classList.remove('hidden');
+            batchItems.innerHTML = '';
+            batchCounter.textContent = '0 / 0';
+            batchBar.style.width = '0';
+            timeline.classList.add('hidden');
+            batchProgress.classList.add('hidden');
+        } catch (err) {
+            resultHeader.textContent = '✗ 清空失败';
+            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+            obsidianLink.classList.add('hidden');
+            resultBody.textContent = err.message || '清空失败';
+            result.classList.remove('hidden');
+        } finally {
+            clearAllNotesBtn.disabled = false;
+            clearAllNotesBtn.textContent = '删除所有笔记';
         }
     });
 </script>

@@ -112,7 +112,7 @@ export interface ClipResponse {
   tags?: string[];
   category?: Category;
   fetchLevel?: 1 | 2 | 3 | 4;
-  /** Vault-relative path to the clip file, e.g. "Clippings/2026-04-05_twitter_xxx.md" */
+  /** Vault-relative path to the clip file, e.g. "snap-mind/2026-04-05_twitter_xxx.md" */
   vaultPath?: string;
   error?: string;
   screenshotSaved?: boolean;

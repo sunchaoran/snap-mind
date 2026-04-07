@@ -33,7 +33,7 @@ interface ClipWriter {
 
 ```
 {VAULT_PATH}/
-  Clippings/
+  snap-mind/
     _index.md                                    # Dataview 汇总页（自动生成）
     2026-04-02_xiaohongshu_rust-async-guide.md
     2026-04-02_twitter_llm-agent-pattern.md
@@ -81,7 +81,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 
 ## 截图
 
-![[assets/clip_20260402_143000_V1StGX.png]]
+![[assets/clip_20260402_143000_V1StGX.png|420]]
 ```
 
 ### Markdown Template (fetchLevel=4, No Original)
@@ -103,7 +103,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 
 ## 截图
 
-![[assets/clip_20260402_143000_V1StGX.png]]
+![[assets/clip_20260402_143000_V1StGX.png|420]]
 ```
 
 ### formatContent()
@@ -124,7 +124,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 
 ## Deduplication
 
-`findSimilarClip` 方法扫描 Clippings 目录下已有 md 文件的 frontmatter，比对 `platform + author + title`。
+`findSimilarClip` 方法扫描 snap-mind 目录下已有 md 文件的 frontmatter，比对 `platform + author + title`。
 
 - 使用 Levenshtein 相似度（`js-levenshtein`）
 - 阈值 ≥ **0.85** 视为重复

@@ -198,7 +198,7 @@ GET /jobs/:id
     "tags": ["rust", "async", "编程"],
     "category": "tech",
     "fetchLevel": 1,
-    "vaultPath": "Clippings/2026-04-02_xiaohongshu_rust-async.md",
+    "vaultPath": "snap-mind/2026-04-02_xiaohongshu_rust-async.md",
     "message": "已收藏: Rust 异步编程指南 [小红书] #rust #async #编程"
   }
 }

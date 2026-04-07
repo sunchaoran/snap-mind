@@ -32,7 +32,7 @@ async function saveScreenshot(
 ): Promise<string>  // 返回 vault 相对路径，如 "assets/clip_xxx.png"
 ```
 
-- 自动创建 `{VAULT_PATH}/Clippings/assets/` 目录
+- 自动创建 `{VAULT_PATH}/snap-mind/assets/` 目录
 - `ext` 参数可选，未提供时通过 `detectImageExt()` 自动检测
 - 返回 vault 相对路径（如 `assets/clip_20260402_143000_V1StGX.png`）
 
@@ -65,6 +65,6 @@ interface PreprocessedImage {
 ### Storage Path
 
 ```
-{VAULT_PATH}/Clippings/assets/clip_20260402_143000_V1StGX.webp  # 截图（压缩后）
-{VAULT_PATH}/Clippings/assets/clip_20260402_143000_V1StGX.json  # sidecar
+{VAULT_PATH}/snap-mind/assets/clip_20260402_143000_V1StGX.webp  # 截图（压缩后）
+{VAULT_PATH}/snap-mind/assets/clip_20260402_143000_V1StGX.json  # sidecar
 ```
