@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapMind - Dev Upload</title>
+    <title>SnapMind - Save What You Screenshot</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
         @keyframes glow {
             0%, 100% {
-                box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.4);
+                box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.22);
             }
             50% {
-                box-shadow: 0 0 16px 4px rgba(250, 204, 21, 0.6);
+                box-shadow: 0 0 18px 6px rgba(250, 204, 21, 0.3);
             }
         }
 
@@ -21,141 +21,349 @@
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-center p-6 gap-8">
-
-<!-- Header -->
-<div class="text-center space-y-1">
-    <h1 class="text-2xl font-semibold tracking-tight inline-flex items-center justify-center gap-2">SnapMind <span
-            class="text-xs font-medium bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">dev</span></h1>
-    <p class="text-sm text-zinc-500">截图即收藏</p>
-</div>
-
-<!-- Upload area -->
-<div class="w-full max-w-md space-y-3">
-    <div id="dropzone"
-         class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer
-             hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
-        <input id="fileInput" type="file" accept="image/*" multiple class="absolute inset-0 opacity-0 cursor-pointer">
-        <div id="dropHint" class="space-y-2">
-            <i data-lucide="upload" class="mx-auto h-8 w-8 text-zinc-600"></i>
-            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择（支持多选，最多 20 张）</p>
-            <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
+<body class="min-h-screen bg-zinc-950 text-zinc-100">
+<div class="mx-auto flex min-h-screen w-full max-w-[1440px] flex-col gap-8 px-6 py-8">
+    <header class="border-b border-zinc-900 pb-6">
+        <div class="space-y-2">
+            <div class="inline-flex items-center gap-2 rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1 text-xs text-zinc-400">
+                <span class="h-1.5 w-1.5 rounded-full bg-emerald-400"></span>
+                Development
+            </div>
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-zinc-50">SnapMind - Save What You Screenshot</h1>
+                <p class="mt-2 max-w-2xl text-sm leading-6 text-zinc-500">Upload, track, inspect.</p>
+            </div>
         </div>
-        <!-- Single preview (legacy) -->
-        <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
-        <!-- Multi preview grid -->
-        <div id="previewGrid" class="hidden grid grid-cols-4 gap-2 mt-2"></div>
-    </div>
-
-    <!-- History images -->
-    <div id="historySection" class="hidden">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-zinc-500">历史上传</span>
-            <button id="clearHistory" type="button" class="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">清空</button>
+        <div class="mt-5 flex flex-wrap items-center gap-2 text-sm text-zinc-400">
+            <span class="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5">
+                Mode <span id="runModeValue" class="ml-2 font-medium text-zinc-100">Idle</span>
+            </span>
+            <span class="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5">
+                Files <span id="selectionCountValue" class="ml-2 font-medium text-zinc-100">0</span>
+            </span>
+            <span class="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5">
+                Total <span id="overallElapsedValue" class="ml-2 font-medium text-zinc-100">0.0s</span>
+            </span>
+            <span class="rounded-full border border-zinc-800 bg-zinc-900/70 px-3 py-1.5">
+                Focus <span id="focusedElapsedValue" class="ml-2 font-medium text-zinc-100">0.0s</span>
+            </span>
         </div>
-        <div id="historyGrid" class="grid grid-cols-5 gap-2"></div>
-    </div>
+    </header>
 
-    <div class="flex gap-2">
-        <button id="submitBtn" type="button" disabled
-                class="flex-1 rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
-                 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
-            上传
-        </button>
-        <button id="clearBtn" type="button" class="hidden rounded-lg bg-zinc-800 text-zinc-400 px-3 py-2 text-sm hover:bg-zinc-700 transition-colors">
-            清空
-        </button>
-    </div>
-    <div id="fileCount" class="hidden text-center text-xs text-zinc-500"></div>
-</div>
+    <main class="grid flex-1 gap-8 xl:grid-cols-[31rem_minmax(0,1fr)]">
+        <section class="space-y-6 xl:sticky xl:top-6 xl:self-start">
+            <div class="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+                <div class="flex items-center justify-between gap-3">
+                    <div>
+                        <h2 class="text-lg font-medium text-zinc-50">Upload</h2>
+                        <p class="mt-1 text-sm text-zinc-500">Drop, preview, run.</p>
+                    </div>
+                </div>
 
-<!-- Single job timeline -->
-<div id="timeline" class="hidden w-full max-w-3xl">
-    <div class="relative flex items-start justify-between px-4">
-        <!-- Background line (z-0) -->
-        <div class="absolute top-4 left-4 right-4 h-0.5 bg-zinc-800 rounded-full z-0"></div>
-        <!-- Progress line (z-0) -->
-        <div id="timelineFill"
-             class="absolute top-4 left-4 h-0.5 bg-emerald-500 rounded-full transition-all duration-500 z-0"
-             style="width:0"></div>
-        <!-- Step nodes sit above the line (z-10) -->
-        <div id="timelineNodes" class="relative flex justify-between w-full z-10"></div>
-    </div>
-    <!-- Current step message -->
-    <div id="stepMessage" class="mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300"></div>
-</div>
+                <div id="dropzone"
+                     class="relative mt-5 overflow-hidden rounded-2xl border border-dashed border-zinc-700 bg-zinc-950/70 px-6 py-5 transition-colors duration-200 hover:border-zinc-500 hover:bg-zinc-900/70">
+                    <input id="fileInput" type="file" accept="image/*" multiple class="absolute inset-0 cursor-pointer opacity-0">
+                    <div id="dropHint" class="pointer-events-none flex min-h-[9rem] flex-col items-center justify-center gap-3 text-center">
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-900/80 p-4">
+                            <i data-lucide="images" class="h-7 w-7 text-zinc-500"></i>
+                        </div>
+                        <div class="space-y-1">
+                            <p id="dropHintTitle" class="text-sm font-medium text-zinc-300">Drop here or click</p>
+                            <p id="dropHintSubtitle" class="text-xs text-zinc-500">PNG / JPG / WebP, max 20</p>
+                        </div>
+                    </div>
+                </div>
 
-<!-- Batch progress -->
-<div id="batchProgress" class="hidden w-full max-w-xl space-y-3">
-    <div class="flex items-center justify-between text-sm">
-        <span class="text-zinc-400">批量处理进度</span>
-        <span id="batchCounter" class="text-zinc-500">0 / 0</span>
-    </div>
-    <div class="w-full bg-zinc-800 rounded-full h-2">
-        <div id="batchBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width:0"></div>
-    </div>
-    <div id="batchItems" class="space-y-2 max-h-96 overflow-y-auto"></div>
-</div>
+                <div id="selectionToolbar" class="mt-5 hidden flex items-center justify-between gap-4 rounded-2xl border border-zinc-800 bg-zinc-950/60 px-4 py-4">
+                    <div class="min-w-0 flex-1">
+                        <div id="fileCount" class="text-sm font-medium text-zinc-200"></div>
+                        <div id="selectionHint" class="mt-1 text-xs text-zinc-500">Click to zoom.</div>
+                    </div>
+                    <button id="clearBtn" type="button"
+                            class="shrink-0 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100">
+                        Clear
+                    </button>
+                </div>
 
-<!-- Result panel -->
-<div id="result" class="hidden w-full max-w-xl rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
-    <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
-    <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
-    <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
+                <div id="previewGrid" class="mt-5 hidden grid-cols-2 gap-4 2xl:grid-cols-3"></div>
+
+                <div class="mt-6 flex gap-3">
+                    <button id="submitBtn" type="button" disabled
+                            class="flex-1 rounded-2xl bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
+                        Start Processing
+                    </button>
+                </div>
+
+                <div id="historySection" class="mt-6 hidden border-t border-zinc-800 pt-5">
+                    <div class="flex items-center justify-between gap-3">
+                        <div>
+                            <div class="text-sm font-medium text-zinc-300">Recent</div>
+                            <div class="mt-1 text-xs text-zinc-500">Click to reuse.</div>
+                        </div>
+                        <button id="clearHistory" type="button"
+                                class="rounded-full border border-zinc-800 bg-zinc-950/70 px-3 py-1.5 text-xs text-zinc-500 transition-colors hover:border-zinc-600 hover:text-zinc-300">
+                            Clear
+                        </button>
+                    </div>
+                    <div id="historyGrid" class="mt-4 grid grid-cols-4 gap-3"></div>
+                </div>
+            </div>
+        </section>
+
+        <section class="space-y-6">
+            <div class="rounded-3xl border border-zinc-800 bg-zinc-900/70 p-6 shadow-2xl shadow-black/20 backdrop-blur">
+                <div class="flex flex-col gap-4 border-b border-zinc-800 pb-5 lg:flex-row lg:items-end lg:justify-between">
+                    <div>
+                        <h2 class="text-lg font-medium text-zinc-50">Workbench</h2>
+                        <p id="workbenchSubtitle" class="mt-1 text-sm text-zinc-500">Ready.</p>
+                    </div>
+                    <div class="grid grid-cols-2 gap-3 xl:grid-cols-4">
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3">
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-zinc-600">Progress</div>
+                            <div id="progressValue" class="mt-2 text-base font-medium text-zinc-100">0 / 0</div>
+                        </div>
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3">
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-zinc-600">Success</div>
+                            <div id="successValue" class="mt-2 text-base font-medium text-emerald-400">0</div>
+                        </div>
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3">
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-zinc-600">Failure</div>
+                            <div id="failureValue" class="mt-2 text-base font-medium text-red-400">0</div>
+                        </div>
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 px-4 py-3">
+                            <div class="text-[11px] uppercase tracking-[0.16em] text-zinc-600">Current Step</div>
+                            <div id="currentStepValue" class="mt-2 truncate text-base font-medium text-zinc-100">Idle</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="workbenchEmpty" class="flex min-h-[20rem] flex-col items-center justify-center gap-4 text-center">
+                    <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
+                        <i data-lucide="monitor-smartphone" class="h-8 w-8 text-zinc-600"></i>
+                    </div>
+                    <div class="space-y-1">
+                        <div class="text-base font-medium text-zinc-300">No run yet</div>
+                        <p class="max-w-xl text-sm leading-6 text-zinc-500">
+                            Progress and output show here.
+                        </p>
+                    </div>
+                </div>
+
+                <div id="progressSection" class="hidden pt-5">
+                    <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-4">
+                        <div class="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div>
+                                <div class="text-sm font-medium text-zinc-200">Overall</div>
+                                <div id="progressCaption" class="mt-1 text-xs text-zinc-500">Waiting for job updates…</div>
+                            </div>
+                            <div id="progressStatusBadge" class="inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-400">
+                                Running
+                            </div>
+                        </div>
+                        <div class="mt-4 h-2 overflow-hidden rounded-full bg-zinc-800">
+                            <div id="batchBar" class="h-2 rounded-full bg-emerald-500 transition-all duration-500" style="width:0"></div>
+                        </div>
+                    </div>
+
+                    <div class="mt-6 space-y-6">
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
+                            <div class="flex flex-col gap-2 border-b border-zinc-800 pb-4 lg:flex-row lg:items-center lg:justify-between">
+                                <div>
+                                    <div class="text-sm font-medium text-zinc-200">Focus</div>
+                                    <div id="focusTitle" class="mt-1 text-xs text-zinc-500">No focused job</div>
+                                </div>
+                                <div class="flex flex-wrap gap-2 text-xs text-zinc-400">
+                                    <span class="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1">
+                                        Time <span id="focusElapsedChip" class="ml-1 text-zinc-200">0.0s</span>
+                                    </span>
+                                    <span class="rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1">
+                                        Status <span id="focusStatusChip" class="ml-1 text-zinc-200">Idle</span>
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div id="timeline" class="mt-5">
+                                <div class="relative flex items-start justify-between px-4">
+                                    <div class="absolute left-4 right-4 top-4 h-0.5 rounded-full bg-zinc-800"></div>
+                                    <div id="timelineFill"
+                                         class="absolute left-4 top-4 h-0.5 rounded-full bg-emerald-500 transition-all duration-500"
+                                         style="width:0"></div>
+                                    <div id="timelineNodes" class="relative z-10 flex w-full justify-between"></div>
+                                </div>
+                                <div id="stepMessage" class="mt-6 h-5 text-center text-sm text-zinc-400 transition-opacity duration-300"></div>
+                            </div>
+                        </div>
+
+                        <div id="resultCard" class="rounded-2xl border border-zinc-800 bg-zinc-950/70 overflow-hidden">
+                            <div class="border-b border-zinc-800 px-5 py-4">
+                                <div>
+                                    <div id="resultHeader" class="text-sm font-medium text-zinc-200">Output</div>
+                                    <div id="resultMeta" class="mt-1 text-xs text-zinc-500">Appears after start.</div>
+                                </div>
+                            </div>
+                            <pre id="resultBody" class="max-h-[24rem] overflow-x-auto whitespace-pre-wrap p-5 text-xs leading-6 text-zinc-300">{
+  "status": "idle"
+}</pre>
+                        </div>
+
+                        <div class="rounded-2xl border border-zinc-800 bg-zinc-950/70 p-5">
+                            <div class="flex items-center justify-between gap-3 border-b border-zinc-800 pb-4">
+                                <div>
+                                    <div class="text-sm font-medium text-zinc-200">Jobs</div>
+                                    <div class="mt-1 text-xs text-zinc-500">Click to inspect.</div>
+                                </div>
+                                <div id="jobListMeta" class="text-xs text-zinc-500">0 jobs</div>
+                            </div>
+                            <div id="jobList" class="mt-4 grid min-w-0 gap-3"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
 </div>
 
 <button id="clearAllNotesBtn" type="button"
-        class="fixed bottom-4 right-4 rounded-md border border-red-950 bg-red-950/70 px-3 py-1.5 text-[11px] text-red-400 hover:bg-red-900/60 hover:border-red-900 hover:text-red-300 transition-colors">
-    删除所有笔记
+        class="fixed bottom-4 right-4 rounded-md border border-red-950 bg-red-950/70 px-3 py-1.5 text-[11px] text-red-400 transition-colors hover:border-red-900 hover:bg-red-900/60 hover:text-red-300">
+    Clear Notes
 </button>
 
+<div id="imageModal"
+     class="pointer-events-none fixed inset-0 z-50 hidden items-center justify-center bg-black/85 px-6 py-8 opacity-0 transition-opacity duration-200">
+    <div class="absolute inset-0" data-close-modal="true"></div>
+    <div class="relative z-10 flex max-h-full w-full max-w-6xl flex-col gap-4">
+        <div class="flex items-center justify-between gap-3">
+            <div class="min-w-0">
+                <div class="text-sm font-medium text-zinc-100">Preview</div>
+                <div id="imageModalCaption" class="mt-1 truncate text-xs text-zinc-500"></div>
+            </div>
+            <button id="closeImageModalBtn" type="button"
+                    class="rounded-full border border-zinc-700 bg-zinc-900/80 p-2 text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100">
+                <i data-lucide="x" class="h-4 w-4"></i>
+            </button>
+        </div>
+        <div class="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950/80 p-3 shadow-2xl shadow-black/40">
+            <img id="imageModalImg" src="" alt="preview" class="mx-auto max-h-[80vh] w-auto rounded-2xl object-contain">
+        </div>
+    </div>
+</div>
+
 <script>
-    const STEP_LABELS = ['识别', '去重', '抓取', '处理', '截图', '组装', '写入'];
+    const STEP_LABELS = ['Analyze', 'Dedup', 'Fetch', 'Process', 'Screenshot', 'Assemble', 'Write'];
+    const HISTORY_KEY = 'snapmind_upload_history';
+    const MAX_HISTORY = 5;
+    const POLL_INTERVAL_MS = 3000;
 
     const fileInput = document.getElementById('fileInput');
-    const preview = document.getElementById('preview');
-    const previewGrid = document.getElementById('previewGrid');
-    const dropHint = document.getElementById('dropHint');
+    const dropzone = document.getElementById('dropzone');
+    const dropHintTitle = document.getElementById('dropHintTitle');
+    const dropHintSubtitle = document.getElementById('dropHintSubtitle');
     const submitBtn = document.getElementById('submitBtn');
     const clearBtn = document.getElementById('clearBtn');
     const fileCount = document.getElementById('fileCount');
-    const timeline = document.getElementById('timeline');
-    const timelineFill = document.getElementById('timelineFill');
-    const timelineNodes = document.getElementById('timelineNodes');
-    const stepMessage = document.getElementById('stepMessage');
-    const result = document.getElementById('result');
-    const resultHeader = document.getElementById('resultHeader');
-    const obsidianLink = document.getElementById('obsidianLink');
-    const resultBody = document.getElementById('resultBody');
-    const batchProgress = document.getElementById('batchProgress');
-    const batchCounter = document.getElementById('batchCounter');
-    const batchBar = document.getElementById('batchBar');
-    const batchItems = document.getElementById('batchItems');
-    const clearAllNotesBtn = document.getElementById('clearAllNotesBtn');
-
+    const selectionHint = document.getElementById('selectionHint');
+    const selectionToolbar = document.getElementById('selectionToolbar');
+    const previewGrid = document.getElementById('previewGrid');
     const historySection = document.getElementById('historySection');
     const historyGrid = document.getElementById('historyGrid');
     const clearHistory = document.getElementById('clearHistory');
-    const HISTORY_KEY = 'snapmind_upload_history';
-    const MAX_HISTORY = 5;
 
-    let selectedFiles = [];
+    const runModeValue = document.getElementById('runModeValue');
+    const selectionCountValue = document.getElementById('selectionCountValue');
+    const overallElapsedValue = document.getElementById('overallElapsedValue');
+    const focusedElapsedValue = document.getElementById('focusedElapsedValue');
+    const workbenchSubtitle = document.getElementById('workbenchSubtitle');
+    const progressValue = document.getElementById('progressValue');
+    const successValue = document.getElementById('successValue');
+    const failureValue = document.getElementById('failureValue');
+    const currentStepValue = document.getElementById('currentStepValue');
+    const workbenchEmpty = document.getElementById('workbenchEmpty');
+    const progressSection = document.getElementById('progressSection');
+    const progressCaption = document.getElementById('progressCaption');
+    const progressStatusBadge = document.getElementById('progressStatusBadge');
+    const batchBar = document.getElementById('batchBar');
+    const jobListMeta = document.getElementById('jobListMeta');
+    const jobList = document.getElementById('jobList');
+
+    const timelineFill = document.getElementById('timelineFill');
+    const timelineNodes = document.getElementById('timelineNodes');
+    const stepMessage = document.getElementById('stepMessage');
+    const focusTitle = document.getElementById('focusTitle');
+    const focusElapsedChip = document.getElementById('focusElapsedChip');
+    const focusStatusChip = document.getElementById('focusStatusChip');
+
+    const resultHeader = document.getElementById('resultHeader');
+    const resultMeta = document.getElementById('resultMeta');
+    const resultBody = document.getElementById('resultBody');
+
+    const clearAllNotesBtn = document.getElementById('clearAllNotesBtn');
+    const imageModal = document.getElementById('imageModal');
+    const imageModalImg = document.getElementById('imageModalImg');
+    const imageModalCaption = document.getElementById('imageModalCaption');
+    const closeImageModalBtn = document.getElementById('closeImageModalBtn');
+
+    const state = {
+        selectedFiles: [],
+        selectedPreviewUrls: [],
+        run: null,
+        timerId: null,
+    };
 
     lucide.createIcons();
 
-    // --- History helpers ---
+    timelineNodes.innerHTML = STEP_LABELS.map((label, index) => `
+      <div class="flex flex-col items-center gap-2" style="width:${100 / STEP_LABELS.length}%">
+        <div id="node-${index}"
+             class="flex h-8 w-8 items-center justify-center rounded-full border-2 border-zinc-700 bg-zinc-950 text-xs font-medium text-zinc-600 ring-4 ring-zinc-950 transition-all duration-300">
+            ${index + 1}
+        </div>
+        <span id="label-${index}" class="text-xs text-zinc-600 transition-colors duration-300">${label}</span>
+      </div>
+    `).join('');
+
+    function escapeHtml(value) {
+        return String(value)
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
+    }
+
+    function formatSeconds(startAt, endAt) {
+        if (!startAt) {
+            return '0.0s';
+        }
+        const elapsed = Math.max((endAt ?? Date.now()) - startAt, 0);
+        return `${(elapsed / 1000).toFixed(1)}s`;
+    }
+
     function getHistory() {
-        try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
+        try {
+            return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+        } catch {
+            return [];
+        }
     }
 
     function saveToHistory(file) {
         const reader = new FileReader();
         reader.onload = () => {
-            const entry = { dataUrl: reader.result, name: file.name, type: file.type };
-            const history = getHistory().filter(h => h.dataUrl !== entry.dataUrl);
+            const entry = {
+                dataUrl: reader.result,
+                name: file.name,
+                type: file.type,
+            };
+            const history = getHistory().filter(item => item.dataUrl !== entry.dataUrl);
             history.unshift(entry);
-            if (history.length > MAX_HISTORY) { history.pop(); }
-            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota exceeded */ }
+            if (history.length > MAX_HISTORY) {
+                history.pop();
+            }
+            try {
+                localStorage.setItem(HISTORY_KEY, JSON.stringify(history));
+            } catch {
+                // ignore quota issues in dev helper
+            }
             renderHistory();
         };
         reader.readAsDataURL(file);
@@ -165,406 +373,1065 @@
         const [, base64] = dataUrl.split(',');
         const bin = atob(base64);
         const arr = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) { arr[i] = bin.charCodeAt(i); }
+        for (let i = 0; i < bin.length; i++) {
+            arr[i] = bin.charCodeAt(i);
+        }
         return new File([arr], name, { type });
     }
 
     function renderHistory() {
         const history = getHistory();
-        if (!history.length) { historySection.classList.add('hidden'); return; }
+        if (!history.length) {
+            historySection.classList.add('hidden');
+            historyGrid.innerHTML = '';
+            return;
+        }
+
         historySection.classList.remove('hidden');
-        historyGrid.innerHTML = history.map((h, i) => `
-          <div class="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-zinc-800 hover:border-zinc-500 transition-colors aspect-square" data-idx="${i}">
-            <img src="${h.dataUrl}" alt="${h.name}" class="w-full h-full object-cover">
-          </div>
+        historyGrid.innerHTML = history.map((item, index) => `
+            <button type="button"
+                    data-history-index="${index}"
+                    class="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/80 transition-colors hover:border-zinc-600">
+                <img src="${item.dataUrl}" alt="${escapeHtml(item.name)}" class="aspect-square h-full w-full object-cover">
+                <span class="absolute inset-x-0 bottom-0 truncate bg-gradient-to-t from-black/85 to-transparent px-2 py-2 text-left text-[11px] text-zinc-300">
+                    ${escapeHtml(item.name)}
+                </span>
+            </button>
         `).join('');
-        historyGrid.querySelectorAll('[data-idx]').forEach(el => {
-            el.addEventListener('click', () => {
-                const h = history[parseInt(el.dataset.idx, 10)];
-                const file = dataUrlToFile(h.dataUrl, h.name, h.type);
-                selectFiles([file]);
-            });
-        });
     }
 
-    clearHistory.addEventListener('click', () => {
-        localStorage.removeItem(HISTORY_KEY);
-        renderHistory();
-    });
+    function revokeSelectedPreviewUrls() {
+        for (const url of state.selectedPreviewUrls) {
+            URL.revokeObjectURL(url);
+        }
+        state.selectedPreviewUrls = [];
+    }
 
-    renderHistory();
-
-    // Build timeline nodes
-    timelineNodes.innerHTML = STEP_LABELS.map((label, i) => `
-      <div class="flex flex-col items-center gap-2 z-10" style="width:${100 / STEP_LABELS.length}%">
-        <div id="node-${i}"
-          class="w-8 h-8 z-10 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center
-                 text-xs font-medium text-zinc-600 transition-all duration-300">
-          ${i + 1}
-        </div>
-        <span id="label-${i}" class="text-xs text-zinc-600 transition-colors duration-300">${label}</span>
-      </div>
-    `).join('');
-
-    fileInput.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files);
-        if (!files.length) { return; }
-        selectFiles(files);
-    });
+    function updateDropHint(selectedCount = 0) {
+        if (selectedCount > 0) {
+            dropHintTitle.textContent = selectedCount === 1
+                ? '1 image selected'
+                : `${selectedCount} images selected`;
+            dropHintSubtitle.textContent = 'Drop again to replace.';
+            return;
+        }
+        dropHintTitle.textContent = 'Drop here or click';
+        dropHintSubtitle.textContent = 'PNG / JPG / WebP, max 20';
+    }
 
     function selectFiles(files) {
-        if (files.length > 20) {
-            alert('最多选择 20 张图片');
-            files = files.slice(0, 20);
+        let nextFiles = Array.from(files).filter(file => file.type.startsWith('image/'));
+        if (!nextFiles.length) {
+            return;
         }
-        selectedFiles = files;
-
-        if (files.length === 1) {
-            preview.src = URL.createObjectURL(files[0]);
-            preview.classList.remove('hidden');
-            previewGrid.classList.add('hidden');
-            clearBtn.classList.add('hidden');
-            fileCount.classList.add('hidden');
-        } else {
-            preview.classList.add('hidden');
-            previewGrid.classList.remove('hidden');
-            previewGrid.innerHTML = files.map((f, i) => `
-              <div class="relative rounded-lg overflow-hidden border border-zinc-800 aspect-square">
-                <img src="${URL.createObjectURL(f)}" alt="preview-${i}" class="w-full h-full object-cover">
-                <span class="absolute bottom-0 right-0 bg-zinc-900/80 text-zinc-400 text-[10px] px-1">${i+1}</span>
-              </div>
-            `).join('');
-            clearBtn.classList.remove('hidden');
-            fileCount.classList.remove('hidden');
-            fileCount.textContent = `已选择 ${files.length} 张图片`;
+        if (nextFiles.length > 20) {
+            alert('You can select up to 20 images.');
+            nextFiles = nextFiles.slice(0, 20);
         }
 
-        dropHint.classList.add('hidden');
+        revokeSelectedPreviewUrls();
+        state.selectedFiles = nextFiles;
+        state.selectedPreviewUrls = nextFiles.map(file => URL.createObjectURL(file));
+
+        previewGrid.classList.remove('hidden');
+        selectionToolbar.classList.remove('hidden');
         submitBtn.disabled = false;
-        result.classList.add('hidden');
-        timeline.classList.add('hidden');
-        batchProgress.classList.add('hidden');
+
+        const count = nextFiles.length;
+        selectionCountValue.textContent = String(count);
+        fileCount.textContent = count === 1
+            ? '1 image selected'
+            : `${count} images selected`;
+        selectionHint.textContent = 'Click to zoom.';
+        submitBtn.textContent = count === 1 ? 'Start Processing' : `Process ${count} Images`;
+        updateDropHint(count);
+
+        renderSelectedGallery();
+        if (!state.run) {
+            renderWorkbench();
+        }
     }
 
-    clearBtn.addEventListener('click', () => {
-        selectedFiles = [];
-        preview.classList.add('hidden');
+    function clearSelection() {
+        state.selectedFiles = [];
+        revokeSelectedPreviewUrls();
+        fileInput.value = '';
         previewGrid.classList.add('hidden');
         previewGrid.innerHTML = '';
-        dropHint.classList.remove('hidden');
-        clearBtn.classList.add('hidden');
-        fileCount.classList.add('hidden');
+        selectionToolbar.classList.add('hidden');
         submitBtn.disabled = true;
-        fileInput.value = '';
-    });
+        submitBtn.textContent = 'Start Processing';
+        selectionCountValue.textContent = '0';
+        updateDropHint(0);
+        runModeValue.textContent = state.run ? runModeValue.textContent : 'Idle';
+        if (!state.run) {
+            workbenchSubtitle.textContent = 'Ready.';
+        }
+    }
+
+    function renderSelectedGallery() {
+        if (!state.selectedFiles.length) {
+            previewGrid.classList.add('hidden');
+            previewGrid.innerHTML = '';
+            return;
+        }
+
+        const single = state.selectedFiles.length === 1;
+        previewGrid.className = single
+            ? 'mt-5 grid grid-cols-1 gap-4'
+            : 'mt-5 grid grid-cols-2 gap-4 2xl:grid-cols-3';
+
+        previewGrid.innerHTML = state.selectedFiles.map((file, index) => {
+            const src = state.selectedPreviewUrls[index];
+            return `
+                <button type="button"
+                        class="group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950/80 text-left transition-colors hover:border-zinc-600 ${single ? 'min-h-[22rem]' : 'aspect-square'}"
+                        data-preview-index="${index}">
+                    <img src="${src}" alt="${escapeHtml(file.name)}" class="h-full w-full cursor-zoom-in object-cover transition-transform duration-300 group-hover:scale-[1.02]">
+                    <div class="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black via-black/50 to-transparent px-4 py-3">
+                        <div class="flex items-center justify-between gap-3">
+                            <div class="min-w-0">
+                                <div class="truncate text-sm font-medium text-zinc-100">${escapeHtml(file.name)}</div>
+                                <div class="mt-1 text-xs text-zinc-400">${(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                            </div>
+                            <div class="rounded-full border border-white/15 bg-black/35 p-2 text-zinc-200 transition-colors group-hover:border-white/25 group-hover:bg-black/50">
+                                <i data-lucide="maximize-2" class="h-3.5 w-3.5"></i>
+                            </div>
+                        </div>
+                    </div>
+                </button>
+            `;
+        }).join('');
+
+        lucide.createIcons();
+    }
+
+    function createRun(mode, total) {
+        state.run = {
+            mode,
+            total,
+            startedAt: Date.now(),
+            endedAt: null,
+            status: 'running',
+            batchId: null,
+            batchSummary: null,
+            immediatePayload: null,
+            jobOrder: [],
+            jobs: {},
+            focusedJobId: null,
+        };
+        if (mode === 'batch') {
+            runModeValue.textContent = 'Batch';
+            workbenchSubtitle.textContent = 'Batch running.';
+            return;
+        }
+        if (mode === 'maintenance') {
+            runModeValue.textContent = 'Maintenance';
+            workbenchSubtitle.textContent = 'Maintenance output.';
+            return;
+        }
+        runModeValue.textContent = 'Single';
+        workbenchSubtitle.textContent = 'Single running.';
+    }
+
+    function ensureJob(jobId, sourceFile = null) {
+        if (!state.run.jobs[jobId]) {
+            state.run.jobs[jobId] = {
+                id: jobId,
+                startedAt: state.run.startedAt,
+                endedAt: null,
+                data: null,
+                sourceFile,
+                sourceName: sourceFile?.name || null,
+                retryCount: 0,
+                retrying: false,
+            };
+        } else if (sourceFile) {
+            state.run.jobs[jobId].sourceFile = sourceFile;
+            state.run.jobs[jobId].sourceName = sourceFile.name;
+        }
+        return state.run.jobs[jobId];
+    }
+
+    function setFocus(jobId) {
+        if (!state.run || !jobId) {
+            return;
+        }
+        state.run.focusedJobId = jobId;
+        renderFocusPanel();
+        renderResultPanel();
+        refreshTimers();
+    }
+
+    function upsertJobData(jobId, job) {
+        const tracked = ensureJob(jobId);
+        tracked.data = job;
+        if ((job.status === 'done' || job.status === 'error') && !tracked.endedAt) {
+            tracked.endedAt = Date.now();
+        }
+        tracked.retrying = false;
+        if (!state.run.focusedJobId) {
+            state.run.focusedJobId = jobId;
+        }
+    }
+
+    function finalizeRunIfNeeded() {
+        if (!state.run || state.run.endedAt) {
+            return;
+        }
+
+        const total = state.run.total || state.run.jobOrder.length;
+        const completed = getCompletedCount();
+
+        if (total > 0 && completed >= total) {
+            state.run.endedAt = Date.now();
+            if (getFailureCount() >= total) {
+                state.run.status = 'error';
+            } else if (getFailureCount() > 0) {
+                state.run.status = 'partial';
+            } else {
+                state.run.status = 'done';
+            }
+        }
+    }
+
+    function getTrackedJobs() {
+        if (!state.run) {
+            return [];
+        }
+        return state.run.jobOrder.map(jobId => state.run.jobs[jobId]).filter(Boolean);
+    }
+
+    function getCompletedCount() {
+        return getTrackedJobs().filter(job => job.data && (job.data.status === 'done' || job.data.status === 'error')).length;
+    }
+
+    function getSuccessCount() {
+        return getTrackedJobs().filter(job => job.data?.result?.success).length;
+    }
+
+    function getFailureCount() {
+        return getTrackedJobs().filter(job => {
+            if (!job.data) {
+                return false;
+            }
+            return job.data.status === 'error' || job.data.result?.success === false;
+        }).length;
+    }
+
+    function getFocusedJob() {
+        if (!state.run?.focusedJobId) {
+            return null;
+        }
+        return state.run.jobs[state.run.focusedJobId] || null;
+    }
+
+    function getCurrentStepLabel(job) {
+        if (!job?.data?.steps?.length) {
+            return 'Waiting…';
+        }
+        const running = job.data.steps.find(step => step.status === 'running');
+        if (running) {
+            return running.message || running.name;
+        }
+        const errored = job.data.steps.find(step => step.status === 'error');
+        if (errored) {
+            return errored.message || errored.name;
+        }
+        const lastDone = [...job.data.steps].reverse().find(step => step.status === 'done' || step.status === 'skipped');
+        return lastDone?.message || lastDone?.name || job.data.status || 'Running';
+    }
+
+    function getJobTitle(jobId, job) {
+        return job?.data?.result?.title
+            || job?.data?.result?.clipId
+            || job?.data?.clipId
+            || job?.sourceName
+            || jobId;
+    }
+
+    function shortJobId(jobId) {
+        if (!jobId) {
+            return '';
+        }
+        return jobId.length > 18 ? `${jobId.slice(0, 10)}...${jobId.slice(-4)}` : jobId;
+    }
+
+    function getStatusText(status) {
+        if (status === 'done') {
+            return 'Done';
+        }
+        if (status === 'error') {
+            return 'Failed';
+        }
+        if (status === 'running') {
+            return 'Running';
+        }
+        return 'Queued';
+    }
+
+    function getStatusClasses(status, selected) {
+        const base = selected
+            ? 'border-zinc-600 bg-zinc-900/90'
+            : 'border-zinc-800 bg-zinc-950/70 hover:border-zinc-700 hover:bg-zinc-900/80';
+        if (status === 'done') {
+            return `${base} shadow-[0_0_0_1px_rgba(16,185,129,0.14)]`;
+        }
+        if (status === 'error') {
+            return `${base} shadow-[0_0_0_1px_rgba(239,68,68,0.14)]`;
+        }
+        if (status === 'running') {
+            return `${base} shadow-[0_0_0_1px_rgba(250,204,21,0.1)]`;
+        }
+        return base;
+    }
+
+    function getStatusDotClass(status) {
+        if (status === 'done') {
+            return 'bg-emerald-400';
+        }
+        if (status === 'error') {
+            return 'bg-red-400';
+        }
+        if (status === 'running') {
+            return 'bg-yellow-400 animate-pulse';
+        }
+        return 'bg-zinc-600';
+    }
+
+    function isJobFailed(tracked) {
+        if (!tracked?.data) {
+            return false;
+        }
+        return tracked.data.status === 'error' || tracked.data.result?.success === false;
+    }
+
+    function canRetryJob(tracked) {
+        if (!state.run || !tracked?.sourceFile || tracked.retrying) {
+            return false;
+        }
+        if (state.run.status === 'running') {
+            return false;
+        }
+        return isJobFailed(tracked);
+    }
+
+    function replaceJobWithRetry(oldJobId, newJobId) {
+        if (!state.run) {
+            return null;
+        }
+        const oldTracked = state.run.jobs[oldJobId];
+        const nextTracked = {
+            id: newJobId,
+            startedAt: Date.now(),
+            endedAt: null,
+            data: null,
+            sourceFile: oldTracked?.sourceFile || null,
+            sourceName: oldTracked?.sourceName || null,
+            retryCount: (oldTracked?.retryCount || 0) + 1,
+            retrying: false,
+        };
+
+        const index = state.run.jobOrder.indexOf(oldJobId);
+        if (index >= 0) {
+            state.run.jobOrder.splice(index, 1, newJobId);
+        } else {
+            state.run.jobOrder.push(newJobId);
+        }
+
+        delete state.run.jobs[oldJobId];
+        state.run.jobs[newJobId] = nextTracked;
+        state.run.focusedJobId = newJobId;
+        state.run.endedAt = null;
+        state.run.status = 'running';
+        state.run.immediatePayload = null;
+        return nextTracked;
+    }
+
+    function createObsidianTarget(resultData) {
+        if (!resultData?.success) {
+            return null;
+        }
+        if (resultData.vaultPath) {
+            const file = resultData.vaultPath.replace(/\.md$/, '');
+            return {
+                uri: `obsidian://open?file=${encodeURIComponent(file)}`,
+                label: 'Open Note',
+                meta: resultData.vaultPath,
+                icon: 'external-link',
+            };
+        }
+        if (resultData.clipId) {
+            return {
+                uri: `obsidian://search?query=${encodeURIComponent(resultData.clipId)}`,
+                label: 'Open Existing',
+                meta: resultData.clipId,
+                icon: 'search',
+            };
+        }
+        return null;
+    }
+
+    function renderWorkbench() {
+        const hasRun = Boolean(state.run);
+        workbenchEmpty.classList.toggle('hidden', hasRun);
+        progressSection.classList.toggle('hidden', !hasRun);
+
+        if (!hasRun) {
+            progressValue.textContent = '0 / 0';
+            successValue.textContent = '0';
+            failureValue.textContent = '0';
+            currentStepValue.textContent = 'Idle';
+            progressCaption.textContent = 'Waiting…';
+            progressStatusBadge.className = 'inline-flex items-center rounded-full border border-zinc-800 bg-zinc-900 px-3 py-1 text-xs text-zinc-400';
+            progressStatusBadge.textContent = 'Running';
+            batchBar.style.width = '0';
+            jobList.innerHTML = '';
+            jobListMeta.textContent = '0 jobs';
+            renderFocusPanel();
+            renderResultPanel();
+            refreshTimers();
+            lucide.createIcons();
+            return;
+        }
+
+        const total = state.run.total || state.run.jobOrder.length;
+        const completed = getCompletedCount();
+        const succeeded = getSuccessCount();
+        const failed = getFailureCount();
+        const focused = getFocusedJob();
+        const currentStep = focused
+                ? getCurrentStepLabel(focused)
+                : state.run.mode === 'maintenance'
+                    ? 'Maintenance'
+                    : 'Waiting…';
+        const percent = total > 0 ? (completed / total) * 100 : 0;
+        const status = state.run.status;
+
+        progressValue.textContent = total > 0 ? `${completed} / ${total}` : '—';
+        successValue.textContent = String(succeeded);
+        failureValue.textContent = String(failed);
+        currentStepValue.textContent = currentStep;
+        progressCaption.textContent = state.run.mode === 'batch'
+            ? `${completed}/${total} done, ${succeeded} ok, ${failed} failed`
+            : state.run.mode === 'maintenance'
+                ? 'Latest maintenance result.'
+                : completed > 0 ? 'Run finished.' : 'Run active.';
+        batchBar.style.width = `${percent}%`;
+
+        progressStatusBadge.className = 'inline-flex items-center rounded-full border px-3 py-1 text-xs';
+        if (status === 'done') {
+            progressStatusBadge.classList.add('border-emerald-900', 'bg-emerald-950/40', 'text-emerald-300');
+            progressStatusBadge.textContent = 'Done';
+        } else if (status === 'partial') {
+            progressStatusBadge.classList.add('border-yellow-900', 'bg-yellow-950/30', 'text-yellow-300');
+            progressStatusBadge.textContent = 'Partial';
+        } else if (status === 'error') {
+            progressStatusBadge.classList.add('border-red-900', 'bg-red-950/30', 'text-red-300');
+            progressStatusBadge.textContent = 'Failed';
+        } else {
+            progressStatusBadge.classList.add('border-zinc-800', 'bg-zinc-900', 'text-zinc-400');
+            progressStatusBadge.textContent = 'Running';
+        }
+
+        jobListMeta.textContent = `${total} jobs`;
+        renderJobList();
+        renderFocusPanel();
+        renderResultPanel();
+        refreshTimers();
+        lucide.createIcons();
+    }
+
+    function renderJobList() {
+        if (!state.run?.jobOrder.length) {
+            jobList.innerHTML = '';
+            return;
+        }
+
+        jobList.innerHTML = state.run.jobOrder.map(jobId => {
+            const tracked = state.run.jobs[jobId];
+            const job = tracked?.data;
+            const selected = state.run.focusedJobId === jobId;
+            const title = escapeHtml(getJobTitle(jobId, tracked));
+            const status = job?.status || 'pending';
+            const detail = escapeHtml(job ? getCurrentStepLabel(tracked) : 'Waiting…');
+            const obsidianTarget = job?.result ? createObsidianTarget(job.result) : null;
+            const shortId = escapeHtml(shortJobId(jobId));
+            const retryButton = canRetryJob(tracked)
+                ? `
+                    <button type="button"
+                            data-retry-job="${jobId}"
+                            class="inline-flex items-center gap-1 rounded-full border border-red-900/70 bg-red-950/30 px-2.5 py-1 text-red-300 transition-colors hover:bg-red-950/50"
+                            data-stop-propagation="true">
+                        <i data-lucide="rotate-ccw" class="h-3.5 w-3.5"></i>
+                        Retry
+                    </button>
+                `
+                : '';
+            const retryBadge = tracked?.retryCount
+                ? `
+                    <span class="rounded-full border border-zinc-800 bg-zinc-900/80 px-2.5 py-1">
+                        Retry ${tracked.retryCount}
+                    </span>
+                `
+                : '';
+
+            return `
+                <div
+                        data-job-focus="${jobId}"
+                        class="w-full min-w-0 overflow-hidden cursor-pointer rounded-2xl border p-4 text-left transition-all ${getStatusClasses(status, selected)}">
+                    <div class="flex items-start justify-between gap-4">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex min-w-0 items-center gap-2">
+                                <span class="h-2.5 w-2.5 rounded-full ${getStatusDotClass(status)}"></span>
+                                <span class="block min-w-0 truncate text-sm font-medium text-zinc-100">${title}</span>
+                            </div>
+                            <div class="mt-1 text-[11px] text-zinc-600">${shortId}</div>
+                            <div class="mt-2 truncate text-xs leading-5 text-zinc-500">${detail}</div>
+                        </div>
+                        <span class="shrink-0 rounded-full border border-zinc-800 bg-zinc-900/90 px-2.5 py-1 text-[11px] text-zinc-400">
+                            ${getStatusText(status)}
+                        </span>
+                    </div>
+
+                    <div class="mt-4 flex flex-wrap items-center gap-2 text-[11px] text-zinc-500">
+                        <span class="rounded-full border border-zinc-800 bg-zinc-900/80 px-2.5 py-1">
+                            Time <span class="ml-1 text-zinc-200" data-job-elapsed="${jobId}">${formatSeconds(tracked?.startedAt, tracked?.endedAt)}</span>
+                        </span>
+                        ${retryBadge}
+                        ${tracked?.retrying ? `
+                            <span class="rounded-full border border-yellow-900/70 bg-yellow-950/30 px-2.5 py-1 text-yellow-300">
+                                Retrying…
+                            </span>
+                        ` : ''}
+                        ${retryButton}
+                        ${obsidianTarget ? `
+                            <a href="${obsidianTarget.uri}"
+                               class="inline-flex items-center gap-1 rounded-full border border-violet-900/60 bg-violet-950/30 px-2.5 py-1 text-violet-300 transition-colors hover:bg-violet-950/50"
+                               data-stop-propagation="true">
+                                <i data-lucide="${obsidianTarget.icon}" class="h-3.5 w-3.5"></i>
+                                ${obsidianTarget.label}
+                            </a>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }
 
     function resetTimeline() {
-        for (let i = 0; i < STEP_LABELS.length; i++) {
-            const node = document.getElementById(`node-${i}`);
-            const label = document.getElementById(`label-${i}`);
-            node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-900 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
-            node.innerHTML = `${i + 1}`;
+        for (let index = 0; index < STEP_LABELS.length; index++) {
+            const node = document.getElementById(`node-${index}`);
+            const label = document.getElementById(`label-${index}`);
+            node.className = 'flex h-8 w-8 items-center justify-center rounded-full border-2 border-zinc-700 bg-zinc-950 text-xs font-medium text-zinc-600 ring-4 ring-zinc-950 transition-all duration-300';
+            node.innerHTML = `${index + 1}`;
             label.className = 'text-xs text-zinc-600 transition-colors duration-300';
         }
         timelineFill.style.width = '0';
-        stepMessage.textContent = '';
+        stepMessage.textContent = 'Waiting…';
+        stepMessage.className = 'mt-6 h-5 text-center text-sm text-zinc-400 transition-opacity duration-300';
     }
 
     function updateTimeline(job) {
-        const steps = job.steps;
-        const total = steps.length;
-        const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
+        if (!job?.data?.steps?.length) {
+            resetTimeline();
+            return;
+        }
 
-        // Fill line: calculate based on last completed node position
-        const segment = 100 / (total - 1);
+        const steps = job.data.steps;
+        const total = steps.length;
+        const doneCount = steps.filter(step => step.status === 'done' || step.status === 'skipped').length;
+        const segment = total > 1 ? 100 / (total - 1) : 100;
         const fillPct = Math.min(doneCount * segment, 100);
         timelineFill.style.width = `calc(${fillPct}%)`;
 
-        for (let i = 0; i < total; i++) {
-            const s = steps[i];
-            const node = document.getElementById(`node-${i}`);
-            const label = document.getElementById(`label-${i}`);
-
-            // Reset classes
+        for (let index = 0; index < total; index++) {
+            const step = steps[index];
+            const node = document.getElementById(`node-${index}`);
+            const label = document.getElementById(`label-${index}`);
             node.classList.remove('step-running');
 
-            if (s.status === 'done') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-emerald-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-emerald-400 transition-all duration-300';
+            if (step.status === 'done') {
+                node.className = 'step-running flex h-8 w-8 items-center justify-center rounded-full border-2 border-emerald-500 bg-zinc-950 text-xs font-medium text-emerald-400 ring-4 ring-zinc-950 transition-all duration-300';
+                node.classList.remove('step-running');
                 node.innerHTML = '✓';
                 label.className = 'text-xs text-emerald-400 transition-colors duration-300';
-            } else if (s.status === 'running') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-yellow-400 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-yellow-400 transition-all duration-300 step-running';
-                node.innerHTML = `<span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>`;
-                label.className = 'text-xs text-yellow-400 font-medium transition-colors duration-300';
-            } else if (s.status === 'skipped') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-600 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-500 transition-all duration-300';
+            } else if (step.status === 'running') {
+                node.className = 'step-running flex h-8 w-8 items-center justify-center rounded-full border-2 border-yellow-400 bg-zinc-950 text-xs font-medium text-yellow-400 ring-4 ring-zinc-950 transition-all duration-300';
+                node.innerHTML = '<span class="inline-block h-2 w-2 rounded-full bg-yellow-400 animate-pulse"></span>';
+                label.className = 'text-xs font-medium text-yellow-400 transition-colors duration-300';
+            } else if (step.status === 'skipped') {
+                node.className = 'flex h-8 w-8 items-center justify-center rounded-full border-2 border-zinc-600 bg-zinc-950 text-xs font-medium text-zinc-500 ring-4 ring-zinc-950 transition-all duration-300';
                 node.innerHTML = '–';
                 label.className = 'text-xs text-zinc-500 transition-colors duration-300';
-            } else if (s.status === 'error') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-red-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-red-400 transition-all duration-300';
+            } else if (step.status === 'error') {
+                node.className = 'flex h-8 w-8 items-center justify-center rounded-full border-2 border-red-500 bg-zinc-950 text-xs font-medium text-red-400 ring-4 ring-zinc-950 transition-all duration-300';
                 node.innerHTML = '✗';
                 label.className = 'text-xs text-red-400 transition-colors duration-300';
             } else {
-                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
-                node.innerHTML = `${i + 1}`;
+                node.className = 'flex h-8 w-8 items-center justify-center rounded-full border-2 border-zinc-700 bg-zinc-950 text-xs font-medium text-zinc-600 ring-4 ring-zinc-950 transition-all duration-300';
+                node.innerHTML = `${index + 1}`;
                 label.className = 'text-xs text-zinc-600 transition-colors duration-300';
             }
         }
 
-        // Show current step message
-        const running = steps.find(s => s.status === 'running');
-        const lastDone = [...steps].reverse().find(s => s.status === 'done');
-        if (job.status === 'done') {
-            stepMessage.textContent = '🎉 处理完成';
-            stepMessage.className = 'mt-6 text-center text-sm text-emerald-400 h-5 transition-opacity duration-300';
-        } else if (job.status === 'error') {
-            stepMessage.textContent = '处理失败';
-            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+        const running = steps.find(step => step.status === 'running');
+        const lastDone = [...steps].reverse().find(step => step.status === 'done' || step.status === 'skipped');
+        if (job.data.status === 'done') {
+            stepMessage.textContent = 'Completed';
+            stepMessage.className = 'mt-6 h-5 text-center text-sm text-emerald-400 transition-opacity duration-300';
+        } else if (job.data.status === 'error') {
+            stepMessage.textContent = 'Failed';
+            stepMessage.className = 'mt-6 h-5 text-center text-sm text-red-400 transition-opacity duration-300';
         } else if (running) {
             stepMessage.textContent = running.message || running.name;
-            stepMessage.className = 'mt-6 text-center text-sm text-zinc-300 h-5 transition-opacity duration-300';
-        } else if (lastDone?.message) {
-            stepMessage.textContent = lastDone.message;
-            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+            stepMessage.className = 'mt-6 h-5 text-center text-sm text-zinc-300 transition-opacity duration-300';
+        } else if (lastDone) {
+            stepMessage.textContent = lastDone.message || lastDone.name;
+            stepMessage.className = 'mt-6 h-5 text-center text-sm text-zinc-400 transition-opacity duration-300';
         }
+    }
+
+    function renderFocusPanel() {
+        const focused = getFocusedJob();
+        if (!focused) {
+            focusTitle.textContent = 'No focused job';
+            focusElapsedChip.textContent = '0.0s';
+            focusStatusChip.textContent = 'Idle';
+            resetTimeline();
+            return;
+        }
+
+        focusTitle.textContent = getJobTitle(focused.id, focused);
+        focusStatusChip.textContent = getStatusText(focused.data?.status || 'pending');
+        updateTimeline(focused);
+        refreshTimers();
+    }
+
+    function renderResultPanel() {
+        if (!state.run) {
+            resultHeader.textContent = 'Result';
+            resultMeta.textContent = 'Appears after start.';
+            resultBody.textContent = JSON.stringify({ status: 'idle' }, null, 2);
+            return;
+        }
+
+        const focused = getFocusedJob();
+
+        if (focused?.data?.result) {
+            const resultData = focused.data.result;
+            resultHeader.textContent = resultData.success ? 'Result' : 'Failed';
+            resultMeta.textContent = `${getJobTitle(focused.id, focused)} · ${resultData.message || getStatusText(focused.data.status)}`;
+            resultBody.textContent = JSON.stringify(resultData, null, 2);
+        } else if (focused?.data) {
+            resultHeader.textContent = 'Job State';
+            resultMeta.textContent = `${getJobTitle(focused.id, focused)} · ${getStatusText(focused.data.status)}`;
+            resultBody.textContent = JSON.stringify(focused.data, null, 2);
+        } else if (state.run.immediatePayload) {
+            resultHeader.textContent = 'Request';
+            resultMeta.textContent = state.run.immediatePayload.error || 'Unexpected response.';
+            resultBody.textContent = JSON.stringify(state.run.immediatePayload, null, 2);
+        } else if (state.run.batchSummary) {
+            resultHeader.textContent = 'Batch';
+            resultMeta.textContent = `${state.run.batchSummary.succeeded} ok, ${state.run.batchSummary.failed} failed`;
+            resultBody.textContent = JSON.stringify(state.run.batchSummary, null, 2);
+        } else {
+            resultHeader.textContent = 'Result';
+            resultMeta.textContent = 'Waiting for the first update.';
+            resultBody.textContent = JSON.stringify({ status: 'waiting' }, null, 2);
+        }
+    }
+
+    function refreshTimers() {
+        overallElapsedValue.textContent = formatSeconds(state.run?.startedAt, state.run?.endedAt);
+        const focused = getFocusedJob();
+        const focusedElapsed = formatSeconds(focused?.startedAt, focused?.endedAt);
+        focusedElapsedValue.textContent = focusedElapsed;
+        focusElapsedChip.textContent = focusedElapsed;
+
+        document.querySelectorAll('[data-job-elapsed]').forEach(el => {
+            const tracked = state.run?.jobs?.[el.dataset.jobElapsed];
+            el.textContent = formatSeconds(tracked?.startedAt, tracked?.endedAt);
+        });
+    }
+
+    function beginTimerLoop() {
+        if (state.timerId) {
+            window.clearInterval(state.timerId);
+        }
+        state.timerId = window.setInterval(refreshTimers, 200);
     }
 
     async function pollJob(jobId) {
         while (true) {
-            await new Promise(r => setTimeout(r, 3_000));
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
             try {
                 const resp = await fetch(`/jobs/${jobId}`);
-                if (!resp.ok) { continue; }
+                if (!resp.ok) {
+                    continue;
+                }
                 const job = await resp.json();
-                updateTimeline(job);
+                upsertJobData(jobId, job);
+                finalizeRunIfNeeded();
+                renderWorkbench();
 
                 if (job.status === 'done' || job.status === 'error') {
-                    showResult(job.result);
                     submitBtn.disabled = false;
                     return;
                 }
             } catch {
-                // network hiccup, keep polling
+                // keep polling on transient failures
+            }
+        }
+    }
+
+    async function retryJob(jobId) {
+        const tracked = state.run?.jobs?.[jobId];
+        if (!tracked?.sourceFile || tracked.retrying || !canRetryJob(tracked)) {
+            return;
+        }
+
+        tracked.retrying = true;
+        state.run.immediatePayload = null;
+        renderWorkbench();
+        submitBtn.disabled = true;
+
+        const form = new FormData();
+        form.append('image', tracked.sourceFile);
+
+        try {
+            const resp = await fetch('/clip', {
+                method: 'POST',
+                body: form,
+            });
+            const data = await resp.json();
+
+            if (!resp.ok || !data.jobId) {
+                throw new Error(data.error || 'Retry request failed');
+            }
+
+            replaceJobWithRetry(jobId, data.jobId);
+            renderWorkbench();
+            pollJob(data.jobId);
+        } catch (error) {
+            tracked.retrying = false;
+            state.run.immediatePayload = {
+                success: false,
+                error: error.message || 'Retry request failed',
+            };
+            renderWorkbench();
+            submitBtn.disabled = false;
+        }
+    }
+
+    async function refreshBatchJobs(jobIds) {
+        const jobs = await Promise.all(jobIds.map(async jobId => {
+            try {
+                const resp = await fetch(`/jobs/${jobId}`);
+                if (!resp.ok) {
+                    return {
+                        jobId,
+                        job: null,
+                    };
+                }
+                const job = await resp.json();
+                return {
+                    jobId,
+                    job,
+                };
+            } catch {
+                return {
+                    jobId,
+                    job: null,
+                };
+            }
+        }));
+
+        for (const item of jobs) {
+            if (item.job) {
+                upsertJobData(item.jobId, item.job);
             }
         }
     }
 
     async function pollBatch(batchId, jobIds) {
         while (true) {
-            await new Promise(r => setTimeout(r, 3_000));
+            await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
             try {
-                const resp = await fetch(`/batch/${batchId}`);
-                if (!resp.ok) { continue; }
-                const batch = await resp.json();
+                const [batchResp] = await Promise.all([
+                    fetch(`/batch/${batchId}`),
+                    refreshBatchJobs(jobIds),
+                ]);
 
-                // Update progress bar
-                const pct = batch.total > 0 ? (batch.completed / batch.total * 100) : 0;
-                batchBar.style.width = `${pct}%`;
-                batchCounter.textContent = `${batch.completed} / ${batch.total}`;
+                if (batchResp.ok) {
+                    state.run.batchSummary = await batchResp.json();
+                }
 
-                // Update individual job items
-                await updateBatchItems(jobIds);
+                finalizeRunIfNeeded();
+                renderWorkbench();
 
-                if (batch.status === 'done' || batch.status === 'error') {
-                    batchBar.className = batch.failed === batch.total
-                        ? 'bg-red-500 h-2 rounded-full transition-all duration-500'
-                        : 'bg-emerald-500 h-2 rounded-full transition-all duration-500';
-
-                    resultHeader.textContent = `批量完成: ${batch.succeeded} 成功, ${batch.failed} 失败`;
-                    resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
-                        batch.failed === 0 ? 'text-emerald-400' : batch.succeeded === 0 ? 'text-red-400' : 'text-yellow-400'
-                    }`;
-                    obsidianLink.classList.add('hidden');
-                    resultBody.textContent = JSON.stringify(batch.results, null, 2);
-                    result.classList.remove('hidden');
+                if (state.run.batchSummary && (state.run.batchSummary.status === 'done' || state.run.batchSummary.status === 'error')) {
                     submitBtn.disabled = false;
                     return;
                 }
             } catch {
-                // keep polling
+                // keep polling on transient failures
             }
         }
     }
 
-    async function updateBatchItems(jobIds) {
-        const html = [];
-        for (const jobId of jobIds) {
-            try {
-                const resp = await fetch(`/jobs/${jobId}`);
-                if (!resp.ok) { html.push(renderBatchItem(jobId, null)); continue; }
-                const job = await resp.json();
-                html.push(renderBatchItem(jobId, job));
-            } catch {
-                html.push(renderBatchItem(jobId, null));
-            }
-        }
-        batchItems.innerHTML = html.join('');
-    }
-
-    function renderBatchItem(jobId, job) {
-        if (!job) {
-            return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
-                <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
-                <span class="text-xs text-zinc-500 truncate">${jobId}</span>
-            </div>`;
-        }
-        const colors = { running: 'yellow-400', done: 'emerald-500', error: 'red-500' };
-        const color = colors[job.status] || 'zinc-600';
-        const title = job.result?.title || jobId;
-        const msg = job.result?.message || job.steps.find(s => s.status === 'running')?.message || job.status;
-        return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
-            <span class="w-2 h-2 rounded-full bg-${color} flex-shrink-0${job.status === 'running' ? ' animate-pulse' : ''}"></span>
-            <span class="text-xs text-zinc-300 truncate flex-1">${title}</span>
-            <span class="text-xs text-zinc-500 truncate max-w-[200px]">${msg}</span>
-        </div>`;
-    }
-
-    function showResult(data) {
-        if (!data) { return; }
-
-        resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
-        resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
-            data.success ? 'text-emerald-400' : 'text-red-400'
-        }`;
-
-        if (data.success && data.vaultPath) {
-            const file = data.vaultPath.replace(/\.md$/, '');
-            const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
-            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-          <i data-lucide="external-link" class="h-4 w-4"></i>
-          在 Obsidian 中打开 →</a>
-          <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
-            obsidianLink.classList.remove('hidden');
-        } else if (data.success && data.clipId) {
-            const uri = `obsidian://search?query=${encodeURIComponent(data.clipId)}`;
-            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-          <i data-lucide="search" class="h-4 w-4"></i>
-          在 Obsidian 中查看已有收藏 →</a>
-          <span class="text-xs text-zinc-600 ml-2">${data.clipId}</span>`;
-            obsidianLink.classList.remove('hidden');
-        } else {
-            obsidianLink.classList.add('hidden');
+    async function handleSubmit() {
+        if (!state.selectedFiles.length) {
+            return;
         }
 
-        resultBody.textContent = JSON.stringify(data, null, 2);
-        result.classList.remove('hidden');
-        lucide.createIcons();
-    }
-
-    submitBtn.addEventListener('click', async () => {
-        if (!selectedFiles.length) { return; }
-
+        const mode = state.selectedFiles.length > 1 ? 'batch' : 'single';
+        createRun(mode, state.selectedFiles.length);
+        renderWorkbench();
         submitBtn.disabled = true;
-        result.classList.add('hidden');
 
-        const isBatch = selectedFiles.length > 1;
-
-        if (isBatch) {
-            // Batch upload
-            timeline.classList.add('hidden');
-            batchProgress.classList.remove('hidden');
-            batchBar.style.width = '0';
-            batchBar.className = 'bg-emerald-500 h-2 rounded-full transition-all duration-500';
-            batchCounter.textContent = `0 / ${selectedFiles.length}`;
-            batchItems.innerHTML = '';
-
-            const form = new FormData();
-            for (const file of selectedFiles) {
-                form.append('images', file);
-                saveToHistory(file);
-            }
-
-            try {
-                const resp = await fetch('/clip/batch', { method: 'POST', body: form });
-                const data = await resp.json();
-
-                if (data.batchId) {
-                    pollBatch(data.batchId, data.jobIds);
-                } else {
-                    resultHeader.textContent = '✗ 请求失败';
-                    resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-                    resultBody.textContent = JSON.stringify(data, null, 2);
-                    result.classList.remove('hidden');
-                    batchProgress.classList.add('hidden');
-                    submitBtn.disabled = false;
-                }
-            } catch (err) {
-                batchProgress.classList.add('hidden');
-                resultHeader.textContent = '✗ 请求错误';
-                resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-                resultBody.textContent = err.message;
-                result.classList.remove('hidden');
-                submitBtn.disabled = false;
-            }
-        } else {
-            // Single upload (original flow)
-            batchProgress.classList.add('hidden');
-            resetTimeline();
-            timeline.classList.remove('hidden');
-            stepMessage.textContent = '提交中…';
-            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
-
-            const form = new FormData();
-            form.append('image', selectedFiles[0]);
-            saveToHistory(selectedFiles[0]);
-
-            try {
-                const resp = await fetch('/clip', { method: 'POST', body: form });
-                const data = await resp.json();
-
-                if (data.jobId) {
-                    pollJob(data.jobId);
-                } else {
-                    showResult(data);
-                    timeline.classList.add('hidden');
-                    submitBtn.disabled = false;
-                }
-            } catch (err) {
-                stepMessage.textContent = '请求失败';
-                stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
-                resultHeader.textContent = '✗ 请求错误';
-                resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-                resultBody.textContent = err.message;
-                result.classList.remove('hidden');
-                submitBtn.disabled = false;
-            }
+        for (const file of state.selectedFiles) {
+            saveToHistory(file);
         }
+
+        if (mode === 'batch') {
+            const form = new FormData();
+            for (const file of state.selectedFiles) {
+                form.append('images', file);
+            }
+
+            try {
+                const resp = await fetch('/clip/batch', {
+                    method: 'POST',
+                    body: form,
+                });
+                const data = await resp.json();
+
+                if (!resp.ok || !data.batchId) {
+                    state.run.immediatePayload = data;
+                    state.run.status = 'error';
+                    state.run.endedAt = Date.now();
+                    renderWorkbench();
+                    submitBtn.disabled = false;
+                    return;
+                }
+
+                state.run.batchId = data.batchId;
+                state.run.jobOrder = data.jobIds;
+                for (const [index, jobId] of data.jobIds.entries()) {
+                    ensureJob(jobId, state.selectedFiles[index] || null);
+                }
+                if (data.jobIds[0]) {
+                    state.run.focusedJobId = data.jobIds[0];
+                }
+                renderWorkbench();
+                pollBatch(data.batchId, data.jobIds);
+            } catch (error) {
+                state.run.immediatePayload = {
+                    success: false,
+                    error: error.message,
+                };
+                state.run.status = 'error';
+                state.run.endedAt = Date.now();
+                renderWorkbench();
+                submitBtn.disabled = false;
+            }
+            return;
+        }
+
+        const form = new FormData();
+        form.append('image', state.selectedFiles[0]);
+
+        try {
+            const resp = await fetch('/clip', {
+                method: 'POST',
+                body: form,
+            });
+            const data = await resp.json();
+
+            if (!resp.ok || !data.jobId) {
+                state.run.immediatePayload = data;
+                state.run.status = 'error';
+                state.run.endedAt = Date.now();
+                renderWorkbench();
+                submitBtn.disabled = false;
+                return;
+            }
+
+            state.run.jobOrder = [data.jobId];
+            state.run.focusedJobId = data.jobId;
+            ensureJob(data.jobId, state.selectedFiles[0] || null);
+            renderWorkbench();
+            pollJob(data.jobId);
+        } catch (error) {
+            state.run.immediatePayload = {
+                success: false,
+                error: error.message,
+            };
+            state.run.status = 'error';
+            state.run.endedAt = Date.now();
+            renderWorkbench();
+            submitBtn.disabled = false;
+        }
+    }
+
+    function openImageModal(src, caption) {
+        imageModalImg.src = src;
+        imageModalCaption.textContent = caption || 'Preview';
+        imageModal.classList.remove('hidden');
+        imageModal.classList.add('flex');
+        imageModal.classList.remove('pointer-events-none', 'opacity-0');
+        document.body.classList.add('overflow-hidden');
+    }
+
+    function closeImageModal() {
+        imageModal.classList.add('pointer-events-none', 'opacity-0');
+        imageModal.classList.remove('flex');
+        imageModal.classList.add('hidden');
+        imageModalImg.src = '';
+        document.body.classList.remove('overflow-hidden');
+    }
+
+    fileInput.addEventListener('change', event => {
+        const files = Array.from(event.target.files || []);
+        if (!files.length) {
+            return;
+        }
+        selectFiles(files);
+    });
+
+    dropzone.addEventListener('dragover', event => {
+        event.preventDefault();
+        dropzone.classList.add('border-zinc-500', 'bg-zinc-900/70');
+    });
+
+    dropzone.addEventListener('dragleave', event => {
+        if (event.currentTarget === dropzone) {
+            dropzone.classList.remove('border-zinc-500', 'bg-zinc-900/70');
+        }
+    });
+
+    dropzone.addEventListener('drop', event => {
+        event.preventDefault();
+        dropzone.classList.remove('border-zinc-500', 'bg-zinc-900/70');
+        const files = Array.from(event.dataTransfer?.files || []);
+        if (!files.length) {
+            return;
+        }
+        selectFiles(files);
+    });
+
+    previewGrid.addEventListener('click', event => {
+        const card = event.target.closest('[data-preview-index]');
+        if (!card) {
+            return;
+        }
+        const index = Number(card.dataset.previewIndex);
+        const src = state.selectedPreviewUrls[index];
+        const file = state.selectedFiles[index];
+        if (src && file) {
+            openImageModal(src, file.name);
+        }
+    });
+
+    historyGrid.addEventListener('click', event => {
+        const button = event.target.closest('[data-history-index]');
+        if (!button) {
+            return;
+        }
+        const history = getHistory();
+        const item = history[Number(button.dataset.historyIndex)];
+        if (!item) {
+            return;
+        }
+        const file = dataUrlToFile(item.dataUrl, item.name, item.type);
+        selectFiles([file]);
+    });
+
+    jobList.addEventListener('click', event => {
+        const stopTarget = event.target.closest('[data-stop-propagation]');
+        if (stopTarget) {
+            event.stopPropagation();
+            const retryTarget = event.target.closest('[data-retry-job]');
+            if (retryTarget) {
+                retryJob(retryTarget.dataset.retryJob);
+            }
+            return;
+        }
+        const card = event.target.closest('[data-job-focus]');
+        if (!card) {
+            return;
+        }
+        setFocus(card.dataset.jobFocus);
+    });
+
+    clearBtn.addEventListener('click', clearSelection);
+    submitBtn.addEventListener('click', handleSubmit);
+    clearHistory.addEventListener('click', () => {
+        localStorage.removeItem(HISTORY_KEY);
+        renderHistory();
     });
 
     clearAllNotesBtn.addEventListener('click', async () => {
-        const confirmed = confirm('确认清空 snap-mind 目录下的所有笔记和附件吗？该操作仅影响此应用生成的内容。');
-        if (!confirmed) { return; }
+        const confirmed = confirm('Delete all notes and assets in snap-mind?');
+        if (!confirmed) {
+            return;
+        }
 
         clearAllNotesBtn.disabled = true;
-        clearAllNotesBtn.textContent = '删除中…';
+        clearAllNotesBtn.textContent = 'Deleting…';
+
         try {
-            const resp = await fetch('/dev/clear-snap-mind', { method: 'POST' });
+            const resp = await fetch('/dev/clear-snap-mind', {
+                method: 'POST',
+            });
             const data = await resp.json();
             if (!resp.ok || !data.success) {
-                throw new Error(data.error || '清空失败');
+                throw new Error(data.error || 'Delete failed');
             }
 
-            resultHeader.textContent = '✓ 已清空';
-            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-emerald-400';
-            obsidianLink.classList.add('hidden');
-            resultBody.textContent = JSON.stringify(data, null, 2);
-            result.classList.remove('hidden');
-            batchItems.innerHTML = '';
-            batchCounter.textContent = '0 / 0';
-            batchBar.style.width = '0';
-            timeline.classList.add('hidden');
-            batchProgress.classList.add('hidden');
-        } catch (err) {
-            resultHeader.textContent = '✗ 清空失败';
-            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-            obsidianLink.classList.add('hidden');
-            resultBody.textContent = err.message || '清空失败';
-            result.classList.remove('hidden');
+            if (!state.run) {
+                createRun('maintenance', 0);
+            }
+            state.run.immediatePayload = data;
+            state.run.status = 'done';
+            state.run.endedAt = Date.now();
+            workbenchSubtitle.textContent = 'Vault cleared.';
+            renderWorkbench();
+        } catch (error) {
+            if (!state.run) {
+                createRun('maintenance', 0);
+            }
+            state.run.immediatePayload = {
+                success: false,
+                error: error.message || 'Delete failed',
+            };
+            state.run.status = 'error';
+            state.run.endedAt = Date.now();
+            renderWorkbench();
         } finally {
             clearAllNotesBtn.disabled = false;
-            clearAllNotesBtn.textContent = '删除所有笔记';
+            clearAllNotesBtn.textContent = 'Clear Notes';
         }
     });
+
+    imageModal.addEventListener('click', event => {
+        if (event.target.closest('[data-close-modal="true"]')) {
+            closeImageModal();
+        }
+    });
+
+    closeImageModalBtn.addEventListener('click', closeImageModal);
+
+    window.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && !imageModal.classList.contains('hidden')) {
+            closeImageModal();
+        }
+    });
+
+    beginTimerLoop();
+    renderHistory();
+    renderWorkbench();
 </script>
 </body>
 </html>
