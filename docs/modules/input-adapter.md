@@ -1,12 +1,13 @@
 # Module: InputAdapter
 
-> 统一的输入接入层，接收来自不同客户端的截图，经认证后触发处理流程。
+> 统一的输入接入层，接收来自不同客户端的截图，经认证后触发异步处理流程。
 
 ## Source Files
 
-- `src/index.ts` — 入口，启动 HTTP 服务
-- `src/server/routes.ts` — HTTP 路由定义
-- `src/server/auth.ts` — 认证中间件
+- `src/index.ts` — 入口，启动 Fastify HTTP 服务
+- `src/server/routes.ts` — HTTP 路由定义 + pipeline 调度
+- `src/server/auth.ts` — 认证逻辑
+- `src/server/job-store.ts` — 异步 Job 状态管理（内存）
 
 ## Design Rationale
 
@@ -15,41 +16,22 @@
 | Client | Auth Method | Description |
 |--------|-------------|-------------|
 | 龙虾 (OpenClew) | API Key | 服务间调用，固定密钥 |
-| Web App | JWT (Bearer Token) | 用户登录后获取 token |
-| iOS App | JWT (Bearer Token) | 同 Web App，共享认证体系 |
+| Web App | JWT (Bearer Token) | 用户登录后获取 token（暂未实现） |
+| iOS App | JWT (Bearer Token) | 同 Web App，共享认证体系（暂未实现） |
 
 认证通过后，所有客户端走同一条处理管道，不需要为每个客户端写独立 adapter。
-
-## Interface
-
-```typescript
-interface InputAdapter {
-  /** 启动服务 */
-  start(): Promise<void>;
-
-  /** 停止服务 */
-  stop(): Promise<void>;
-}
-```
 
 ## Authentication
 
 ```typescript
-// 认证中间件：支持 API Key 和 JWT 两种方式
-async function authenticate(request): Promise<AuthResult> {
-  const authHeader = request.headers.authorization;
+type AuthenticateResult =
+  | { ok: true; value: AuthResult }
+  | { ok: false; error: UnauthorizedError };
 
-  // API Key: "Bearer sk-xxx"
-  if (isApiKey(authHeader)) {
-    return validateApiKey(authHeader);
-  }
-
-  // JWT: "Bearer eyJxxx"
-  if (isJwt(authHeader)) {
-    return validateJwt(authHeader);
-  }
-
-  throw new UnauthorizedError();
+async function authenticate(request: FastifyRequest): Promise<AuthenticateResult> {
+  // Dev 模式：未携带 Authorization header 时跳过认证
+  // API Key: token === config.auth.apiKey → clientType "agent"
+  // JWT: 暂未实现，当前拒绝非 API Key token
 }
 
 interface AuthResult {
@@ -58,62 +40,79 @@ interface AuthResult {
 }
 ```
 
+## Async Job Pattern
+
+当前实现采用异步 Job 模式，而非同步串行返回：
+
+1. `POST /clip` 接收截图后，立即返回 `jobId`（HTTP 202）
+2. Pipeline 在后台异步执行（fire-and-forget）
+3. 客户端通过 `GET /jobs/:id` 轮询进度
+4. JobStore 跟踪 7 个步骤的状态
+
+### Job Lifecycle
+
+```
+createJob(jobId, clipId) → 初始化 7 个步骤 (pending)
+    │
+    ├─ stepStart(jobId, stepIndex) → status: "running"
+    ├─ stepDone(jobId, stepIndex, message) → status: "done"
+    ├─ stepSkipped(jobId, stepIndex) → status: "skipped"
+    │
+    ├─ jobDone(jobId, result) → 整体完成
+    └─ jobError(jobId, result) → 整体失败
+```
+
+### 7-Step Pipeline
+
+| Step | Name | Description |
+|------|------|-------------|
+| 0 | VLM 截图分析 | 两阶段 VLM 分析 |
+| 1 | 去重检查 | findSimilarClip()，命中则跳过后续步骤 |
+| 2 | 抓取原文 | 四级策略 L1→L4 |
+| 3 | 内容处理 | LLM 摘要/标签/分类 |
+| 4 | 保存截图 | 写入 vault assets |
+| 5 | 组装记录 | 构建 ClipRecord |
+| 6 | 写入 Vault | Markdown 文件 + sidecar JSON |
+
 ## Responsibilities
 
 1. 接收截图上传请求，执行认证
-2. 生成 `clipId`，保存截图到临时目录
-3. 串行调度处理流程（VLM → Fetch → Process → Write）
-4. 返回结构化结果，包含 `message` 字段（供聊天类客户端直接转发）
-
-## Implementation Notes
-
-- 收到请求后立即生成 `clipId`，保存截图到临时目录
-- 整个处理流程同步串行执行，整体超时 90 秒
-- 处理成功或失败都返回 `message` 字段
-- 失败时截图已保存到 Obsidian vault 的 assets 目录，标记为待重试
-- `AuthResult.clientType` 记录到 ClipRecord 中，便于追踪来源
-
-## Flow
-
-```
-POST /clip (image + auth header) →
-  authenticate() →
-  generateClipId() →
-  saveTempScreenshot() →
-  vlmAnalyzer.analyze() →
-  clipWriter.findSimilar() →   // 去重
-  contentFetcher.fetch() →
-  contentProcessor.process() →
-  screenshotStore.save() →
-  clipWriter.write() →
-  saveSidecarJson() →
-  return ClipResponse
-```
+2. 生成 `clipId`（复用为 `jobId`）
+3. 创建 Job，立即返回 202
+4. 后台异步调度处理流程（VLM → Dedup → Fetch → Process → Save → Assemble → Write）
+5. 通过 JobStore 更新每步进度
 
 ## Error Handling
 
 ```typescript
-try {
-  return await handleClipRequest(imageBuffer);
-} catch (error) {
-  // 确保截图已保存（即使处理失败）
-  await screenshotStore.save(clipId, imageBuffer, "png");
+// Pipeline 整体包裹在 withTimeout() 中（180s 超时）
+withTimeout(handleClip(jobId, clipId, imageBuffer), config.processing.overallTimeout)
+  .catch(async (error) => {
+    // 1. 保存截图到 vault assets（即使处理失败）
+    await saveScreenshot(clipId, imageBuffer);
 
-  // 写入一条最小化的失败记录到 Obsidian
-  await clipWriter.write({
-    id: clipId,
-    title: "处理失败 - 待重试",
-    platform: "unknown",
-    fetchLevel: 4,
-    // ... 其他字段填默认值
+    // 2. 写入一条最小化的失败记录到 Obsidian
+    await writeClip({
+      id: clipId,
+      title: "处理失败 - 待重试",
+      platform: "unknown",
+      fetchLevel: 4,
+      // ... 其他字段填默认值
+    });
+
+    // 3. 更新 Job 状态为 error
+    jobError(jobId, {
+      success: false,
+      clipId,
+      error: "Pipeline processing failed",
+      screenshotSaved: true,
+      message: "处理失败，已保存原始截图，请稍后重试",
+    });
   });
-
-  return {
-    success: false,
-    clipId,
-    error: error.message,
-    screenshotSaved: true,
-    message: "处理失败，已保存原始截图，请稍后重试",
-  };
-}
 ```
+
+## Server Configuration
+
+- Fastify 实例，注册 `@fastify/multipart` 插件（文件上传最大 20MB）
+- Dev 模式：启用 `pino-pretty` 日志格式化，提供 `/dev` 上传测试页面
+- 监听 `config.server.port`（默认 3210）和 `config.server.host`（默认 0.0.0.0）

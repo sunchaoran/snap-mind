@@ -6,7 +6,7 @@ ClipWriter 的入参，所有模块的输出最终汇聚为这一个结构。
 
 ```typescript
 interface ClipRecord {
-  /** 全局唯一 ID，格式: clip_{yyyyMMdd}_{HHmmss}_{4位短hash} */
+  /** 全局唯一 ID，格式: clip_{yyyyMMdd}_{HHmmss}_{6位nanoid} */
   id: string;
 
   /** 内容标题 */
@@ -39,7 +39,7 @@ interface ClipRecord {
   /** 内容语言 */
   language: string;
 
-  /** 原始截图的本地路径 */
+  /** 原始截图的 vault 相对路径 */
   screenshotPath: string;
 
   /** 获取策略级别 1-4 */
@@ -87,6 +87,8 @@ type Category =
   | "culture"
   | "career"
   | "other";
+
+type ClientType = "agent" | "webapp" | "ios";
 ```
 
 ## 3. VLM Types
@@ -151,10 +153,31 @@ interface ProcessedContent {
 }
 ```
 
+### ClipResponse (API Output)
+
+```typescript
+interface ClipResponse {
+  success: boolean;
+  clipId: string;
+  title?: string;
+  platform?: Platform;
+  tags?: string[];
+  category?: Category;
+  fetchLevel?: 1 | 2 | 3 | 4;
+  /** Vault-relative path, e.g. "Clippings/2026-04-05_twitter_xxx.md" */
+  vaultPath?: string;
+  error?: string;
+  screenshotSaved?: boolean;
+  message: string;
+}
+```
+
 ## 5. ID Format
 
 ```
-clip_{yyyyMMdd}_{HHmmss}_{4位短hash}
+clip_{yyyyMMdd}_{HHmmss}_{6位nanoid}
 
-Example: clip_20260402_143000_a3f2
+Example: clip_20260402_143000_V1StGX
 ```
+
+使用 `nanoid(6)` 生成 6 位随机字符串，结合时间戳保证全局唯一性。
