@@ -46,6 +46,10 @@ export const config = {
     similarityThreshold: 0.85,
     /** Max fetch level to attempt (1-4). Levels beyond this will not run; if the max level fails, pipeline errors instead of falling through. */
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
+    /** Max images per batch upload (1-20). */
+    maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 20, 20),
+    /** Max pipelines running concurrently within a batch. Controls resource usage. */
+    maxConcurrentPipelines: Number(process.env.MAX_CONCURRENT_PIPELINES) || 5,
   },
 
   searchEngine: {

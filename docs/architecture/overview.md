@@ -7,12 +7,14 @@
 ## 2. User Flow
 
 ```
-客户端（龙虾 / Web App / iOS App）
-    → 认证 (API Key / JWT)
-    → POST /clip (截图)
-    → 返回 jobId (202 Accepted)
-    → 轮询 GET /jobs/:id 获取进度
-    → 处理完成后返回结果："已收藏: 标题 [平台] #tag1 #tag2"
+单张上传：
+客户端 → POST /clip (截图) → 返回 jobId (202)
+       → 轮询 GET /jobs/:id → 处理完成后返回结果
+
+批量上传（最多 20 张）：
+客户端 → POST /clip/batch (多张截图) → 返回 batchId + jobIds (202)
+       → 轮询 GET /batch/:id 获取整体进度
+       → 轮询 GET /jobs/:id 获取单张进度
 ```
 
 ## 3. Architecture Diagram
@@ -27,7 +29,8 @@
 │                                                  │
 │  ┌──────────────┐                               │
 │  │ InputAdapter  │  HTTP 服务 + 认证，接收截图    │
-│  │               │  创建 Job → 返回 jobId (202)  │
+│  │               │  单张: Job → jobId (202)      │
+│  │               │  批量: BatchJob → batchId     │
 │  └──────┬───────┘                               │
 │         ▼  (async pipeline, fire-and-forget)     │
 │  ┌─────────────┐                                │
@@ -62,6 +65,9 @@
 
 ```
 handleClip(jobId, clipId, imageBuffer)
+    │
+    ├─ Step 0: 图片预处理
+    │      └─ sharp: 缩放（最长边 ≤ 2560px）→ WebP 压缩（quality 80）
     │
     ├─ Step 1/7: VLM 截图分析
     │      └─ 两阶段：先识别平台 → 再用平台特定 prompt 并发提取 → 投票合并

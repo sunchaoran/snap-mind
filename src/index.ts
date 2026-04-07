@@ -23,7 +23,8 @@ const app = Fastify({
 
 await app.register(multipart, {
   limits: {
-    fileSize: 20 * 1024 * 1024, // 20MB max screenshot size
+    fileSize: 10 * 1024 * 1024, // 10MB max per file
+    files: 20, // max files per request (batch upload)
   },
 });
 

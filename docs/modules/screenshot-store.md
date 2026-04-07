@@ -1,10 +1,11 @@
 # Module: ScreenshotStore
 
-> 管理截图文件的存储，支持自动格式检测。
+> 管理截图文件的存储，支持自动格式检测和图片预处理（压缩）。
 
 ## Source Files
 
-- `src/store/screenshot.ts`
+- `src/store/screenshot.ts` — 文件存储
+- `src/utils/image.ts` — 图片预处理（sharp）
 
 ## Functions
 
@@ -43,9 +44,27 @@ async function saveSidecarJson(clipId: string, data: unknown): Promise<void>
 
 与截图同目录，存储 VLM 原始结果（`MergedVLMResult`）用于 debug。
 
+### preprocessImage(imageBuffer)
+
+```typescript
+async function preprocessImage(imageBuffer: Buffer): Promise<PreprocessedImage>
+
+interface PreprocessedImage {
+  buffer: Buffer;         // 压缩后的 WebP 图片
+  ext: "webp";
+  originalSize: number;   // 原始大小（bytes）
+  compressedSize: number; // 压缩后大小（bytes）
+}
+```
+
+在 Pipeline 入口处调用，VLM 分析和截图存储均使用压缩后的图片：
+- **缩放**：最长边超过 2560px 时等比缩放（不放大小图）
+- **格式转换**：统一转为 WebP（lossy, quality 80）
+- **依赖**：[sharp](https://sharp.pixelplumbing.com/)（基于 libvips，高性能）
+
 ### Storage Path
 
 ```
-{VAULT_PATH}/Clippings/assets/clip_20260402_143000_V1StGX.png   # 截图
+{VAULT_PATH}/Clippings/assets/clip_20260402_143000_V1StGX.webp  # 截图（压缩后）
 {VAULT_PATH}/Clippings/assets/clip_20260402_143000_V1StGX.json  # sidecar
 ```

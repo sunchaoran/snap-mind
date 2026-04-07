@@ -35,13 +35,16 @@
     <div id="dropzone"
          class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer
              hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
-        <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
+        <input id="fileInput" type="file" accept="image/*" multiple class="absolute inset-0 opacity-0 cursor-pointer">
         <div id="dropHint" class="space-y-2">
             <i data-lucide="upload" class="mx-auto h-8 w-8 text-zinc-600"></i>
-            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择</p>
+            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择（支持多选，最多 20 张）</p>
             <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
         </div>
+        <!-- Single preview (legacy) -->
         <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
+        <!-- Multi preview grid -->
+        <div id="previewGrid" class="hidden grid grid-cols-4 gap-2 mt-2"></div>
     </div>
 
     <!-- History images -->
@@ -53,14 +56,20 @@
         <div id="historyGrid" class="grid grid-cols-5 gap-2"></div>
     </div>
 
-    <button id="submitBtn" type="button" disabled
-            class="w-full rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
-             disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
-        上传
-    </button>
+    <div class="flex gap-2">
+        <button id="submitBtn" type="button" disabled
+                class="flex-1 rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
+                 disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
+            上传
+        </button>
+        <button id="clearBtn" type="button" class="hidden rounded-lg bg-zinc-800 text-zinc-400 px-3 py-2 text-sm hover:bg-zinc-700 transition-colors">
+            清空
+        </button>
+    </div>
+    <div id="fileCount" class="hidden text-center text-xs text-zinc-500"></div>
 </div>
 
-<!-- Timeline -->
+<!-- Single job timeline -->
 <div id="timeline" class="hidden w-full max-w-3xl">
     <div class="relative flex items-start justify-between px-4">
         <!-- Background line (z-0) -->
@@ -76,6 +85,18 @@
     <div id="stepMessage" class="mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300"></div>
 </div>
 
+<!-- Batch progress -->
+<div id="batchProgress" class="hidden w-full max-w-xl space-y-3">
+    <div class="flex items-center justify-between text-sm">
+        <span class="text-zinc-400">批量处理进度</span>
+        <span id="batchCounter" class="text-zinc-500">0 / 0</span>
+    </div>
+    <div class="w-full bg-zinc-800 rounded-full h-2">
+        <div id="batchBar" class="bg-emerald-500 h-2 rounded-full transition-all duration-500" style="width:0"></div>
+    </div>
+    <div id="batchItems" class="space-y-2 max-h-96 overflow-y-auto"></div>
+</div>
+
 <!-- Result panel -->
 <div id="result" class="hidden w-full max-w-xl rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
     <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
@@ -88,8 +109,11 @@
 
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
+    const previewGrid = document.getElementById('previewGrid');
     const dropHint = document.getElementById('dropHint');
     const submitBtn = document.getElementById('submitBtn');
+    const clearBtn = document.getElementById('clearBtn');
+    const fileCount = document.getElementById('fileCount');
     const timeline = document.getElementById('timeline');
     const timelineFill = document.getElementById('timelineFill');
     const timelineNodes = document.getElementById('timelineNodes');
@@ -98,6 +122,10 @@
     const resultHeader = document.getElementById('resultHeader');
     const obsidianLink = document.getElementById('obsidianLink');
     const resultBody = document.getElementById('resultBody');
+    const batchProgress = document.getElementById('batchProgress');
+    const batchCounter = document.getElementById('batchCounter');
+    const batchBar = document.getElementById('batchBar');
+    const batchItems = document.getElementById('batchItems');
 
     const historySection = document.getElementById('historySection');
     const historyGrid = document.getElementById('historyGrid');
@@ -105,7 +133,7 @@
     const HISTORY_KEY = 'snapmind_upload_history';
     const MAX_HISTORY = 5;
 
-    let selectedFile = null;
+    let selectedFiles = [];
 
     lucide.createIcons();
 
@@ -148,7 +176,7 @@
             el.addEventListener('click', () => {
                 const h = history[parseInt(el.dataset.idx, 10)];
                 const file = dataUrlToFile(h.dataUrl, h.name, h.type);
-                selectFile(file);
+                selectFiles([file]);
             });
         });
     }
@@ -173,22 +201,56 @@
     `).join('');
 
     fileInput.addEventListener('change', (e) => {
-        const file = e.target.files[0];
-        if (!file) {
-            return;
-        }
-        selectFile(file);
+        const files = Array.from(e.target.files);
+        if (!files.length) { return; }
+        selectFiles(files);
     });
 
-    function selectFile(file) {
-        selectedFile = file;
-        preview.src = URL.createObjectURL(file);
-        preview.classList.remove('hidden');
+    function selectFiles(files) {
+        if (files.length > 20) {
+            alert('最多选择 20 张图片');
+            files = files.slice(0, 20);
+        }
+        selectedFiles = files;
+
+        if (files.length === 1) {
+            preview.src = URL.createObjectURL(files[0]);
+            preview.classList.remove('hidden');
+            previewGrid.classList.add('hidden');
+            clearBtn.classList.add('hidden');
+            fileCount.classList.add('hidden');
+        } else {
+            preview.classList.add('hidden');
+            previewGrid.classList.remove('hidden');
+            previewGrid.innerHTML = files.map((f, i) => `
+              <div class="relative rounded-lg overflow-hidden border border-zinc-800 aspect-square">
+                <img src="${URL.createObjectURL(f)}" alt="preview-${i}" class="w-full h-full object-cover">
+                <span class="absolute bottom-0 right-0 bg-zinc-900/80 text-zinc-400 text-[10px] px-1">${i+1}</span>
+              </div>
+            `).join('');
+            clearBtn.classList.remove('hidden');
+            fileCount.classList.remove('hidden');
+            fileCount.textContent = `已选择 ${files.length} 张图片`;
+        }
+
         dropHint.classList.add('hidden');
         submitBtn.disabled = false;
         result.classList.add('hidden');
         timeline.classList.add('hidden');
+        batchProgress.classList.add('hidden');
     }
+
+    clearBtn.addEventListener('click', () => {
+        selectedFiles = [];
+        preview.classList.add('hidden');
+        previewGrid.classList.add('hidden');
+        previewGrid.innerHTML = '';
+        dropHint.classList.remove('hidden');
+        clearBtn.classList.add('hidden');
+        fileCount.classList.add('hidden');
+        submitBtn.disabled = true;
+        fileInput.value = '';
+    });
 
     function resetTimeline() {
         for (let i = 0; i < STEP_LABELS.length; i++) {
@@ -266,9 +328,7 @@
             await new Promise(r => setTimeout(r, 3_000));
             try {
                 const resp = await fetch(`/jobs/${jobId}`);
-                if (!resp.ok) {
-                    continue;
-                }
+                if (!resp.ok) { continue; }
                 const job = await resp.json();
                 updateTimeline(job);
 
@@ -283,10 +343,78 @@
         }
     }
 
-    function showResult(data) {
-        if (!data) {
-            return;
+    async function pollBatch(batchId, jobIds) {
+        while (true) {
+            await new Promise(r => setTimeout(r, 3_000));
+            try {
+                const resp = await fetch(`/batch/${batchId}`);
+                if (!resp.ok) { continue; }
+                const batch = await resp.json();
+
+                // Update progress bar
+                const pct = batch.total > 0 ? (batch.completed / batch.total * 100) : 0;
+                batchBar.style.width = `${pct}%`;
+                batchCounter.textContent = `${batch.completed} / ${batch.total}`;
+
+                // Update individual job items
+                await updateBatchItems(jobIds);
+
+                if (batch.status === 'done' || batch.status === 'error') {
+                    batchBar.className = batch.failed === batch.total
+                        ? 'bg-red-500 h-2 rounded-full transition-all duration-500'
+                        : 'bg-emerald-500 h-2 rounded-full transition-all duration-500';
+
+                    resultHeader.textContent = `批量完成: ${batch.succeeded} 成功, ${batch.failed} 失败`;
+                    resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
+                        batch.failed === 0 ? 'text-emerald-400' : batch.succeeded === 0 ? 'text-red-400' : 'text-yellow-400'
+                    }`;
+                    obsidianLink.classList.add('hidden');
+                    resultBody.textContent = JSON.stringify(batch.results, null, 2);
+                    result.classList.remove('hidden');
+                    submitBtn.disabled = false;
+                    return;
+                }
+            } catch {
+                // keep polling
+            }
         }
+    }
+
+    async function updateBatchItems(jobIds) {
+        const html = [];
+        for (const jobId of jobIds) {
+            try {
+                const resp = await fetch(`/jobs/${jobId}`);
+                if (!resp.ok) { html.push(renderBatchItem(jobId, null)); continue; }
+                const job = await resp.json();
+                html.push(renderBatchItem(jobId, job));
+            } catch {
+                html.push(renderBatchItem(jobId, null));
+            }
+        }
+        batchItems.innerHTML = html.join('');
+    }
+
+    function renderBatchItem(jobId, job) {
+        if (!job) {
+            return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+                <span class="w-2 h-2 rounded-full bg-zinc-600"></span>
+                <span class="text-xs text-zinc-500 truncate">${jobId}</span>
+            </div>`;
+        }
+        const colors = { running: 'yellow-400', done: 'emerald-500', error: 'red-500' };
+        const color = colors[job.status] || 'zinc-600';
+        const title = job.result?.title || jobId;
+        const msg = job.result?.message || job.steps.find(s => s.status === 'running')?.message || job.status;
+        return `<div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-zinc-900 border border-zinc-800">
+            <span class="w-2 h-2 rounded-full bg-${color} flex-shrink-0${job.status === 'running' ? ' animate-pulse' : ''}"></span>
+            <span class="text-xs text-zinc-300 truncate flex-1">${title}</span>
+            <span class="text-xs text-zinc-500 truncate max-w-[200px]">${msg}</span>
+        </div>`;
+    }
+
+    function showResult(data) {
+        if (!data) { return; }
 
         resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
         resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
@@ -302,7 +430,6 @@
           <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
             obsidianLink.classList.remove('hidden');
         } else if (data.success && data.clipId) {
-            // Duplicate case: search by clipId
             const uri = `obsidian://search?query=${encodeURIComponent(data.clipId)}`;
             obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
           <i data-lucide="search" class="h-4 w-4"></i>
@@ -319,44 +446,82 @@
     }
 
     submitBtn.addEventListener('click', async () => {
-        if (!selectedFile) {
-            return;
-        }
+        if (!selectedFiles.length) { return; }
 
         submitBtn.disabled = true;
         result.classList.add('hidden');
 
-        resetTimeline();
-        timeline.classList.remove('hidden');
-        stepMessage.textContent = '提交中…';
-        stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+        const isBatch = selectedFiles.length > 1;
 
-        const form = new FormData();
-        form.append('image', selectedFile);
-        saveToHistory(selectedFile);
+        if (isBatch) {
+            // Batch upload
+            timeline.classList.add('hidden');
+            batchProgress.classList.remove('hidden');
+            batchBar.style.width = '0';
+            batchBar.className = 'bg-emerald-500 h-2 rounded-full transition-all duration-500';
+            batchCounter.textContent = `0 / ${selectedFiles.length}`;
+            batchItems.innerHTML = '';
 
-        try {
-            const resp = await fetch('/clip', {
-                method: 'POST',
-                body: form
-            });
-            const data = await resp.json();
+            const form = new FormData();
+            for (const file of selectedFiles) {
+                form.append('images', file);
+                saveToHistory(file);
+            }
 
-            if (data.jobId) {
-                pollJob(data.jobId);
-            } else {
-                showResult(data);
-                timeline.classList.add('hidden');
+            try {
+                const resp = await fetch('/clip/batch', { method: 'POST', body: form });
+                const data = await resp.json();
+
+                if (data.batchId) {
+                    pollBatch(data.batchId, data.jobIds);
+                } else {
+                    resultHeader.textContent = '✗ 请求失败';
+                    resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+                    resultBody.textContent = JSON.stringify(data, null, 2);
+                    result.classList.remove('hidden');
+                    batchProgress.classList.add('hidden');
+                    submitBtn.disabled = false;
+                }
+            } catch (err) {
+                batchProgress.classList.add('hidden');
+                resultHeader.textContent = '✗ 请求错误';
+                resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+                resultBody.textContent = err.message;
+                result.classList.remove('hidden');
                 submitBtn.disabled = false;
             }
-        } catch (err) {
-            stepMessage.textContent = '请求失败';
-            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
-            resultHeader.textContent = '✗ 请求错误';
-            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
-            resultBody.textContent = err.message;
-            result.classList.remove('hidden');
-            submitBtn.disabled = false;
+        } else {
+            // Single upload (original flow)
+            batchProgress.classList.add('hidden');
+            resetTimeline();
+            timeline.classList.remove('hidden');
+            stepMessage.textContent = '提交中…';
+            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+
+            const form = new FormData();
+            form.append('image', selectedFiles[0]);
+            saveToHistory(selectedFiles[0]);
+
+            try {
+                const resp = await fetch('/clip', { method: 'POST', body: form });
+                const data = await resp.json();
+
+                if (data.jobId) {
+                    pollJob(data.jobId);
+                } else {
+                    showResult(data);
+                    timeline.classList.add('hidden');
+                    submitBtn.disabled = false;
+                }
+            } catch (err) {
+                stepMessage.textContent = '请求失败';
+                stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+                resultHeader.textContent = '✗ 请求错误';
+                resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+                resultBody.textContent = err.message;
+                result.classList.remove('hidden');
+                submitBtn.disabled = false;
+            }
         }
     });
 </script>

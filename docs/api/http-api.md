@@ -36,7 +36,7 @@ Authorization: Bearer <token>
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| image | File (png/jpg/webp/gif) | Yes | 截图文件，最大 20MB |
+| image | File (png/jpg/webp/gif) | Yes | 截图文件，最大 10MB（上传后自动压缩为 WebP） |
 
 ### Response: Accepted (202)
 
@@ -47,6 +47,107 @@ Authorization: Bearer <token>
 ```
 
 客户端收到 `jobId` 后，通过 `GET /jobs/:id` 轮询处理进度。
+
+---
+
+## POST /clip/batch
+
+批量上传多张截图，每张图独立创建异步处理 Job，全部并发执行。
+
+### Request
+
+```
+POST /clip/batch
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+```
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| images | File[] (png/jpg/webp/gif) | Yes | 截图文件，每张最大 10MB，最多 20 张（上传后自动压缩为 WebP） |
+
+### Response: Accepted (202)
+
+```json
+{
+  "batchId": "batch_clip_20260407_143000_V1StGX",
+  "jobIds": [
+    "clip_20260407_143000_A1B2C3",
+    "clip_20260407_143001_D4E5F6",
+    "clip_20260407_143002_G7H8I9"
+  ],
+  "total": 3
+}
+```
+
+客户端收到 `batchId` 后，可通过以下方式追踪进度：
+- `GET /batch/:id` — 查询整体批次进度
+- `GET /jobs/:id` — 查询单个 Job 进度（使用 `jobIds` 中的 ID）
+
+### Response: Bad Request (400)
+
+```json
+{
+  "success": false,
+  "error": "Too many images. Max 20 per batch"
+}
+```
+
+---
+
+## GET /batch/:id
+
+查询批量任务的整体进度。无需认证。
+
+### Request
+
+```
+GET /batch/:id
+```
+
+### Response: Running (200)
+
+```json
+{
+  "id": "batch_clip_20260407_143000_V1StGX",
+  "status": "running",
+  "jobIds": ["clip_20260407_143000_A1B2C3", "clip_20260407_143001_D4E5F6"],
+  "total": 2,
+  "completed": 1,
+  "succeeded": 1,
+  "failed": 0,
+  "results": [
+    {
+      "success": true,
+      "clipId": "clip_20260407_143000_A1B2C3",
+      "title": "Rust 异步编程指南",
+      "message": "已收藏: Rust 异步编程指南 [xiaohongshu] #rust #async"
+    }
+  ]
+}
+```
+
+### Response: Done (200)
+
+```json
+{
+  "id": "batch_clip_20260407_143000_V1StGX",
+  "status": "done",
+  "total": 2,
+  "completed": 2,
+  "succeeded": 2,
+  "failed": 0,
+  "results": ["..."]
+}
+```
+
+### Response: Not Found (404)
+
+```json
+{
+  "error": "Batch not found"
+}
+```
 
 ---
 
@@ -161,8 +262,10 @@ Dev 模式专用，返回上传测试页面（HTML）。仅在 `NODE_ENV !== 'pr
 
 ## Notes
 
-- Job 数据保存在内存中，30 分钟后自动清理
+- Job 和 Batch 数据保存在内存中，30 分钟后自动清理
 - `result` 字段仅在 `status` 为 `done` 或 `error` 时存在
 - `result.message` 字段可供聊天类客户端直接转发给用户
 - 失败时截图仍会保存到 vault assets 目录，并写入一条最小化失败记录
-- 整体超时：180 秒
+- 单个 Pipeline 超时：180 秒
+- 批量上传默认最多 20 张，并发处理数默认 5（可通过 `MAX_BATCH_SIZE` 和 `MAX_CONCURRENT_PIPELINES` 配置）
+- 批量任务中每张图独立处理，互不影响——单张失败不会中断其他图的处理

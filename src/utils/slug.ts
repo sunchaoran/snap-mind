@@ -1,12 +1,17 @@
-import slugify from "slugify";
-
 /**
- * Convert a title to a URL-friendly slug.
- * CJK characters are preserved, max 50 chars.
+ * Sanitize a title for use as an Obsidian-friendly filename.
+ *
+ * Preserves CJK characters, spaces, and readability.
+ * Only strips characters that are unsafe for filesystems or Obsidian links.
  */
 export function generateSlug(title: string): string {
-  return slugify(title, {
-    lower: true,
-    strict: true,
-  }).slice(0, 50);
+  return (
+    title
+      // Remove filesystem-unsafe and Obsidian-unsafe chars: / \ : * ? " < > | # ^ [] |
+      .replace(/[/\\:*?"<>|#^[\]]/g, "")
+      // Collapse whitespace
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 80)
+  );
 }

@@ -7,7 +7,10 @@ import { fetchContent } from "@/fetcher/index.js";
 import { processContent } from "@/processor/index.js";
 import { authenticate } from "@/server/auth.js";
 import {
+  batchItemDone,
+  createBatchJob,
   createJob,
+  getBatchJob,
   getJob,
   jobDone,
   jobError,
@@ -18,6 +21,7 @@ import {
 import { saveScreenshot, saveSidecarJson } from "@/store/screenshot.js";
 import type { ClipRecord, ClipResponse } from "@/types/index.js";
 import { generateClipId } from "@/utils/id.js";
+import { preprocessImage } from "@/utils/image.js";
 import { createLogger } from "@/utils/logger.js";
 import { analyzeScreenshot } from "@/vlm/analyzer.js";
 import { findSimilarClip, writeClip } from "@/writer/markdown.js";
@@ -70,6 +74,76 @@ export async function registerRoutes(app: FastifyInstance) {
     });
   });
 
+  app.post("/clip/batch", async (request, reply) => {
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
+    }
+
+    const parts = request.files();
+    const buffers: Buffer[] = [];
+    for await (const part of parts) {
+      buffers.push(await part.toBuffer());
+      if (buffers.length > config.processing.maxBatchSize) {
+        return reply.status(400).send({
+          success: false,
+          error: `Too many images. Max ${config.processing.maxBatchSize} per batch`,
+        });
+      }
+    }
+
+    if (buffers.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: "No image files provided",
+      });
+    }
+
+    const batchId = `batch_${generateClipId()}`;
+    const jobIds: string[] = [];
+
+    for (const _ of buffers) {
+      const clipId = generateClipId();
+      const jobId = clipId;
+      createJob(jobId, clipId);
+      jobIds.push(jobId);
+    }
+
+    createBatchJob(batchId, jobIds);
+
+    // Run pipelines concurrently with concurrency limit
+    runBatch(batchId, jobIds, buffers);
+
+    return reply.status(202).send({
+      batchId,
+      jobIds,
+      total: buffers.length,
+    });
+  });
+
+  app.get<{
+    Params: {
+      id: string;
+    };
+  }>(
+    "/batch/:id",
+    {
+      logLevel: "warn",
+    },
+    async (request, reply) => {
+      const batch = getBatchJob(request.params.id);
+      if (!batch) {
+        return reply.status(404).send({
+          error: "Batch not found",
+        });
+      }
+      return batch;
+    },
+  );
+
   app.get<{
     Params: {
       id: string;
@@ -104,6 +178,53 @@ export async function registerRoutes(app: FastifyInstance) {
   }
 }
 
+function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
+  const concurrency = config.processing.maxConcurrentPipelines;
+  let cursor = 0;
+
+  function next() {
+    if (cursor >= buffers.length) {
+      return;
+    }
+    const i = cursor++;
+    const jobId = jobIds[i];
+    const clipId = jobId; // jobId === clipId
+    const imageBuffer = buffers[i];
+
+    withTimeout(
+      handleClip(jobId, clipId, imageBuffer),
+      config.processing.overallTimeout,
+    )
+      .then(() => {
+        const job = getJob(jobId);
+        if (job?.result) {
+          batchItemDone(batchId, job.result);
+        }
+      })
+      .catch(async (error) => {
+        log.error(
+          {
+            clipId,
+            batchId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "batch pipeline failed",
+        );
+        const result = await handleFailure(clipId, imageBuffer);
+        jobError(jobId, result);
+        batchItemDone(batchId, result);
+      })
+      .finally(() => {
+        next();
+      });
+  }
+
+  // Kick off initial batch of concurrent pipelines
+  for (let i = 0; i < Math.min(concurrency, buffers.length); i++) {
+    next();
+  }
+}
+
 async function handleClip(
   jobId: string,
   clipId: string,
@@ -123,6 +244,10 @@ async function handleClip(
     "▶ Pipeline start",
   );
 
+  // 0. Preprocess image (compress & resize)
+  const preprocessed = await preprocessImage(imageBuffer);
+  const processedBuffer = preprocessed.buffer;
+
   // 1. VLM analysis
   stepStart(jobId, 0, "正在分析截图…");
   log.info(
@@ -131,7 +256,7 @@ async function handleClip(
     },
     "── Step 1/7: VLM Screenshot Analysis ──",
   );
-  const vlmResult = await analyzeScreenshot(imageBuffer);
+  const vlmResult = await analyzeScreenshot(processedBuffer);
   stepDone(
     jobId,
     0,
@@ -205,7 +330,11 @@ async function handleClip(
     },
     "── Step 5/7: Save Screenshot ──",
   );
-  const screenshotPath = await saveScreenshot(clipId, imageBuffer);
+  const screenshotPath = await saveScreenshot(
+    clipId,
+    processedBuffer,
+    preprocessed.ext,
+  );
   stepDone(jobId, 4);
   log.info(
     {
@@ -301,10 +430,18 @@ async function handleFailure(
   clipId: string,
   imageBuffer: Buffer,
 ): Promise<ClipResponse> {
+  let savedExt = "webp";
   try {
-    await saveScreenshot(clipId, imageBuffer);
+    const pp = await preprocessImage(imageBuffer);
+    await saveScreenshot(clipId, pp.buffer, pp.ext);
+    savedExt = pp.ext;
   } catch {
-    // Screenshot save itself failed
+    try {
+      await saveScreenshot(clipId, imageBuffer);
+      savedExt = "png";
+    } catch {
+      // Screenshot save itself failed
+    }
   }
 
   try {
@@ -320,7 +457,7 @@ async function handleFailure(
       tags: [],
       category: "other",
       language: "zh",
-      screenshotPath: `assets/${clipId}.png`,
+      screenshotPath: `assets/${clipId}.${savedExt}`,
       fetchLevel: 4,
       sourceConfidence: 0,
       createdAt: new Date().toISOString(),

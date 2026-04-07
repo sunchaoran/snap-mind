@@ -17,6 +17,8 @@
 | `PORT` | No | `3210` | 服务端口 |
 | `HOST` | No | `0.0.0.0` | 监听地址 |
 | `MAX_FETCH_LEVEL` | No | `4` | 最大获取级别（1-4），超出则报错不降级 |
+| `MAX_BATCH_SIZE` | No | `20` | 批量上传每次最多图片数（1-20） |
+| `MAX_CONCURRENT_PIPELINES` | No | `5` | 批量上传时同时处理的最大 Pipeline 数 |
 | `SEARCH_API_KEY` | No | — | Google/Bing 搜索引擎 API Key (L3 fallback) |
 | `SEARCH_PROVIDER` | No | `google` | 搜索引擎提供商 (`google` \| `bing`) |
 | `GOOGLE_CX` | No | — | Google Custom Search Engine ID |
@@ -77,6 +79,8 @@ export const config = {
     vlmTimeout: 35_000,        // 35 秒（每个模型调用）
     similarityThreshold: 0.85,
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
+    maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 20, 20),
+    maxConcurrentPipelines: Number(process.env.MAX_CONCURRENT_PIPELINES) || 5,
   },
 
   // L3 搜索引擎（可选）
@@ -111,6 +115,8 @@ CDP_URL=http://localhost:9222
 
 # Optional: Fetch control
 MAX_FETCH_LEVEL=4
+MAX_BATCH_SIZE=20
+MAX_CONCURRENT_PIPELINES=5
 
 # Optional: Search engine (L3 fallback)
 SEARCH_PROVIDER=google
