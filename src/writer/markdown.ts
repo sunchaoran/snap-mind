@@ -104,7 +104,7 @@ export async function writeClip(record: ClipRecord): Promise<string> {
   });
   await ensureClipIndexReady();
 
-  const slug = generateSlug(record.title, 30) || "Untitled";
+  const slug = generateSlug(record.title, 40) || "Untitled";
   const dateStr = shortDateStamp(record.createdAt);
   const platformStr = shortPlatformName(record.platform);
   let filename = `${dateStr}_${platformStr}_${slug}.md`;
