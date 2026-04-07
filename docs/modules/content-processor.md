@@ -13,42 +13,40 @@
 
 ## Model
 
-单模型调用（不需要交叉验证），通过 OpenRouter 使用性价比最高的模型。
+单模型调用（不需要交叉验证），通过 OpenRouter 调用。
 
-推荐：`anthropic/claude-sonnet-4-20250514` 或 `google/gemini-2.5-flash`
+默认模型通过环境变量 `PROCESSOR_MODEL` 配置，默认值 `moonshotai/kimi-k2.5`。
 
 ## Prompt Design
 
+System prompt 从文件 `src/prompts/processor.md` 加载，而非硬编码。
+
+### User Message 模板
+
 ```
-System Prompt:
-你是一个内容整理助手。对给定的文章内容进行结构化处理。
-
-请返回以下 JSON 格式：
-
-{
-  "summary": "3-5 句话的核心摘要，概括文章最重要的信息和观点",
-  "tags": ["3-5个具体标签，偏具体而非抽象，如 'rust' 而非 'programming'"],
-  "category": "从以下枚举中选一个最匹配的: tech | design | product | business | finance | science | life | culture | career | other",
-  "language": "内容的主要语言，如 zh、en、ja"
-}
-
-仅返回 JSON，不要有任何其他文字。
-
-User Message:
-标题: {title}
+标题: {title ?? "未知"}
 来源: {platform}
 内容:
-{contentFull 或 contentSnippet（fetchLevel=4 时用 VLM 提取的片段）}
+{content（截取前 32,000 字符）}
 ```
+
+### Content 来源优先级
+
+```typescript
+const content = fetchResult.contentFull ?? vlm.contentSnippet ?? vlm.title ?? "";
+```
+
+1. 优先使用抓取到的原文 (`contentFull`)
+2. 降级到 VLM 提取的内容片段 (`contentSnippet`)
+3. 最终降级到标题 (`title`)
 
 ## Special Cases
 
 ### fetchLevel = 4 (No Original Content)
 
-- 用 VLM 提取的 `contentSnippet` + `title` 作为输入
-- 摘要基于截图可见信息生成
-- 摘要开头标注"（基于截图识别，未获取到原文）"
+- 用 VLM 提取的 `contentSnippet` 或 `title` 作为输入
+- 摘要开头自动标注"（基于截图识别，未获取到原文）"
 
 ### Content Too Long
 
-- 超过模型 context window 时，截取前 **8000 tokens**
+- 超过 32,000 字符时截取前 32,000 字符
