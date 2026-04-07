@@ -17,6 +17,7 @@ export async function analyzeScreenshot(
   imageBuffer: Buffer,
 ): Promise<MergedVLMResult> {
   const models = config.openrouter.models.vlm;
+  const analysisStart = Date.now();
 
   if (models.length % 2 === 0) {
     throw new Error(
@@ -37,45 +38,112 @@ export async function analyzeScreenshot(
   const dataUrl = `data:${mime};base64,${base64Image}`;
 
   // Step 1: Identify platform
+  const identifyStart = Date.now();
   const identifyResult = await callVLMRaw<IdentifyResult>(
     models[0],
     dataUrl,
     VLM_IDENTIFY_PROMPT,
   );
+  const identifyElapsed = Date.now() - identifyStart;
   const platform = identifyResult.platform ?? "unknown";
   log.info(
     {
+      model: models[0],
       platform,
       confidence: identifyResult.confidence,
+      elapsed: `${identifyElapsed}ms`,
     },
     "  platform identified",
   );
 
   // Step 2: Extract with platform-specific prompt
   const extractPrompt = buildExtractPrompt(platform);
+  const results: Record<string, VLMResult> = {};
+  const errors: string[] = [];
+  const primaryModel = models[0];
+  const primaryExtractStart = Date.now();
+  let primaryResult: VLMResult | null = null;
+  let primaryError: string | null = null;
 
-  const startTime = Date.now();
+  try {
+    primaryResult = await callVLMRaw<VLMResult>(
+      primaryModel,
+      dataUrl,
+      extractPrompt,
+    );
+    results[primaryModel] = primaryResult;
+    log.info(
+      {
+        model: primaryModel,
+        platform: primaryResult.platform,
+        confidence: primaryResult.confidence,
+        author: primaryResult.author,
+        elapsed: `${Date.now() - primaryExtractStart}ms`,
+      },
+      "  ✓ primary VLM model returned",
+    );
+  } catch (error) {
+    primaryError = errMsg(error);
+    errors.push(`${primaryModel}: ${primaryError}`);
+    log.warn(
+      {
+        model: primaryModel,
+        error: primaryError,
+        elapsed: `${Date.now() - primaryExtractStart}ms`,
+      },
+      "  ✗ primary VLM model failed",
+    );
+  }
+
+  const escalation = decideEscalation(
+    identifyResult,
+    primaryResult,
+    primaryError,
+    models.length,
+  );
+
+  if (escalation.shouldEscalate) {
+    log.info(
+      {
+        primaryModel,
+        reasons: escalation.reasons,
+        configuredModels: models.length,
+      },
+      "  escalating to multi-model VLM voting",
+    );
+  } else {
+    log.info(
+      {
+        primaryModel,
+        confidence: primaryResult?.confidence,
+        reasons: escalation.reasons,
+      },
+      "  primary VLM result accepted without escalation",
+    );
+  }
+
+  const additionalModels = escalation.shouldEscalate ? models.slice(1) : [];
+  const escalationStart = Date.now();
   const settled = await Promise.allSettled(
-    models.map((model) => {
+    additionalModels.map((model) => {
       log.debug(
         {
           model,
         },
-        "  calling VLM model",
+        "  calling additional VLM model",
       );
       return callVLMRaw<VLMResult>(model, dataUrl, extractPrompt);
     }),
   );
 
-  const results: Record<string, VLMResult> = {};
-  const errors: string[] = [];
-  for (let i = 0; i < models.length; i++) {
+  for (let i = 0; i < additionalModels.length; i++) {
+    const model = additionalModels[i];
     const result = settled[i];
     if (result.status === "fulfilled") {
-      results[models[i]] = result.value;
+      results[model] = result.value;
       log.info(
         {
-          model: models[i],
+          model,
           platform: result.value.platform,
           confidence: result.value.confidence,
           author: result.value.author,
@@ -84,10 +152,10 @@ export async function analyzeScreenshot(
       );
     } else {
       const reason = errMsg(result.reason);
-      errors.push(`${models[i]}: ${reason}`);
+      errors.push(`${model}: ${reason}`);
       log.warn(
         {
-          model: models[i],
+          model,
           error: reason,
         },
         "  ✗ VLM model failed",
@@ -100,11 +168,16 @@ export async function analyzeScreenshot(
   }
 
   const merged = mergeVLMResults(results);
-  const elapsed = Date.now() - startTime;
+  const elapsed = Date.now() - analysisStart;
 
   log.info(
     {
       elapsed: `${elapsed}ms`,
+      identifyElapsed: `${identifyElapsed}ms`,
+      primaryExtractElapsed: `${Date.now() - primaryExtractStart}ms`,
+      escalationElapsed: `${additionalModels.length > 0 ? Date.now() - escalationStart : 0}ms`,
+      escalated: escalation.shouldEscalate,
+      escalationReasons: escalation.reasons,
       platform: merged.platform,
       confidence: merged.confidence,
       author: merged.author,
@@ -120,6 +193,61 @@ export async function analyzeScreenshot(
   );
 
   return merged;
+}
+
+function decideEscalation(
+  identify: IdentifyResult,
+  primary: VLMResult | null,
+  primaryError: string | null,
+  configuredModelCount: number,
+): {
+  shouldEscalate: boolean;
+  reasons: string[];
+} {
+  if (configuredModelCount <= 1) {
+    return {
+      shouldEscalate: false,
+      reasons: [],
+    };
+  }
+
+  const threshold = config.processing.vlmEscalationThreshold;
+  const reasons: string[] = [];
+
+  if (primaryError) {
+    reasons.push("primary_failed");
+  }
+  if (identify.platform === "unknown") {
+    reasons.push("identify_unknown");
+  }
+  if (identify.confidence < threshold) {
+    reasons.push("identify_low_confidence");
+  }
+  if (!primary) {
+    reasons.push("primary_missing");
+  } else {
+    if (primary.confidence < threshold) {
+      reasons.push("extract_low_confidence");
+    }
+    if (!primary.title) {
+      reasons.push("missing_title");
+    }
+    if (!primary.author && !primary.visibleUrl && !primary.contentSnippet) {
+      reasons.push("missing_reference_fields");
+    }
+    if (
+      primary.platform &&
+      identify.platform &&
+      primary.platform !== identify.platform
+    ) {
+      reasons.push("platform_mismatch");
+    }
+  }
+
+  return {
+    shouldEscalate: reasons.length > 0,
+    reasons,
+  };
 }
 
 async function callVLMRaw<T>(
