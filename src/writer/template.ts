@@ -28,13 +28,28 @@ function formatContent(text: string): string {
   );
 }
 
+/**
+ * Escape a string for safe embedding in YAML double-quoted values.
+ * Handles quotes, backslashes, newlines, and other problematic characters.
+ */
+function yamlSafeString(value: string): string {
+  return value
+    .replace(/\\/g, "\\\\")
+    .replace(/"/g, '\\"')
+    .replace(/\n/g, " ")
+    .replace(/\r/g, "");
+}
+
 export function renderClipMarkdown(record: ClipRecord): string {
+  const safeTitle = yamlSafeString(record.title);
+  const safeAuthor = yamlSafeString(record.author);
+
   const frontmatter = [
     "---",
     `id: ${record.id}`,
-    `title: "${record.title}"`,
+    `title: "${safeTitle}"`,
     `platform: ${record.platform}`,
-    `author: "${record.author}"`,
+    `author: "${safeAuthor}"`,
     `originalUrl: ${record.originalUrl ? `"${record.originalUrl}"` : "null"}`,
     `contentType: ${record.contentType}`,
     "tags:",

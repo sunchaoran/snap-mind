@@ -1,3 +1,4 @@
+import { accessSync, constants } from "node:fs";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,6 +44,14 @@ export async function registerRoutes(app: FastifyInstance) {
       });
     }
 
+    // Validate file type
+    if (data.mimetype && !data.mimetype.startsWith("image/")) {
+      return reply.status(400).send({
+        success: false,
+        error: `Invalid file type: ${data.mimetype}. Only images are accepted.`,
+      });
+    }
+
     const imageBuffer = await data.toBuffer();
     const clipId = generateClipId();
     const jobId = clipId; // reuse clipId as jobId for simplicity
@@ -61,8 +70,12 @@ export async function registerRoutes(app: FastifyInstance) {
         },
         "pipeline failed",
       );
-      const result = await handleFailure(clipId, imageBuffer);
-      jobError(jobId, result);
+      const result = await handleFailure(clipId, imageBuffer, error);
+      jobError(
+        jobId,
+        result,
+        error instanceof Error ? error.message : String(error),
+      );
     });
 
     return reply.status(202).send({
@@ -91,8 +104,23 @@ export async function registerRoutes(app: FastifyInstance) {
   );
 
   app.get("/health", async () => {
+    let vaultWritable = false;
+    try {
+      accessSync(config.vault.basePath, constants.W_OK);
+      vaultWritable = true;
+    } catch {
+      // vault not writable
+    }
+
     return {
-      status: "ok",
+      status: vaultWritable ? "ok" : "degraded",
+      vault: {
+        path: config.vault.basePath,
+        writable: vaultWritable,
+      },
+      cdpUrl: config.playwright.cdpUrl,
+      maxFetchLevel: config.processing.maxFetchLevel,
+      uptime: Math.floor(process.uptime()),
     };
   });
 
@@ -300,11 +328,26 @@ async function handleClip(
 async function handleFailure(
   clipId: string,
   imageBuffer: Buffer,
+  originalError?: unknown,
 ): Promise<ClipResponse> {
+  const errorMessage =
+    originalError instanceof Error
+      ? originalError.message
+      : String(originalError ?? "Unknown error");
+
   try {
     await saveScreenshot(clipId, imageBuffer);
-  } catch {
-    // Screenshot save itself failed
+  } catch (screenshotErr) {
+    log.error(
+      {
+        clipId,
+        error:
+          screenshotErr instanceof Error
+            ? screenshotErr.message
+            : String(screenshotErr),
+      },
+      "Failed to save screenshot during error recovery",
+    );
   }
 
   try {
@@ -338,14 +381,20 @@ async function handleFailure(
       },
     };
     await writeClip(failRecord);
-  } catch {
-    // Failure record write itself failed
+  } catch (writeErr) {
+    log.error(
+      {
+        clipId,
+        error: writeErr instanceof Error ? writeErr.message : String(writeErr),
+      },
+      "Failed to write failure record during error recovery",
+    );
   }
 
   return {
     success: false,
     clipId,
-    error: "Pipeline processing failed",
+    error: errorMessage,
     screenshotSaved: true,
     message: "处理失败，已保存原始截图，请稍后重试",
   };

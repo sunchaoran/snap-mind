@@ -1,22 +1,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { config } from "@/config.js";
-
-export function detectImageExt(buf: Buffer): string {
-  if (buf[0] === 0x89 && buf[1] === 0x50) {
-    return "png";
-  }
-  if (buf[0] === 0xff && buf[1] === 0xd8) {
-    return "jpg";
-  }
-  if (buf[0] === 0x52 && buf[1] === 0x49) {
-    return "webp";
-  }
-  if (buf[0] === 0x47 && buf[1] === 0x49) {
-    return "gif";
-  }
-  return "png";
-}
+import { detectImageType } from "@/utils/image.js";
 
 export async function saveScreenshot(
   clipId: string,
@@ -28,7 +13,7 @@ export async function saveScreenshot(
     recursive: true,
   });
 
-  const resolvedExt = ext ?? detectImageExt(imageBuffer);
+  const resolvedExt = ext ?? detectImageType(imageBuffer).ext;
   const filename = `${clipId}.${resolvedExt}`;
   const filePath = join(assetsDir, filename);
   await writeFile(filePath, imageBuffer);

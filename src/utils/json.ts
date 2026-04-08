@@ -19,9 +19,29 @@ export function parseLLMJson<T>(text: string): T {
   }
 
   // Last resort: find first { ... } or [ ... ] block
-  const jsonMatch = trimmed.match(/(\{[\s\S]*\}|\[[\s\S]*\])/);
-  if (jsonMatch?.[1]) {
-    return JSON.parse(jsonMatch[1]) as T;
+  // Use greedy match from the first {/[ until the very last }/]
+  const greedyMatch = trimmed.match(/([{[][\s\S]*?[}\]])(?:\s|$)/);
+  if (greedyMatch?.[1]) {
+    try {
+      return JSON.parse(greedyMatch[1]) as T;
+    } catch {
+      // Ignore inner parse error, throw outer error
+    }
+  }
+
+  // Very aggressive: strip anything after the LAST curly brace or bracket
+  const lastBraceIndex = Math.max(trimmed.lastIndexOf('}'), trimmed.lastIndexOf(']'));
+  const firstBraceIndex = Math.min(
+    trimmed.indexOf('{') === -1 ? Infinity : trimmed.indexOf('{'),
+    trimmed.indexOf('[') === -1 ? Infinity : trimmed.indexOf('[')
+  );
+
+  if (lastBraceIndex > firstBraceIndex && firstBraceIndex !== Infinity) {
+        try {
+          return JSON.parse(trimmed.slice(firstBraceIndex, lastBraceIndex + 1)) as T;
+        } catch {
+            // Ignore inner parse error
+        }
   }
 
   throw new SyntaxError(

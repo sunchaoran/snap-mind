@@ -1,9 +1,10 @@
 import { config } from "@/config.js";
 import type { MergedVLMResult, Platform, VLMResult } from "@/types/index.js";
+import { detectImageType } from "@/utils/image.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { mergeVLMResults } from "@/vlm/merger.js";
-import { openrouter } from "@/vlm/openrouter.js";
+import { llmClient } from "@/vlm/openrouter.js";
 import { buildExtractPrompt, VLM_IDENTIFY_PROMPT } from "@/vlm/prompt.js";
 
 const log = createLogger("vlm");
@@ -16,7 +17,7 @@ interface IdentifyResult {
 export async function analyzeScreenshot(
   imageBuffer: Buffer,
 ): Promise<MergedVLMResult> {
-  const models = config.openrouter.models.vlm;
+  const models = config.llm.models.vlm;
 
   if (models.length % 2 === 0) {
     throw new Error(
@@ -33,7 +34,7 @@ export async function analyzeScreenshot(
   );
 
   const base64Image = imageBuffer.toString("base64");
-  const mime = detectImageMime(imageBuffer);
+  const { mime } = detectImageType(imageBuffer);
   const dataUrl = `data:${mime};base64,${base64Image}`;
 
   // Step 1: Identify platform
@@ -127,7 +128,7 @@ async function callVLMRaw<T>(
   dataUrl: string,
   systemPrompt: string,
 ): Promise<T> {
-  const response = await openrouter.chat.completions.create(
+  const response = await llmClient.chat.completions.create(
     {
       model,
       messages: [
@@ -160,20 +161,4 @@ async function callVLMRaw<T>(
 
   const text = response.choices[0]?.message?.content ?? "";
   return parseLLMJson<T>(text);
-}
-
-function detectImageMime(buf: Buffer): string {
-  if (buf[0] === 0x89 && buf[1] === 0x50) {
-    return "image/png";
-  }
-  if (buf[0] === 0xff && buf[1] === 0xd8) {
-    return "image/jpeg";
-  }
-  if (buf[0] === 0x52 && buf[1] === 0x49) {
-    return "image/webp";
-  }
-  if (buf[0] === 0x47 && buf[1] === 0x49) {
-    return "image/gif";
-  }
-  return "image/png";
 }

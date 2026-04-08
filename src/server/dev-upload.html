@@ -3,93 +3,760 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SnapMind - Dev Upload</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <title>SnapMind — 记忆萃取器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
     <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        @keyframes glow {
+        /* ═══════════════════════════════════════════
+           INCEPTION DESIGN SYSTEM — SnapMind
+           Director: Christopher Nolan
+           Film: Inception (2010)
+           
+           Dream Level 0 (Reality): Deep obsidian
+           Dream Level 1 (Rainy City): Steel blue-grey
+           Dream Level 2 (Hotel): Warm amber/bronze
+           Dream Level 3 (Snow Fortress): Clinical white
+           Limbo: Golden ethereal
+        ═══════════════════════════════════════════ */
+
+        :root {
+            /* -- Base Reality -- */
+            --void: #06080f;
+            --deep: #0a0e1a;
+            --surface: #111827;
+            --surface-raised: #1a2236;
+            --surface-glass: rgba(17, 24, 39, 0.65);
+
+            /* -- Dream Level Colors -- */
+            --steel: #4a6fa5;
+            --steel-muted: #2d4263;
+            --steel-glow: rgba(74, 111, 165, 0.25);
+            --amber: #c4943a;
+            --amber-muted: #6b5229;
+            --amber-glow: rgba(196, 148, 58, 0.2);
+            --frost: #e8ecf4;
+            --frost-muted: #9ba8c0;
+            --limbo-gold: #d4a843;
+
+            /* -- Semantic -- */
+            --success: #34d399;
+            --success-glow: rgba(52, 211, 153, 0.15);
+            --error: #f87171;
+            --error-glow: rgba(248, 113, 113, 0.15);
+            --running: var(--amber);
+            --running-glow: var(--amber-glow);
+
+            /* -- Typography -- */
+            --font-main: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            --font-mono: 'JetBrains Mono', 'SF Mono', monospace;
+
+            /* -- Borders -- */
+            --border: rgba(74, 111, 165, 0.12);
+            --border-hover: rgba(74, 111, 165, 0.25);
+            --border-active: rgba(196, 148, 58, 0.4);
+
+            /* -- Radii -- */
+            --radius-sm: 6px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        html, body {
+            height: 100%;
+            background: var(--void);
+            color: var(--frost-muted);
+            font-family: var(--font-main);
+            -webkit-font-smoothing: antialiased;
+            overflow-x: hidden;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+            gap: 2.5rem;
+            position: relative;
+        }
+
+        /* ═══ Atmospheric Background ═══ */
+        body::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background:
+                radial-gradient(ellipse 80% 60% at 50% 0%, rgba(74, 111, 165, 0.06) 0%, transparent 70%),
+                radial-gradient(ellipse 60% 40% at 80% 100%, rgba(196, 148, 58, 0.04) 0%, transparent 60%),
+                radial-gradient(ellipse 40% 50% at 10% 50%, rgba(74, 111, 165, 0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Penrose-inspired geometric grid */
+        body::after {
+            content: '';
+            position: fixed;
+            inset: 0;
+            background-image:
+                linear-gradient(rgba(74, 111, 165, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(74, 111, 165, 0.03) 1px, transparent 1px);
+            background-size: 80px 80px;
+            mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse 70% 70% at 50% 50%, black 20%, transparent 70%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ═══ Layout Container (Sliding Layout) ═══ */
+        .main-container {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 0;
+            width: 100%;
+            max-width: 1100px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+            transition: gap 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .main-container.expanded {
+            gap: 4rem;
+        }
+
+        .left-col {
+            width: 100%;
+            max-width: 460px;
+            flex-shrink: 0;
+        }
+
+        /* ═══ Header / Brand ═══ */
+        .brand {
+            text-align: center;
+            width: 100%;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .brand-title {
+            font-size: 1.75rem;
+            font-weight: 600;
+            letter-spacing: -0.03em;
+            color: var(--frost);
+            display: inline-flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .brand-icon {
+            width: 32px;
+            height: 32px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--steel) 0%, var(--amber) 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 0 20px var(--steel-glow), 0 0 40px rgba(196, 148, 58, 0.08);
+        }
+
+        .brand-icon svg {
+            width: 18px;
+            height: 18px;
+            color: white;
+        }
+
+        .brand-badge {
+            font-size: 0.6rem;
+            font-weight: 500;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            color: var(--amber);
+            background: rgba(196, 148, 58, 0.1);
+            border: 1px solid rgba(196, 148, 58, 0.15);
+            padding: 0.15rem 0.5rem;
+            border-radius: 4px;
+        }
+
+        .brand-sub {
+            margin-top: 0.5rem;
+            font-size: 0.8rem;
+            font-weight: 300;
+            color: var(--frost-muted);
+            letter-spacing: 0.15em;
+            opacity: 0.6;
+        }
+
+        /* ═══ Upload Card (Glass Panel) ═══ */
+        .upload-card {
+            width: 100%;
+        }
+
+        .dropzone {
+            position: relative;
+            border: 1.5px dashed var(--border-hover);
+            border-radius: var(--radius-lg);
+            padding: 3rem 2rem;
+            text-align: center;
+            cursor: pointer;
+            background: var(--surface-glass);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            overflow: hidden;
+        }
+
+        .dropzone::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: var(--radius-lg);
+            background: radial-gradient(ellipse 80% 60% at 50% 100%, var(--steel-glow), transparent);
+            opacity: 0;
+            transition: opacity 0.5s ease;
+            pointer-events: none;
+        }
+
+        .dropzone:hover {
+            border-color: var(--steel);
+            background: rgba(17, 24, 39, 0.8);
+        }
+
+        .dropzone:hover::before { opacity: 1; }
+
+        .dropzone.drag-over {
+            border-color: var(--amber);
+            background: rgba(17, 24, 39, 0.9);
+            box-shadow: 0 0 40px var(--amber-glow), inset 0 0 60px rgba(196, 148, 58, 0.03);
+        }
+
+        .dropzone input[type="file"] {
+            position: absolute;
+            inset: 0;
+            opacity: 0;
+            cursor: pointer;
+        }
+
+        .drop-hint { position: relative; z-index: 1; }
+
+        .drop-hint .icon-wrap {
+            width: 56px;
+            height: 56px;
+            margin: 0 auto 1rem;
+            border-radius: 50%;
+            background: rgba(74, 111, 165, 0.08);
+            border: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.4s ease;
+        }
+
+        .dropzone:hover .icon-wrap {
+            background: rgba(74, 111, 165, 0.12);
+            border-color: var(--border-hover);
+            transform: translateY(-2px);
+        }
+
+        .drop-hint .icon-wrap svg {
+            width: 22px;
+            height: 22px;
+            color: var(--steel);
+        }
+
+        .drop-hint p { margin-top: 0.25rem; }
+        .drop-hint .primary-text {
+            font-size: 0.875rem;
+            font-weight: 400;
+            color: var(--frost-muted);
+        }
+        .drop-hint .secondary-text {
+            font-size: 0.7rem;
+            color: rgba(155, 168, 192, 0.4);
+            letter-spacing: 0.05em;
+        }
+
+        .preview-img {
+            display: none;
+            max-height: 200px;
+            border-radius: var(--radius-md);
+            margin: 0 auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        }
+
+        .preview-img.visible { display: block; }
+
+        /* ═══ History Grid ═══ */
+        .history-section {
+            display: none;
+            margin-top: 1rem;
+        }
+
+        .history-section.visible { display: block; }
+
+        .history-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+
+        .history-header span {
+            font-size: 0.7rem;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--steel-muted);
+        }
+
+        .history-header button {
+            font-size: 0.7rem;
+            color: var(--steel-muted);
+            background: none;
+            border: none;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: all 0.2s;
+        }
+
+        .history-header button:hover { opacity: 1; color: var(--error); }
+
+        .history-grid {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.5rem;
+        }
+
+        .history-item {
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            border: 1.5px solid var(--border);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .history-item:hover {
+            border-color: var(--steel);
+            transform: scale(1.05);
+        }
+
+        .history-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        /* ═══ Submit Button (The Totem) ═══ */
+        .submit-btn {
+            width: 100%;
+            margin-top: 0.75rem;
+            padding: 0.75rem 1.5rem;
+            border-radius: var(--radius-md);
+            border: 1.5px solid var(--border);
+            background: linear-gradient(135deg, var(--surface-raised) 0%, var(--surface) 100%);
+            color: var(--frost);
+            font-family: var(--font-main);
+            font-size: 0.875rem;
+            font-weight: 500;
+            letter-spacing: 0.02em;
+            cursor: pointer;
+            transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .submit-btn::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            background: linear-gradient(135deg, var(--steel-glow) 0%, var(--amber-glow) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            border-color: var(--steel);
+            transform: translateY(-1px);
+            box-shadow: 0 8px 32px rgba(74, 111, 165, 0.15);
+        }
+
+        .submit-btn:hover:not(:disabled)::before { opacity: 1; }
+
+        .submit-btn:disabled {
+            opacity: 0.25;
+            cursor: not-allowed;
+        }
+
+        .submit-btn span { position: relative; z-index: 1; }
+
+        /* ═══ Right Column Layout (Sliding Setup) ═══ */
+        .right-col {
+            display: flex;
+            flex-direction: column;
+            gap: 2rem;
+            width: 0;
+            opacity: 0;
+            overflow: hidden;
+            transform: translateX(40px);
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1),
+                        opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), 
+                        transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            pointer-events: none;
+        }
+
+        .right-col.active {
+            width: 100%;
+            max-width: 560px;
+            opacity: 1;
+            transform: translateX(0);
+            pointer-events: auto;
+        }
+
+        /* ═══ Dream Descent Timeline ═══ */
+        .dream-timeline {
+            width: 100%;
+        }
+
+        .dream-track {
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            padding: 0 1rem;
+        }
+
+        /* Connector line (the thread between dream levels) */
+        .dream-line {
+            position: absolute;
+            top: 20px;
+            left: 1.5rem;
+            right: 1.5rem;
+            height: 2px;
+            background: var(--border);
+            border-radius: 1px;
+        }
+
+        .dream-line-fill {
+            position: absolute;
+            top: 20px;
+            left: 1.5rem;
+            height: 2px;
+            width: 0;
+            background: linear-gradient(90deg, var(--steel) 0%, var(--amber) 50%, var(--success) 100%);
+            border-radius: 1px;
+            transition: width 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 0 12px var(--steel-glow);
+        }
+
+        .dream-node {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.5rem;
+            position: relative;
+            z-index: 2;
+            flex: 1;
+        }
+
+        .dream-node-circle {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 2px solid var(--border);
+            background: var(--deep);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.7rem;
+            font-weight: 500;
+            font-family: var(--font-mono);
+            color: var(--steel-muted);
+            transition: all 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+            box-shadow: 0 0 0 4px var(--void);
+        }
+
+        .dream-node-label {
+            font-size: 0.65rem;
+            font-weight: 400;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            color: var(--steel-muted);
+            transition: all 0.3s ease;
+            white-space: nowrap;
+        }
+
+        /* States */
+        .dream-node.done .dream-node-circle {
+            border-color: var(--success);
+            color: var(--success);
+            background: rgba(52, 211, 153, 0.06);
+            box-shadow: 0 0 0 4px var(--void), 0 0 16px var(--success-glow);
+        }
+        .dream-node.done .dream-node-label { color: var(--success); }
+
+        .dream-node.running .dream-node-circle {
+            border-color: var(--amber);
+            color: var(--amber);
+            background: rgba(196, 148, 58, 0.08);
+            box-shadow: 0 0 0 4px var(--void), 0 0 20px var(--amber-glow);
+            animation: dream-pulse 2s ease-in-out infinite;
+        }
+        .dream-node.running .dream-node-label { color: var(--amber); font-weight: 500; }
+
+        .dream-node.error .dream-node-circle {
+            border-color: var(--error);
+            color: var(--error);
+            background: rgba(248, 113, 113, 0.06);
+            box-shadow: 0 0 0 4px var(--void), 0 0 16px var(--error-glow);
+        }
+        .dream-node.error .dream-node-label { color: var(--error); }
+
+        .dream-node.skipped .dream-node-circle {
+            border-color: rgba(74, 111, 165, 0.15);
+            color: rgba(155, 168, 192, 0.3);
+        }
+        .dream-node.skipped .dream-node-label { color: rgba(155, 168, 192, 0.3); }
+
+        @keyframes dream-pulse {
             0%, 100% {
-                box-shadow: 0 0 8px 2px rgba(250, 204, 21, 0.4);
+                box-shadow: 0 0 0 4px var(--void), 0 0 20px var(--amber-glow);
             }
             50% {
-                box-shadow: 0 0 16px 4px rgba(250, 204, 21, 0.6);
+                box-shadow: 0 0 0 4px var(--void), 0 0 36px rgba(196, 148, 58, 0.35), 0 0 60px rgba(196, 148, 58, 0.1);
             }
         }
 
-        .step-running {
-            animation: glow 1.5s ease-in-out infinite;
+        /* Spinning totem indicator inside running node */
+        .totem-spin {
+            width: 10px;
+            height: 10px;
+            border: 2px solid transparent;
+            border-top-color: var(--amber);
+            border-right-color: var(--amber);
+            border-radius: 50%;
+            animation: totem-rotate 0.8s linear infinite;
+        }
+
+        @keyframes totem-rotate {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Step message */
+        .step-message {
+            text-align: center;
+            margin-top: 1.5rem;
+            font-size: 0.8rem;
+            color: var(--frost-muted);
+            min-height: 1.5rem;
+            transition: all 0.3s ease;
+            font-weight: 300;
+            letter-spacing: 0.02em;
+        }
+
+        .step-message.success { color: var(--success); }
+        .step-message.error { color: var(--error); }
+
+        /* ═══ Result Panel (The Safe) ═══ */
+        .result-panel {
+            display: none;
+            width: 100%;
+            border-radius: var(--radius-lg);
+            background: var(--surface-glass);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            overflow: hidden;
+            animation: panel-rise 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .result-panel.visible { display: block; }
+
+        @keyframes panel-rise {
+            from {
+                opacity: 0;
+                transform: translateY(16px) scale(0.98);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0) scale(1);
+            }
+        }
+
+        .result-header {
+            padding: 0.875rem 1.25rem;
+            font-size: 0.8rem;
+            font-weight: 500;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            letter-spacing: 0.02em;
+        }
+
+        .result-header.success { color: var(--success); }
+        .result-header.error { color: var(--error); }
+
+        .result-header .dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .result-header.success .dot { background: var(--success); box-shadow: 0 0 8px var(--success-glow); }
+        .result-header.error .dot { background: var(--error); box-shadow: 0 0 8px var(--error-glow); }
+
+        .obsidian-link {
+            display: none;
+            padding: 0.75rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .obsidian-link.visible { display: block; }
+
+        .obsidian-link a {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.8rem;
+            color: var(--amber);
+            text-decoration: none;
+            transition: all 0.2s ease;
+            font-weight: 400;
+        }
+
+        .obsidian-link a:hover {
+            color: var(--limbo-gold);
+            text-shadow: 0 0 12px var(--amber-glow);
+        }
+
+        .obsidian-link a svg { width: 14px; height: 14px; }
+
+        .obsidian-link .path-hint {
+            font-size: 0.65rem;
+            color: var(--steel-muted);
+            opacity: 0.5;
+            margin-left: 0.5rem;
+        }
+
+        .result-body {
+            padding: 1rem 1.25rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            line-height: 1.7;
+            color: var(--frost-muted);
+            opacity: 0.7;
+            max-height: 400px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+
+        .result-body::-webkit-scrollbar { width: 4px; }
+        .result-body::-webkit-scrollbar-track { background: transparent; }
+        .result-body::-webkit-scrollbar-thumb {
+            background: var(--border-hover);
+            border-radius: 2px;
+        }
+
+        /* ═══ Responsive ═══ */
+        @media (max-width: 640px) {
+            body { padding: 1.5rem 1rem; gap: 2rem; }
+            .brand-title { font-size: 1.4rem; }
+            .dropzone { padding: 2rem 1.5rem; }
+            .dream-track { padding: 0 0.25rem; }
+            .dream-node-circle { width: 32px; height: 32px; font-size: 0.6rem; }
+            .dream-node-label { font-size: 0.55rem; }
+            .dream-line, .dream-line-fill { top: 16px; left: 1rem; right: 1rem; }
+        }
+
+        /* ═══ Reduced Motion ═══ */
+        @media (prefers-reduced-motion: reduce) {
+            *, *::before, *::after {
+                animation-duration: 0.01ms !important;
+                transition-duration: 0.01ms !important;
+            }
         }
     </style>
 </head>
-<body class="bg-zinc-950 text-zinc-100 min-h-screen flex flex-col items-center justify-center p-6 gap-8">
+<body>
 
-<!-- Header -->
-<div class="text-center space-y-1">
-    <h1 class="text-2xl font-semibold tracking-tight inline-flex items-center justify-center gap-2">SnapMind <span
-            class="text-xs font-medium bg-zinc-800 text-zinc-400 px-1.5 py-0.5 rounded">dev</span></h1>
-    <p class="text-sm text-zinc-500">截图即收藏</p>
+<!-- ═══ Brand ═══ -->
+<div class="brand">
+    <h1 class="brand-title">
+        <span class="brand-icon">
+            <i data-lucide="brain" class="h-5 w-5"></i>
+        </span>
+        SnapMind
+        <span class="brand-badge">dev</span>
+    </h1>
+    <p class="brand-sub">截图即盗梦 · 记忆萃取器</p>
 </div>
 
-<!-- Upload area -->
-<div class="w-full max-w-md space-y-3">
-    <div id="dropzone"
-         class="border-2 border-dashed border-zinc-700 rounded-xl p-8 text-center cursor-pointer
-             hover:border-zinc-500 hover:bg-zinc-900/50 transition-colors relative">
-        <input id="fileInput" type="file" accept="image/*" class="absolute inset-0 opacity-0 cursor-pointer">
-        <div id="dropHint" class="space-y-2">
-            <i data-lucide="upload" class="mx-auto h-8 w-8 text-zinc-600"></i>
-            <p class="text-sm text-zinc-400">拖放截图到此处，或点击选择</p>
-            <p class="text-xs text-zinc-600">PNG / JPG / WebP</p>
+<main class="main-container">
+    <!-- ═══ Left Column: Upload & History ═══ -->
+    <div class="left-col">
+        <div class="upload-card">
+            <div class="dropzone" id="dropzone">
+                <input id="fileInput" type="file" accept="image/*">
+                <div id="dropHint" class="drop-hint">
+                    <div class="icon-wrap">
+                        <i data-lucide="scan-eye"></i>
+                    </div>
+                    <p class="primary-text">拖放截图到此处，或点击选择</p>
+                    <p class="secondary-text">PNG · JPG · WebP</p>
+                </div>
+                <img id="preview" class="preview-img" alt="preview">
+            </div>
+
+            <!-- History -->
+            <div id="historySection" class="history-section">
+                <div class="history-header">
+                    <span>记忆碎片</span>
+                    <button id="clearHistory" type="button">清除</button>
+                </div>
+                <div id="historyGrid" class="history-grid"></div>
+            </div>
+
+            <button id="submitBtn" type="button" disabled class="submit-btn">
+                <span>植入记忆</span>
+            </button>
         </div>
-        <img id="preview" class="hidden max-h-48 rounded-lg mx-auto" alt="preview">
     </div>
 
-    <!-- History images -->
-    <div id="historySection" class="hidden">
-        <div class="flex items-center justify-between mb-2">
-            <span class="text-xs text-zinc-500">历史上传</span>
-            <button id="clearHistory" type="button" class="text-xs text-zinc-600 hover:text-zinc-400 transition-colors">清空</button>
+    <!-- ═══ Right Column: Dream Descent & Results ═══ -->
+    <div class="right-col" id="rightCol">
+        <div id="timeline" class="dream-timeline">
+            <div class="dream-track">
+                <div class="dream-line"></div>
+                <div id="timelineFill" class="dream-line-fill"></div>
+                <div id="timelineNodes" class="dream-track" style="position:relative;width:100%;z-index:2;padding:0;"></div>
+            </div>
+            <div id="stepMessage" class="step-message">等待截图载入…</div>
         </div>
-        <div id="historyGrid" class="grid grid-cols-5 gap-2"></div>
+
+        <div id="result" class="result-panel">
+            <div id="resultHeader" class="result-header"></div>
+            <div id="obsidianLink" class="obsidian-link"></div>
+            <pre id="resultBody" class="result-body"></pre>
+        </div>
     </div>
-
-    <button id="submitBtn" type="button" disabled
-            class="w-full rounded-lg bg-white text-zinc-900 px-5 py-2 text-sm font-medium
-             disabled:opacity-30 disabled:cursor-not-allowed hover:bg-zinc-200 transition-colors">
-        上传
-    </button>
-</div>
-
-<!-- Timeline -->
-<div id="timeline" class="hidden w-full max-w-3xl">
-    <div class="relative flex items-start justify-between px-4">
-        <!-- Background line (z-0) -->
-        <div class="absolute top-4 left-4 right-4 h-0.5 bg-zinc-800 rounded-full z-0"></div>
-        <!-- Progress line (z-0) -->
-        <div id="timelineFill"
-             class="absolute top-4 left-4 h-0.5 bg-emerald-500 rounded-full transition-all duration-500 z-0"
-             style="width:0"></div>
-        <!-- Step nodes sit above the line (z-10) -->
-        <div id="timelineNodes" class="relative flex justify-between w-full z-10"></div>
-    </div>
-    <!-- Current step message -->
-    <div id="stepMessage" class="mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300"></div>
-</div>
-
-<!-- Result panel -->
-<div id="result" class="hidden w-full max-w-xl rounded-xl bg-zinc-900 border border-zinc-800 overflow-hidden">
-    <div id="resultHeader" class="px-4 py-2.5 text-sm font-medium border-b border-zinc-800"></div>
-    <div id="obsidianLink" class="hidden px-4 py-3 border-b border-zinc-800"></div>
-    <pre id="resultBody" class="p-4 text-xs leading-relaxed overflow-x-auto whitespace-pre-wrap max-h-64"></pre>
-</div>
+</main>
 
 <script>
     const STEP_LABELS = ['识别', '去重', '抓取', '处理', '截图', '组装', '写入'];
-
+    
     const fileInput = document.getElementById('fileInput');
     const preview = document.getElementById('preview');
     const dropHint = document.getElementById('dropHint');
     const submitBtn = document.getElementById('submitBtn');
+    const rightCol = document.getElementById('rightCol');
     const timeline = document.getElementById('timeline');
     const timelineFill = document.getElementById('timelineFill');
     const timelineNodes = document.getElementById('timelineNodes');
@@ -98,6 +765,7 @@
     const resultHeader = document.getElementById('resultHeader');
     const obsidianLink = document.getElementById('obsidianLink');
     const resultBody = document.getElementById('resultBody');
+    const dropzone = document.getElementById('dropzone');
 
     const historySection = document.getElementById('historySection');
     const historyGrid = document.getElementById('historyGrid');
@@ -109,7 +777,24 @@
 
     lucide.createIcons();
 
-    // --- History helpers ---
+    // ═══ Drag & Drop Enhancement ═══
+    dropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropzone.classList.add('drag-over');
+    });
+    dropzone.addEventListener('dragleave', () => {
+        dropzone.classList.remove('drag-over');
+    });
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.classList.remove('drag-over');
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            selectFile(file);
+        }
+    });
+
+    // ═══ History ═══
     function getHistory() {
         try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]'); } catch { return []; }
     }
@@ -121,7 +806,7 @@
             const history = getHistory().filter(h => h.dataUrl !== entry.dataUrl);
             history.unshift(entry);
             if (history.length > MAX_HISTORY) { history.pop(); }
-            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota exceeded */ }
+            try { localStorage.setItem(HISTORY_KEY, JSON.stringify(history)); } catch { /* quota */ }
             renderHistory();
         };
         reader.readAsDataURL(file);
@@ -137,11 +822,14 @@
 
     function renderHistory() {
         const history = getHistory();
-        if (!history.length) { historySection.classList.add('hidden'); return; }
-        historySection.classList.remove('hidden');
+        if (!history.length) {
+            historySection.classList.remove('visible');
+            return;
+        }
+        historySection.classList.add('visible');
         historyGrid.innerHTML = history.map((h, i) => `
-          <div class="group relative cursor-pointer rounded-lg overflow-hidden border-2 border-zinc-800 hover:border-zinc-500 transition-colors aspect-square" data-idx="${i}">
-            <img src="${h.dataUrl}" alt="${h.name}" class="w-full h-full object-cover">
+          <div class="history-item" data-idx="${i}">
+            <img src="${h.dataUrl}" alt="${h.name}">
           </div>
         `).join('');
         historyGrid.querySelectorAll('[data-idx]').forEach(el => {
@@ -160,46 +848,47 @@
 
     renderHistory();
 
-    // Build timeline nodes
+    // ═══ Build dream nodes ═══
     timelineNodes.innerHTML = STEP_LABELS.map((label, i) => `
-      <div class="flex flex-col items-center gap-2 z-10" style="width:${100 / STEP_LABELS.length}%">
-        <div id="node-${i}"
-          class="w-8 h-8 z-10 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center
-                 text-xs font-medium text-zinc-600 transition-all duration-300">
-          ${i + 1}
-        </div>
-        <span id="label-${i}" class="text-xs text-zinc-600 transition-colors duration-300">${label}</span>
+      <div class="dream-node" id="dream-${i}">
+        <div class="dream-node-circle" id="node-${i}">${i + 1}</div>
+        <span class="dream-node-label" id="label-${i}">${label}</span>
       </div>
     `).join('');
 
+    // ═══ File select ═══
     fileInput.addEventListener('change', (e) => {
         const file = e.target.files[0];
-        if (!file) {
-            return;
-        }
-        selectFile(file);
+        if (file) selectFile(file);
     });
 
     function selectFile(file) {
         selectedFile = file;
         preview.src = URL.createObjectURL(file);
-        preview.classList.remove('hidden');
-        dropHint.classList.add('hidden');
+        preview.classList.add('visible');
+        dropHint.style.display = 'none';
         submitBtn.disabled = false;
-        result.classList.add('hidden');
-        timeline.classList.add('hidden');
+        
+        // Reset right panel state but make it semi-visible to show readiness
+        result.classList.remove('visible');
+        rightCol.classList.add('active');
+        document.querySelector('.main-container').classList.add('expanded');
+        rightCol.style.opacity = '0.5';
+        resetTimeline();
+        stepMessage.textContent = '准备下潜…';
     }
 
+    // ═══ Timeline ═══
     function resetTimeline() {
         for (let i = 0; i < STEP_LABELS.length; i++) {
+            const wrapper = document.getElementById(`dream-${i}`);
             const node = document.getElementById(`node-${i}`);
-            const label = document.getElementById(`label-${i}`);
-            node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-900 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
+            wrapper.className = 'dream-node';
             node.innerHTML = `${i + 1}`;
-            label.className = 'text-xs text-zinc-600 transition-colors duration-300';
         }
         timelineFill.style.width = '0';
-        stepMessage.textContent = '';
+        stepMessage.textContent = '准备下潜…';
+        stepMessage.className = 'step-message';
     }
 
     function updateTimeline(job) {
@@ -207,68 +896,60 @@
         const total = steps.length;
         const doneCount = steps.filter(s => s.status === 'done' || s.status === 'skipped').length;
 
-        // Fill line: calculate based on last completed node position
         const segment = 100 / (total - 1);
         const fillPct = Math.min(doneCount * segment, 100);
-        timelineFill.style.width = `calc(${fillPct}%)`;
+        timelineFill.style.width = `calc(${fillPct}% - 2rem)`;
 
         for (let i = 0; i < total; i++) {
             const s = steps[i];
+            const wrapper = document.getElementById(`dream-${i}`);
             const node = document.getElementById(`node-${i}`);
-            const label = document.getElementById(`label-${i}`);
 
-            // Reset classes
-            node.classList.remove('step-running');
+            // Reset
+            wrapper.className = 'dream-node';
 
             if (s.status === 'done') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-emerald-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-emerald-400 transition-all duration-300';
+                wrapper.classList.add('done');
                 node.innerHTML = '✓';
-                label.className = 'text-xs text-emerald-400 transition-colors duration-300';
             } else if (s.status === 'running') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-yellow-400 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-yellow-400 transition-all duration-300 step-running';
-                node.innerHTML = `<span class="inline-block w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></span>`;
-                label.className = 'text-xs text-yellow-400 font-medium transition-colors duration-300';
+                wrapper.classList.add('running');
+                node.innerHTML = '<div class="totem-spin"></div>';
             } else if (s.status === 'skipped') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-600 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-500 transition-all duration-300';
+                wrapper.classList.add('skipped');
                 node.innerHTML = '–';
-                label.className = 'text-xs text-zinc-500 transition-colors duration-300';
             } else if (s.status === 'error') {
-                node.className = 'w-8 h-8 rounded-full border-2 border-red-500 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-red-400 transition-all duration-300';
+                wrapper.classList.add('error');
                 node.innerHTML = '✗';
-                label.className = 'text-xs text-red-400 transition-colors duration-300';
             } else {
-                node.className = 'w-8 h-8 rounded-full border-2 border-zinc-700 bg-zinc-950 ring-4 ring-zinc-950 flex items-center justify-center text-xs font-medium text-zinc-600 transition-all duration-300';
                 node.innerHTML = `${i + 1}`;
-                label.className = 'text-xs text-zinc-600 transition-colors duration-300';
             }
         }
 
-        // Show current step message
+        // Message
         const running = steps.find(s => s.status === 'running');
         const lastDone = [...steps].reverse().find(s => s.status === 'done');
         if (job.status === 'done') {
-            stepMessage.textContent = '🎉 处理完成';
-            stepMessage.className = 'mt-6 text-center text-sm text-emerald-400 h-5 transition-opacity duration-300';
+            stepMessage.textContent = '记忆萃取完成';
+            stepMessage.className = 'step-message success';
         } else if (job.status === 'error') {
-            stepMessage.textContent = '处理失败';
-            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
+            stepMessage.textContent = '梦境崩塌 — 萃取失败';
+            stepMessage.className = 'step-message error';
         } else if (running) {
-            stepMessage.textContent = running.message || running.name;
-            stepMessage.className = 'mt-6 text-center text-sm text-zinc-300 h-5 transition-opacity duration-300';
+            stepMessage.textContent = running.message || `正在下潜… ${running.name}`;
+            stepMessage.className = 'step-message';
         } else if (lastDone?.message) {
             stepMessage.textContent = lastDone.message;
-            stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+            stepMessage.className = 'step-message';
         }
     }
 
+    // ═══ Polling ═══
     async function pollJob(jobId) {
         while (true) {
-            await new Promise(r => setTimeout(r, 3_000));
+            await new Promise(r => setTimeout(r, 3000));
             try {
                 const resp = await fetch(`/jobs/${jobId}`);
-                if (!resp.ok) {
-                    continue;
-                }
+                if (!resp.ok) continue;
                 const job = await resp.json();
                 updateTimeline(job);
 
@@ -278,84 +959,82 @@
                     return;
                 }
             } catch {
-                // network hiccup, keep polling
+                // network hiccup
             }
         }
     }
 
+    // ═══ Result ═══
     function showResult(data) {
-        if (!data) {
-            return;
-        }
+        if (!data) return;
 
-        resultHeader.textContent = data.success ? '✓ 成功' : '✗ 失败';
-        resultHeader.className = `px-4 py-2.5 text-sm font-medium border-b border-zinc-800 ${
-            data.success ? 'text-emerald-400' : 'text-red-400'
-        }`;
+        const isSuccess = data.success;
+        resultHeader.className = `result-header ${isSuccess ? 'success' : 'error'}`;
+        resultHeader.innerHTML = `<span class="dot"></span>${isSuccess ? '萃取成功' : '萃取失败'}`;
 
-        if (data.success && data.vaultPath) {
+        if (isSuccess && data.vaultPath) {
             const file = data.vaultPath.replace(/\.md$/, '');
             const uri = `obsidian://open?file=${encodeURIComponent(file)}`;
-            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-          <i data-lucide="external-link" class="h-4 w-4"></i>
-          在 Obsidian 中打开 →</a>
-          <span class="text-xs text-zinc-600 ml-2">${data.vaultPath}</span>`;
-            obsidianLink.classList.remove('hidden');
-        } else if (data.success && data.clipId) {
-            // Duplicate case: search by clipId
+            obsidianLink.innerHTML = `
+              <a href="${uri}">
+                <i data-lucide="vault"></i>
+                在 Obsidian 中打开记忆 →
+              </a>
+              <span class="path-hint">${data.vaultPath}</span>`;
+            obsidianLink.classList.add('visible');
+        } else if (isSuccess && data.clipId) {
             const uri = `obsidian://search?query=${encodeURIComponent(data.clipId)}`;
-            obsidianLink.innerHTML = `<a href="${uri}" class="inline-flex items-center gap-2 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-          <i data-lucide="search" class="h-4 w-4"></i>
-          在 Obsidian 中查看已有收藏 →</a>
-          <span class="text-xs text-zinc-600 ml-2">${data.clipId}</span>`;
-            obsidianLink.classList.remove('hidden');
+            obsidianLink.innerHTML = `
+              <a href="${uri}">
+                <i data-lucide="search"></i>
+                在 Obsidian 中查看已有记忆 →
+              </a>
+              <span class="path-hint">${data.clipId}</span>`;
+            obsidianLink.classList.add('visible');
         } else {
-            obsidianLink.classList.add('hidden');
+            obsidianLink.classList.remove('visible');
         }
 
         resultBody.textContent = JSON.stringify(data, null, 2);
-        result.classList.remove('hidden');
+        result.classList.add('visible');
         lucide.createIcons();
     }
 
+    // ═══ Submit (Inception) ═══
     submitBtn.addEventListener('click', async () => {
-        if (!selectedFile) {
-            return;
-        }
+        if (!selectedFile) return;
 
         submitBtn.disabled = true;
-        result.classList.add('hidden');
+        result.classList.remove('visible');
+        rightCol.style.opacity = '1';
 
         resetTimeline();
-        timeline.classList.remove('hidden');
-        stepMessage.textContent = '提交中…';
-        stepMessage.className = 'mt-6 text-center text-sm text-zinc-400 h-5 transition-opacity duration-300';
+        timeline.classList.add('visible');
+        stepMessage.textContent = '正在进入梦境…';
+        stepMessage.className = 'step-message';
 
         const form = new FormData();
         form.append('image', selectedFile);
         saveToHistory(selectedFile);
 
         try {
-            const resp = await fetch('/clip', {
-                method: 'POST',
-                body: form
-            });
+            const resp = await fetch('/clip', { method: 'POST', body: form });
             const data = await resp.json();
 
             if (data.jobId) {
                 pollJob(data.jobId);
             } else {
                 showResult(data);
-                timeline.classList.add('hidden');
+                timeline.classList.remove('visible');
                 submitBtn.disabled = false;
             }
         } catch (err) {
-            stepMessage.textContent = '请求失败';
-            stepMessage.className = 'mt-6 text-center text-sm text-red-400 h-5 transition-opacity duration-300';
-            resultHeader.textContent = '✗ 请求错误';
-            resultHeader.className = 'px-4 py-2.5 text-sm font-medium border-b border-zinc-800 text-red-400';
+            stepMessage.textContent = '梦境连接失败';
+            stepMessage.className = 'step-message error';
+            resultHeader.className = 'result-header error';
+            resultHeader.innerHTML = '<span class="dot"></span>连接失败';
             resultBody.textContent = err.message;
-            result.classList.remove('hidden');
+            result.classList.add('visible');
             submitBtn.disabled = false;
         }
     });

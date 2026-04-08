@@ -3,24 +3,72 @@ import { chromium } from "playwright";
 import { config } from "@/config.js";
 import type { MergedVLMResult, Platform } from "@/types/index.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
-import { openrouter } from "@/vlm/openrouter.js";
+import { llmClient } from "@/vlm/openrouter.js";
 
 const log = createLogger("web-fetch");
 
 let browser: Browser | null = null;
 
+const CDP_MAX_RETRIES = 3;
+const CDP_INITIAL_DELAY_MS = 1000;
+
 async function getBrowser(): Promise<Browser> {
-  if (!browser) {
-    log.debug(
-      {
-        cdpUrl: config.playwright.cdpUrl,
-      },
-      "connecting to Chrome CDP",
-    );
-    browser = await chromium.connectOverCDP(config.playwright.cdpUrl);
-    log.info("Chrome CDP connected");
+  if (browser?.isConnected()) {
+    return browser;
   }
-  return browser;
+
+  // Reset stale reference
+  browser = null;
+
+  for (let attempt = 1; attempt <= CDP_MAX_RETRIES; attempt++) {
+    try {
+      log.debug(
+        {
+          cdpUrl: config.playwright.cdpUrl,
+          attempt,
+        },
+        "connecting to Chrome CDP",
+      );
+      browser = await chromium.connectOverCDP(config.playwright.cdpUrl);
+
+      // Listen for disconnect to auto-clear the reference
+      browser.on("disconnected", () => {
+        log.warn("Chrome CDP disconnected");
+        browser = null;
+      });
+
+      log.info("Chrome CDP connected");
+      return browser;
+    } catch (err) {
+      log.warn(
+        {
+          error: errMsg(err),
+          attempt,
+          maxRetries: CDP_MAX_RETRIES,
+        },
+        "CDP connection failed",
+      );
+      if (attempt < CDP_MAX_RETRIES) {
+        const delay = CDP_INITIAL_DELAY_MS * 2 ** (attempt - 1);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+      }
+    }
+  }
+
+  throw new Error(
+    `Failed to connect to Chrome CDP at ${config.playwright.cdpUrl} after ${CDP_MAX_RETRIES} attempts`,
+  );
+}
+
+export async function closeBrowser(): Promise<void> {
+  if (browser) {
+    try {
+      await browser.close();
+    } catch {
+      // Already disconnected
+    }
+    browser = null;
+  }
 }
 
 async function openPage(): Promise<Page> {
@@ -283,13 +331,13 @@ export async function fetchAndExtract(url: string): Promise<string | null> {
   log.debug(
     {
       cleanedLength: cleaned.length,
-      model: config.openrouter.models.processor,
+      model: config.llm.models.processor,
     },
     "fetchAndExtract ▶ sending HTML to LLM for extraction",
   );
 
-  const response = await openrouter.chat.completions.create({
-    model: config.openrouter.models.processor,
+  const response = await llmClient.chat.completions.create({
+    model: config.llm.models.processor,
     messages: [
       {
         role: "system",

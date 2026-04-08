@@ -7,7 +7,7 @@ import type {
 } from "@/types/index.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger } from "@/utils/logger.js";
-import { openrouter } from "@/vlm/openrouter.js";
+import { llmClient } from "@/vlm/openrouter.js";
 
 const log = createLogger("processor");
 
@@ -29,7 +29,7 @@ export async function processContent(
       contentSource,
       contentLength: content.length,
       fetchLevel: fetchResult.fetchLevel,
-      model: config.openrouter.models.processor,
+      model: config.llm.models.processor,
     },
     "▶ processContent start",
   );
@@ -39,8 +39,8 @@ export async function processContent(
 内容:
 ${content.slice(0, 32_000)}`;
 
-  const response = await openrouter.chat.completions.create({
-    model: config.openrouter.models.processor,
+  const response = await llmClient.chat.completions.create({
+    model: config.llm.models.processor,
     messages: [
       {
         role: "system",

@@ -1,4 +1,36 @@
+import { existsSync } from "node:fs";
 import "dotenv/config";
+
+function requireEnv(name: string): string {
+  const value = process.env[name];
+  if (!value) {
+    throw new Error(
+      `Missing required environment variable: ${name}. Check your .env file.`,
+    );
+  }
+  return value;
+}
+
+function requireEnvOrWarn(name: string, fallback: string): string {
+  const value = process.env[name];
+  if (!value) {
+    console.warn(
+      `⚠ Environment variable ${name} not set, using fallback: "${fallback}"`,
+    );
+    return fallback;
+  }
+  return value;
+}
+
+// Validate vault path exists at startup
+function validateVaultPath(path: string): string {
+  if (!existsSync(path)) {
+    throw new Error(
+      `OBSIDIAN_VAULT_PATH does not exist: ${path}. Create the directory or update your .env file.`,
+    );
+  }
+  return path;
+}
 
 export const config = {
   server: {
@@ -7,16 +39,16 @@ export const config = {
   },
 
   auth: {
-    apiKey: process.env.API_KEY!,
-    jwtSecret: process.env.JWT_SECRET!,
+    apiKey: requireEnvOrWarn("API_KEY", "dev-key"),
+    jwtSecret: process.env.JWT_SECRET || "dev-jwt-secret",
   },
 
-  openrouter: {
-    apiKey: process.env.OPENROUTER_API_KEY!,
-    baseUrl: "https://openrouter.ai/api/v1",
+  llm: {
+    apiKey: requireEnv("LLM_API_KEY"),
+    baseUrl: process.env.LLM_BASE_URL || "https://api.minimaxi.com/v1",
     models: {
-      vlm: (process.env.VLM_MODELS || "moonshotai/kimi-k2.5").split(","),
-      processor: process.env.PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
+      vlm: (process.env.VLM_MODELS || "MiniMax-M2.7").split(","),
+      processor: process.env.PROCESSOR_MODEL || "MiniMax-M2.7",
     },
   },
 
@@ -30,7 +62,7 @@ export const config = {
   },
 
   vault: {
-    basePath: process.env.OBSIDIAN_VAULT_PATH!,
+    basePath: validateVaultPath(requireEnv("OBSIDIAN_VAULT_PATH")),
     clippingsDir: "Clippings",
     assetsDir: "Clippings/assets",
   },
