@@ -1,5 +1,6 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { gte, valid } from "semver";
 import { config } from "@/config.js";
 import type { Platform } from "@/types/index.js";
 import { createLogger } from "@/utils/logger.js";
@@ -9,10 +10,46 @@ const log = createLogger("opencli");
 const platformQueues = new Map<Platform, Promise<void>>();
 const platformQueueDepths = new Map<Platform, number>();
 
+const MIN_OPENCLI_VERSION = "1.6.10";
+let versionChecked = false;
+
+async function ensureOpencliVersion(): Promise<void> {
+  if (versionChecked) {
+    return;
+  }
+  versionChecked = true;
+  try {
+    const { stdout } = await execFileAsync(config.opencli.binaryPath, [
+      "--version",
+    ]);
+    const version = stdout.trim();
+    log.info(
+      {
+        version,
+      },
+      "opencli version",
+    );
+
+    if (!valid(version) || !gte(version, MIN_OPENCLI_VERSION)) {
+      throw new Error(
+        `opencli >= ${MIN_OPENCLI_VERSION} required, found ${version}`,
+      );
+    }
+  } catch (err) {
+    if ((err as Error).message.includes("required, found")) {
+      throw err;
+    }
+    throw new Error(
+      `opencli not found or not executable at "${config.opencli.binaryPath}": ${(err as Error).message}`,
+    );
+  }
+}
+
 export async function runOpencli(
   platform: Platform,
   args: string[],
 ): Promise<unknown> {
+  await ensureOpencliVersion();
   return enqueueByPlatform(platform, () => executeOpencli(args));
 }
 

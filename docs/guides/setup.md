@@ -4,7 +4,7 @@
 
 - Node.js >= 22
 - pnpm (package manager)
-- opencli (latest)
+- opencli >= 1.6.10
 - Chrome browser (保持各平台登录态，需开启 CDP 远程调试)
 - opencli Chrome Extension
 
