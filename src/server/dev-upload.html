@@ -85,14 +85,14 @@
                     </button>
                 </div>
 
-                <div id="previewGrid" class="mt-5 hidden grid-cols-2 gap-4 2xl:grid-cols-3"></div>
-
                 <div class="mt-6 flex gap-3">
                     <button id="submitBtn" type="button" disabled
                             class="flex-1 rounded-2xl bg-white px-5 py-3 text-sm font-medium text-zinc-900 transition-colors hover:bg-zinc-200 disabled:cursor-not-allowed disabled:opacity-30">
                         Start Processing
                     </button>
                 </div>
+
+                <div id="previewGrid" class="mt-5 hidden max-h-[28rem] overflow-y-auto grid-cols-2 gap-4 2xl:grid-cols-3"></div>
 
                 <div id="historySection" class="mt-6 hidden border-t border-zinc-800 pt-5">
                     <div class="flex items-center justify-between gap-3">
@@ -306,7 +306,6 @@
         selectedFiles: [],
         selectedPreviewUrls: [],
         run: null,
-        timerId: null,
     };
 
     lucide.createIcons();
@@ -478,8 +477,8 @@
 
         const single = state.selectedFiles.length === 1;
         previewGrid.className = single
-            ? 'mt-5 grid grid-cols-1 gap-4'
-            : 'mt-5 grid grid-cols-2 gap-4 2xl:grid-cols-3';
+            ? 'mt-5 grid grid-cols-1 gap-4 max-h-[28rem] overflow-y-auto'
+            : 'mt-5 grid grid-cols-2 gap-4 2xl:grid-cols-3 max-h-[28rem] overflow-y-auto';
 
         previewGrid.innerHTML = state.selectedFiles.map((file, index) => {
             const src = state.selectedPreviewUrls[index];
@@ -560,7 +559,7 @@
         state.run.focusedJobId = jobId;
         renderFocusPanel();
         renderResultPanel();
-        refreshTimers();
+        beginTimerLoop();
     }
 
     function upsertJobData(jobId, job) {
@@ -592,6 +591,8 @@
             } else {
                 state.run.status = 'done';
             }
+            stopTimerLoop();
+            refreshTimers();
         }
     }
 
@@ -790,6 +791,7 @@
             jobListMeta.textContent = '0 jobs';
             renderFocusPanel();
             renderResultPanel();
+            stopTimerLoop();
             refreshTimers();
             lucide.createIcons();
             return;
@@ -835,18 +837,38 @@
         }
 
         jobListMeta.textContent = `${total} jobs`;
+        const prevHash = _lastJobListHash;
         renderJobList();
         renderFocusPanel();
         renderResultPanel();
-        refreshTimers();
-        lucide.createIcons();
+        beginTimerLoop();
+        if (_lastJobListHash !== prevHash) {
+            lucide.createIcons();
+        }
     }
+
+    let _lastJobListHash = '';
 
     function renderJobList() {
         if (!state.run?.jobOrder.length) {
-            jobList.innerHTML = '';
+            if (_lastJobListHash !== '') {
+                jobList.innerHTML = '';
+                _lastJobListHash = '';
+            }
             return;
         }
+
+        const hash = state.run.jobOrder.map(id => {
+            const t = state.run.jobs[id];
+            const s = t?.data?.status || 'pending';
+            const sel = state.run.focusedJobId === id ? '1' : '0';
+            const ret = t?.retrying ? '1' : '0';
+            const rc = t?.retryCount || 0;
+            return `${id}:${s}:${sel}:${ret}:${rc}`;
+        }).join('|');
+
+        if (hash === _lastJobListHash) { return; }
+        _lastJobListHash = hash;
 
         jobList.innerHTML = state.run.jobOrder.map(jobId => {
             const tracked = state.run.jobs[jobId];
@@ -1005,7 +1027,6 @@
         focusTitle.textContent = getJobTitle(focused.id, focused);
         focusStatusChip.textContent = getStatusText(focused.data?.status || 'pending');
         updateTimeline(focused);
-        refreshTimers();
     }
 
     function renderResultPanel() {
@@ -1043,23 +1064,58 @@
     }
 
     function refreshTimers() {
-        overallElapsedValue.textContent = formatSeconds(state.run?.startedAt, state.run?.endedAt);
-        const focused = getFocusedJob();
-        const focusedElapsed = formatSeconds(focused?.startedAt, focused?.endedAt);
-        focusedElapsedValue.textContent = focusedElapsed;
-        focusElapsedChip.textContent = focusedElapsed;
+        if (!state.run) { return; }
 
-        document.querySelectorAll('[data-job-elapsed]').forEach(el => {
-            const tracked = state.run?.jobs?.[el.dataset.jobElapsed];
-            el.textContent = formatSeconds(tracked?.startedAt, tracked?.endedAt);
-        });
+        const overallText = formatSeconds(state.run.startedAt, state.run.endedAt);
+        if (overallElapsedValue.textContent !== overallText) {
+            overallElapsedValue.textContent = overallText;
+        }
+
+        const focused = getFocusedJob();
+        const focusedText = formatSeconds(focused?.startedAt, focused?.endedAt);
+        if (focusedElapsedValue.textContent !== focusedText) {
+            focusedElapsedValue.textContent = focusedText;
+        }
+        if (focusElapsedChip.textContent !== focusedText) {
+            focusElapsedChip.textContent = focusedText;
+        }
+
+        const elapsedEls = jobList.querySelectorAll('[data-job-elapsed]');
+        for (let i = 0; i < elapsedEls.length; i++) {
+            const el = elapsedEls[i];
+            const tracked = state.run.jobs[el.dataset.jobElapsed];
+            const text = formatSeconds(tracked?.startedAt, tracked?.endedAt);
+            if (el.textContent !== text) {
+                el.textContent = text;
+            }
+        }
+    }
+
+    let _rafTimerId = null;
+
+    function _timerTick() {
+        refreshTimers();
+        if (state.run && !state.run.endedAt) {
+            _rafTimerId = requestAnimationFrame(_timerTick);
+        } else {
+            _rafTimerId = null;
+        }
     }
 
     function beginTimerLoop() {
-        if (state.timerId) {
-            window.clearInterval(state.timerId);
+        if (_rafTimerId) {
+            cancelAnimationFrame(_rafTimerId);
         }
-        state.timerId = window.setInterval(refreshTimers, 200);
+        if (state.run && !state.run.endedAt) {
+            _rafTimerId = requestAnimationFrame(_timerTick);
+        }
+    }
+
+    function stopTimerLoop() {
+        if (_rafTimerId) {
+            cancelAnimationFrame(_rafTimerId);
+            _rafTimerId = null;
+        }
     }
 
     async function pollJob(jobId) {
@@ -1429,7 +1485,6 @@
         }
     });
 
-    beginTimerLoop();
     renderHistory();
     renderWorkbench();
 </script>
