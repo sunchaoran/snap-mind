@@ -1,4 +1,15 @@
 import "dotenv/config";
+import { homedir } from "node:os";
+import { join } from "node:path";
+
+// iCloud Drive
+const defaultObsidianVaultPath = join(
+  homedir(),
+  "Library",
+  "Mobile Documents",
+  "com~apple~CloudDocs",
+  "Obsidian",
+);
 
 export const config = {
   server: {
@@ -30,22 +41,30 @@ export const config = {
   },
 
   vault: {
-    basePath: process.env.OBSIDIAN_VAULT_PATH!,
-    clippingsDir: "Clippings",
-    assetsDir: "Clippings/assets",
+    basePath: process.env.OBSIDIAN_VAULT_PATH || defaultObsidianVaultPath,
+    clippingsDir: "snap-mind",
+    assetsDir: "snap-mind/assets",
+    screenshotDisplayWidth:
+      Number(process.env.OBSIDIAN_SCREENSHOT_WIDTH) || 360,
   },
 
   processing: {
-    overallTimeout: 180_000,
+    overallTimeout: 300_000,
     fetchTimeouts: {
-      l1: 80_000,
-      l2: 35_000,
-      l3: 20_000,
+      l1: 100_000,
+      l2: 50_000,
+      l3: 50_000,
     },
-    vlmTimeout: 35_000,
+    vlmTimeout: 80_000,
+    /** Re-run VLM with all configured models only when the primary result is low-confidence or missing critical fields. */
+    vlmEscalationThreshold: Number(process.env.VLM_ESCALATION_THRESHOLD) || 0.8,
     similarityThreshold: 0.85,
     /** Max fetch level to attempt (1-4). Levels beyond this will not run; if the max level fails, pipeline errors instead of falling through. */
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
+    /** Max images per batch upload (1-20). */
+    maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 20, 20),
+    /** Max pipelines running concurrently within a batch. Controls resource usage. */
+    maxConcurrentPipelines: Number(process.env.MAX_CONCURRENT_PIPELINES) || 5,
   },
 
   searchEngine: {

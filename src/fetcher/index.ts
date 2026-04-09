@@ -80,6 +80,7 @@ const PLATFORM_USER_STRATEGY: Partial<Record<Platform, PlatformUserStrategy>> =
  * L4: screenshot-only (all levels failed)
  */
 export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
+  const start = Date.now();
   log.info(
     {
       platform: vlm.platform,
@@ -96,6 +97,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
   // L1: opencli search (results contain full text)
   if (maxLevel >= 1 && PLATFORM_L1_SUPPORT.includes(vlm.platform)) {
     log.info("L1 ▶ trying opencli search");
+    const l1Start = Date.now();
     const l1 = await tryWithTimeout(
       () => tryLevel1(vlm),
       config.processing.fetchTimeouts.l1,
@@ -105,6 +107,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
         {
           url: l1.originalUrl,
           chars: l1.contentFull?.length,
+          elapsed: `${Date.now() - l1Start}ms`,
         },
         "L1 ✓ opencli search matched",
       );
@@ -116,7 +119,12 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
     if (maxLevel <= 1) {
       throw new Error("L1 fetch failed and MAX_FETCH_LEVEL=1, aborting");
     }
-    log.warn("L1 ✗ opencli failed or timed out, falling through");
+    log.warn(
+      {
+        elapsed: `${Date.now() - l1Start}ms`,
+      },
+      "L1 ✗ opencli failed or timed out, falling through",
+    );
   } else if (maxLevel >= 1) {
     log.debug(
       {
@@ -134,6 +142,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
   // L2: platform-aware web fetch
   if (maxLevel >= 2 && PLATFORM_L2_SUPPORT.includes(vlm.platform)) {
     log.info("L2 ▶ trying platform-aware web fetch");
+    const l2Start = Date.now();
     const l2 = await tryWithTimeout(
       () => tryLevel2(vlm),
       config.processing.fetchTimeouts.l2,
@@ -143,6 +152,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
         {
           url: l2.originalUrl,
           chars: l2.contentFull?.length,
+          elapsed: `${Date.now() - l2Start}ms`,
         },
         "L2 ✓ web fetch succeeded",
       );
@@ -154,7 +164,12 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
     if (maxLevel <= 2) {
       throw new Error("L2 fetch failed and MAX_FETCH_LEVEL=2, aborting");
     }
-    log.warn("L2 ✗ platform web fetch failed or timed out, falling through");
+    log.warn(
+      {
+        elapsed: `${Date.now() - l2Start}ms`,
+      },
+      "L2 ✗ platform web fetch failed or timed out, falling through",
+    );
   } else if (maxLevel >= 2) {
     log.debug(
       {
@@ -167,6 +182,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
   // L3: search engine → web fetch + LLM extract
   if (maxLevel >= 3) {
     log.info("L3 ▶ trying search engine fallback");
+    const l3Start = Date.now();
     const l3 = await tryWithTimeout(
       () => tryLevel3(vlm),
       config.processing.fetchTimeouts.l3,
@@ -176,6 +192,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
         {
           url: l3.originalUrl,
           chars: l3.contentFull?.length,
+          elapsed: `${Date.now() - l3Start}ms`,
         },
         "L3 ✓ search engine fetch succeeded",
       );
@@ -187,11 +204,21 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
     if (maxLevel <= 3) {
       throw new Error("L3 fetch failed and MAX_FETCH_LEVEL=3, aborting");
     }
-    log.warn("L3 ✗ search engine failed or timed out");
+    log.warn(
+      {
+        elapsed: `${Date.now() - l3Start}ms`,
+      },
+      "L3 ✗ search engine failed or timed out",
+    );
   }
 
   // L4: all failed
-  log.error("✗ all levels failed → L4 screenshot-only fallback");
+  log.error(
+    {
+      elapsed: `${Date.now() - start}ms`,
+    },
+    "✗ all levels failed → L4 screenshot-only fallback",
+  );
   return {
     contentFull: null,
     originalUrl: null,
@@ -239,7 +266,7 @@ async function tryAuthorFirst(
     "L1.a   searching for author",
   );
 
-  const searchResults = await runOpencli([
+  const searchResults = await runOpencli(vlm.platform, [
     vlm.platform,
     "search",
     authorQuery,
@@ -302,7 +329,7 @@ async function tryAuthorFirst(
   );
 
   // Step 3: list user posts
-  const userPosts = await runOpencli([
+  const userPosts = await runOpencli(vlm.platform, [
     vlm.platform,
     ...strategy.listCmd,
     userId,
@@ -367,7 +394,7 @@ async function tryAuthorFirst(
       },
       "L1.a   fetching post detail",
     );
-    const detail = await runOpencli([
+    const detail = await runOpencli(vlm.platform, [
       vlm.platform,
       ...strategy.detailCmd,
       detailArg,
@@ -424,7 +451,7 @@ async function tryKeywordSearch(
     "L1.b   opencli search query",
   );
 
-  const searchResults = await runOpencli([
+  const searchResults = await runOpencli(vlm.platform, [
     vlm.platform,
     "search",
     query,
@@ -578,7 +605,7 @@ async function tryLevel2(
       return null;
     }
 
-    const searchResults = await runOpencli([
+    const searchResults = await runOpencli(vlm.platform, [
       vlm.platform,
       "search",
       query,

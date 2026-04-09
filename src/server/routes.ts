@@ -7,7 +7,10 @@ import { fetchContent } from "@/fetcher/index.js";
 import { processContent } from "@/processor/index.js";
 import { authenticate } from "@/server/auth.js";
 import {
+  batchItemDone,
+  createBatchJob,
   createJob,
+  getBatchJob,
   getJob,
   jobDone,
   jobError,
@@ -18,9 +21,14 @@ import {
 import { saveScreenshot, saveSidecarJson } from "@/store/screenshot.js";
 import type { ClipRecord, ClipResponse } from "@/types/index.js";
 import { generateClipId } from "@/utils/id.js";
+import { preprocessImage } from "@/utils/image.js";
 import { createLogger } from "@/utils/logger.js";
 import { analyzeScreenshot } from "@/vlm/analyzer.js";
-import { findSimilarClip, writeClip } from "@/writer/markdown.js";
+import {
+  clearSnapMindVault,
+  findSimilarClip,
+  writeClip,
+} from "@/writer/markdown.js";
 
 const __dirname = join(fileURLToPath(import.meta.url), "..");
 const log = createLogger("pipeline");
@@ -70,6 +78,76 @@ export async function registerRoutes(app: FastifyInstance) {
     });
   });
 
+  app.post("/clip/batch", async (request, reply) => {
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
+    }
+
+    const parts = request.files();
+    const buffers: Buffer[] = [];
+    for await (const part of parts) {
+      buffers.push(await part.toBuffer());
+      if (buffers.length > config.processing.maxBatchSize) {
+        return reply.status(400).send({
+          success: false,
+          error: `Too many images. Max ${config.processing.maxBatchSize} per batch`,
+        });
+      }
+    }
+
+    if (buffers.length === 0) {
+      return reply.status(400).send({
+        success: false,
+        error: "No image files provided",
+      });
+    }
+
+    const batchId = `batch_${generateClipId()}`;
+    const jobIds: string[] = [];
+
+    for (const _ of buffers) {
+      const clipId = generateClipId();
+      const jobId = clipId;
+      createJob(jobId, clipId);
+      jobIds.push(jobId);
+    }
+
+    createBatchJob(batchId, jobIds);
+
+    // Run pipelines concurrently with concurrency limit
+    runBatch(batchId, jobIds, buffers);
+
+    return reply.status(202).send({
+      batchId,
+      jobIds,
+      total: buffers.length,
+    });
+  });
+
+  app.get<{
+    Params: {
+      id: string;
+    };
+  }>(
+    "/batch/:id",
+    {
+      logLevel: "warn",
+    },
+    async (request, reply) => {
+      const batch = getBatchJob(request.params.id);
+      if (!batch) {
+        return reply.status(404).send({
+          error: "Batch not found",
+        });
+      }
+      return batch;
+    },
+  );
+
   app.get<{
     Params: {
       id: string;
@@ -97,10 +175,73 @@ export async function registerRoutes(app: FastifyInstance) {
   });
 
   if (process.env.NODE_ENV !== "production") {
+    app.post("/dev/clear-snap-mind", async (_request, reply) => {
+      try {
+        const cleared = await clearSnapMindVault();
+        return {
+          success: true,
+          ...cleared,
+        };
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        return reply.status(500).send({
+          success: false,
+          error: message,
+        });
+      }
+    });
+
     app.get("/dev", async (_request, reply) => {
       const html = await readFile(join(__dirname, "dev-upload.html"), "utf-8");
       return reply.type("text/html").send(html);
     });
+  }
+}
+
+function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
+  const concurrency = config.processing.maxConcurrentPipelines;
+  let cursor = 0;
+
+  function next() {
+    if (cursor >= buffers.length) {
+      return;
+    }
+    const i = cursor++;
+    const jobId = jobIds[i];
+    const clipId = jobId; // jobId === clipId
+    const imageBuffer = buffers[i];
+
+    withTimeout(
+      handleClip(jobId, clipId, imageBuffer),
+      config.processing.overallTimeout,
+    )
+      .then(() => {
+        const job = getJob(jobId);
+        if (job?.result) {
+          batchItemDone(batchId, job.result);
+        }
+      })
+      .catch(async (error) => {
+        log.error(
+          {
+            clipId,
+            batchId,
+            error: error instanceof Error ? error.message : String(error),
+          },
+          "batch pipeline failed",
+        );
+        const result = await handleFailure(clipId, imageBuffer);
+        jobError(jobId, result);
+        batchItemDone(batchId, result);
+      })
+      .finally(() => {
+        next();
+      });
+  }
+
+  // Kick off initial batch of concurrent pipelines
+  for (let i = 0; i < Math.min(concurrency, buffers.length); i++) {
+    next();
   }
 }
 
@@ -110,6 +251,7 @@ async function handleClip(
   imageBuffer: Buffer,
 ): Promise<void> {
   const pipelineStart = Date.now();
+  const timings: Record<string, number> = {};
   log.info(
     {
       clipId,
@@ -123,6 +265,12 @@ async function handleClip(
     "▶ Pipeline start",
   );
 
+  // 0. Preprocess image (compress & resize)
+  const preprocessed = await timed("preprocessMs", timings, () =>
+    preprocessImage(imageBuffer),
+  );
+  const processedBuffer = preprocessed.buffer;
+
   // 1. VLM analysis
   stepStart(jobId, 0, "正在分析截图…");
   log.info(
@@ -131,11 +279,20 @@ async function handleClip(
     },
     "── Step 1/7: VLM Screenshot Analysis ──",
   );
-  const vlmResult = await analyzeScreenshot(imageBuffer);
+  const vlmResult = await timed("vlmMs", timings, () =>
+    analyzeScreenshot(processedBuffer),
+  );
   stepDone(
     jobId,
     0,
     `识别为 ${vlmResult.platform}，置信度 ${vlmResult.confidence}`,
+  );
+  log.info(
+    {
+      clipId,
+      elapsed: `${timings.vlmMs}ms`,
+    },
+    "  step timing",
   );
 
   // 2. Dedup check
@@ -146,16 +303,16 @@ async function handleClip(
     },
     "── Step 2/7: Dedup Check ──",
   );
-  const existingId = await findSimilarClip(
-    vlmResult.platform,
-    vlmResult.author,
-    vlmResult.title,
+  const existingId = await timed("dedupMs", timings, () =>
+    findSimilarClip(vlmResult.platform, vlmResult.author, vlmResult.title),
   );
   if (existingId) {
     log.info(
       {
         clipId,
         existingId,
+        elapsed: `${timings.dedupMs}ms`,
+        timings,
       },
       "⊘ duplicate found, skipping",
     );
@@ -173,7 +330,13 @@ async function handleClip(
     return;
   }
   stepDone(jobId, 1, "无重复");
-  log.info("  no duplicate found");
+  log.info(
+    {
+      clipId,
+      elapsed: `${timings.dedupMs}ms`,
+    },
+    "  no duplicate found",
+  );
 
   // 3. Fetch original content
   stepStart(jobId, 2, "抓取原文内容…");
@@ -183,8 +346,18 @@ async function handleClip(
     },
     "── Step 3/7: Content Fetch (L1→L2→L3→L4) ──",
   );
-  const fetchResult = await fetchContent(vlmResult);
+  const fetchResult = await timed("fetchMs", timings, () =>
+    fetchContent(vlmResult),
+  );
   stepDone(jobId, 2, `Level ${fetchResult.fetchLevel}`);
+  log.info(
+    {
+      clipId,
+      fetchLevel: fetchResult.fetchLevel,
+      elapsed: `${timings.fetchMs}ms`,
+    },
+    "  step timing",
+  );
 
   // 4. Process content (summary/tags/category)
   stepStart(jobId, 3, "生成摘要和标签…");
@@ -194,8 +367,17 @@ async function handleClip(
     },
     "── Step 4/7: Content Processing ──",
   );
-  const processed = await processContent(vlmResult, fetchResult);
+  const processed = await timed("processMs", timings, () =>
+    processContent(vlmResult, fetchResult),
+  );
   stepDone(jobId, 3, `${processed.category} / ${processed.tags.join(", ")}`);
+  log.info(
+    {
+      clipId,
+      elapsed: `${timings.processMs}ms`,
+    },
+    "  step timing",
+  );
 
   // 5. Save screenshot to vault
   stepStart(jobId, 4, "保存截图…");
@@ -205,11 +387,14 @@ async function handleClip(
     },
     "── Step 5/7: Save Screenshot ──",
   );
-  const screenshotPath = await saveScreenshot(clipId, imageBuffer);
+  const screenshotPath = await timed("saveScreenshotMs", timings, () =>
+    saveScreenshot(clipId, processedBuffer, preprocessed.ext),
+  );
   stepDone(jobId, 4);
   log.info(
     {
       screenshotPath,
+      elapsed: `${timings.saveScreenshotMs}ms`,
     },
     "  screenshot saved",
   );
@@ -222,7 +407,7 @@ async function handleClip(
     },
     "── Step 6/7: Assemble Record ──",
   );
-  const record: ClipRecord = {
+  const record: ClipRecord = await timed("assembleMs", timings, async () => ({
     id: clipId,
     title: vlmResult.title ?? "未知标题",
     platform: vlmResult.platform,
@@ -239,8 +424,15 @@ async function handleClip(
     sourceConfidence: vlmResult.confidence,
     createdAt: new Date().toISOString(),
     rawVlmResult: vlmResult,
-  };
+  }));
   stepDone(jobId, 5);
+  log.info(
+    {
+      clipId,
+      elapsed: `${timings.assembleMs}ms`,
+    },
+    "  step timing",
+  );
 
   // 7. Write to Obsidian vault
   stepStart(jobId, 6, "写入 Obsidian…");
@@ -250,15 +442,20 @@ async function handleClip(
     },
     "── Step 7/7: Write to Vault ──",
   );
-  const vaultPath = await writeClip(record);
+  const vaultPath = await timed("writeClipMs", timings, () =>
+    writeClip(record),
+  );
   log.info(
     {
       vaultPath: `${config.vault.basePath}/${vaultPath}`,
+      elapsed: `${timings.writeClipMs}ms`,
     },
     "  vault file written",
   );
 
-  await saveSidecarJson(clipId, vlmResult);
+  await timed("saveSidecarMs", timings, () =>
+    saveSidecarJson(clipId, vlmResult),
+  );
   stepDone(jobId, 6, vaultPath);
 
   const elapsed = Date.now() - pipelineStart;
@@ -273,6 +470,17 @@ async function handleClip(
       title: record.title,
       tags: tagStr,
       originalUrl: record.originalUrl,
+      timings: {
+        preprocessMs: timings.preprocessMs,
+        vlmMs: timings.vlmMs,
+        dedupMs: timings.dedupMs,
+        fetchMs: timings.fetchMs,
+        processMs: timings.processMs,
+        saveScreenshotMs: timings.saveScreenshotMs,
+        assembleMs: timings.assembleMs,
+        writeClipMs: timings.writeClipMs,
+        saveSidecarMs: timings.saveSidecarMs,
+      },
     },
     "✓ Pipeline complete",
   );
@@ -301,10 +509,18 @@ async function handleFailure(
   clipId: string,
   imageBuffer: Buffer,
 ): Promise<ClipResponse> {
+  let savedExt = "webp";
   try {
-    await saveScreenshot(clipId, imageBuffer);
+    const pp = await preprocessImage(imageBuffer);
+    await saveScreenshot(clipId, pp.buffer, pp.ext);
+    savedExt = pp.ext;
   } catch {
-    // Screenshot save itself failed
+    try {
+      await saveScreenshot(clipId, imageBuffer);
+      savedExt = "png";
+    } catch {
+      // Screenshot save itself failed
+    }
   }
 
   try {
@@ -320,7 +536,7 @@ async function handleFailure(
       tags: [],
       category: "other",
       language: "zh",
-      screenshotPath: `assets/${clipId}.png`,
+      screenshotPath: `assets/${clipId}.${savedExt}`,
       fetchLevel: 4,
       sourceConfidence: 0,
       createdAt: new Date().toISOString(),
@@ -359,4 +575,17 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
     );
     promise.then(resolve, reject).finally(() => clearTimeout(timer));
   });
+}
+
+async function timed<T>(
+  key: string,
+  timings: Record<string, number>,
+  fn: () => Promise<T>,
+): Promise<T> {
+  const start = Date.now();
+  try {
+    return await fn();
+  } finally {
+    timings[key] = Date.now() - start;
+  }
 }

@@ -9,6 +9,7 @@
 | LLM Gateway | OpenRouter API (via `openai` SDK) | 兼容 OpenAI API，切换 baseURL 即可调用多家模型 |
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
 | Web Fetch Fallback | Playwright | `connectOverCDP` 复用 Chrome 登录态，`networkidle` 等待更可靠 |
+| Image Processing | sharp (libvips) | 高性能截图压缩：缩放 + WebP 转换 |
 | Storage | 本地文件系统 (Obsidian vault) | Markdown + 截图文件 |
 | Process Manager | PM2 | 日志/监控开箱即用，跨平台可迁移 |
 | Logging | pino (Fastify built-in) | 结构化 JSON 日志，PM2 采集友好 |
@@ -61,6 +62,7 @@
     "nanoid": "^5.x",
     "js-levenshtein": "^1.x",
     "pino": "^10.x",
+    "sharp": "^0.34.x",
     "slugify": "^1.x"
   },
   "devDependencies": {

@@ -44,10 +44,20 @@ interface AuthResult {
 
 当前实现采用异步 Job 模式，而非同步串行返回：
 
+**单张上传：**
+
 1. `POST /clip` 接收截图后，立即返回 `jobId`（HTTP 202）
 2. Pipeline 在后台异步执行（fire-and-forget）
 3. 客户端通过 `GET /jobs/:id` 轮询进度
 4. JobStore 跟踪 7 个步骤的状态
+
+**批量上传（最多 20 张）：**
+
+1. `POST /clip/batch` 接收多张截图，立即返回 `batchId` + `jobIds`（HTTP 202）
+2. 每张图创建独立的 Job，通过并发池（默认 5 并发）异步执行
+3. 客户端通过 `GET /batch/:id` 轮询整体进度，或 `GET /jobs/:id` 查看单张进度
+4. BatchJob 聚合所有子 Job 的完成状态和结果
+5. 单张失败不影响其他图的处理
 
 ### Job Lifecycle
 
@@ -60,6 +70,18 @@ createJob(jobId, clipId) → 初始化 7 个步骤 (pending)
     │
     ├─ jobDone(jobId, result) → 整体完成
     └─ jobError(jobId, result) → 整体失败
+```
+
+### Batch Lifecycle
+
+```
+createBatchJob(batchId, jobIds[]) → 初始化批次
+    │
+    ├─ 每张图创建独立 Job（createJob）
+    ├─ 并发池控制同时执行数量（maxConcurrentPipelines）
+    ├─ batchItemDone(batchId, result) → 单张完成，累计计数
+    │
+    └─ 全部完成后 batch.status → "done" / "error"
 ```
 
 ### 7-Step Pipeline
@@ -76,11 +98,12 @@ createJob(jobId, clipId) → 初始化 7 个步骤 (pending)
 
 ## Responsibilities
 
-1. 接收截图上传请求，执行认证
-2. 生成 `clipId`（复用为 `jobId`）
-3. 创建 Job，立即返回 202
+1. 接收截图上传请求（单张或批量），执行认证
+2. 生成 `clipId`（复用为 `jobId`），批量时额外生成 `batchId`
+3. 创建 Job（或 BatchJob），立即返回 202
 4. 后台异步调度处理流程（VLM → Dedup → Fetch → Process → Save → Assemble → Write）
-5. 通过 JobStore 更新每步进度
+5. 批量上传时通过并发池（默认 5）控制同时处理数量，防止资源耗尽
+6. 通过 JobStore 更新每步进度
 
 ## Error Handling
 
@@ -113,6 +136,7 @@ withTimeout(handleClip(jobId, clipId, imageBuffer), config.processing.overallTim
 
 ## Server Configuration
 
-- Fastify 实例，注册 `@fastify/multipart` 插件（文件上传最大 20MB）
-- Dev 模式：启用 `pino-pretty` 日志格式化，提供 `/dev` 上传测试页面
+- Fastify 实例，注册 `@fastify/multipart` 插件（单文件最大 10MB，单次请求最多 20 个文件）
+- Dev 模式：启用 `pino-pretty` 日志格式化，提供 `/dev` 上传测试页面（支持多图选择）
 - 监听 `config.server.port`（默认 3210）和 `config.server.host`（默认 0.0.0.0）
+- 批量上传参数：`MAX_BATCH_SIZE`（默认 20）、`MAX_CONCURRENT_PIPELINES`（默认 5）

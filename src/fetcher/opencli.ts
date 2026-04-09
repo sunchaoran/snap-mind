@@ -1,12 +1,110 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { gte, valid } from "semver";
 import { config } from "@/config.js";
+import type { Platform } from "@/types/index.js";
 import { createLogger } from "@/utils/logger.js";
 
 const execFileAsync = promisify(execFile);
 const log = createLogger("opencli");
+const platformQueues = new Map<Platform, Promise<void>>();
+const platformQueueDepths = new Map<Platform, number>();
 
-export async function runOpencli(args: string[]): Promise<unknown> {
+const MIN_OPENCLI_VERSION = "1.6.10";
+let versionChecked = false;
+
+async function ensureOpencliVersion(): Promise<void> {
+  if (versionChecked) {
+    return;
+  }
+  versionChecked = true;
+  try {
+    const { stdout } = await execFileAsync(config.opencli.binaryPath, [
+      "--version",
+    ]);
+    const version = stdout.trim();
+    log.info(
+      {
+        version,
+      },
+      "opencli version",
+    );
+
+    if (!valid(version) || !gte(version, MIN_OPENCLI_VERSION)) {
+      throw new Error(
+        `opencli >= ${MIN_OPENCLI_VERSION} required, found ${version}`,
+      );
+    }
+  } catch (err) {
+    if ((err as Error).message.includes("required, found")) {
+      throw err;
+    }
+    throw new Error(
+      `opencli not found or not executable at "${config.opencli.binaryPath}": ${(err as Error).message}`,
+    );
+  }
+}
+
+export async function runOpencli(
+  platform: Platform,
+  args: string[],
+): Promise<unknown> {
+  await ensureOpencliVersion();
+  return enqueueByPlatform(platform, () => executeOpencli(args));
+}
+
+async function enqueueByPlatform<T>(
+  platform: Platform,
+  task: () => Promise<T>,
+): Promise<T> {
+  const previous = platformQueues.get(platform);
+  const queuedBefore = platformQueueDepths.get(platform) ?? 0;
+  const enqueuedAt = Date.now();
+  platformQueueDepths.set(platform, queuedBefore + 1);
+
+  const run = (previous ?? Promise.resolve()).catch(() => undefined).then(task);
+  const tail = run.then(
+    () => undefined,
+    () => undefined,
+  );
+
+  platformQueues.set(platform, tail);
+
+  log.debug(
+    {
+      platform,
+      queued: !!previous,
+      queuedBefore,
+    },
+    "scheduled opencli command on platform queue",
+  );
+
+  try {
+    const waitMs = Date.now() - enqueuedAt;
+    log.debug(
+      {
+        platform,
+        waitMs,
+        queuedBefore,
+      },
+      "starting opencli command from platform queue",
+    );
+    return await run;
+  } finally {
+    const remaining = Math.max((platformQueueDepths.get(platform) ?? 1) - 1, 0);
+    if (remaining === 0) {
+      platformQueueDepths.delete(platform);
+    } else {
+      platformQueueDepths.set(platform, remaining);
+    }
+
+    if (platformQueues.get(platform) === tail) {
+      platformQueues.delete(platform);
+    }
+  }
+}
+
+async function executeOpencli(args: string[]): Promise<unknown> {
   const cmd = `opencli ${args.join(" ")}`;
   const start = Date.now();
 

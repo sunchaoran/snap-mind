@@ -15,6 +15,7 @@ export async function processContent(
   vlm: MergedVLMResult,
   fetchResult: FetchResult,
 ): Promise<ProcessedContent> {
+  const start = Date.now();
   const content =
     fetchResult.contentFull ?? vlm.contentSnippet ?? vlm.title ?? "";
 
@@ -67,6 +68,7 @@ ${content.slice(0, 32_000)}`;
       language: parsed.language,
       tags: parsed.tags,
       summaryLength: parsed.summary.length,
+      elapsed: `${Date.now() - start}ms`,
     },
     "✓ processContent complete",
   );
