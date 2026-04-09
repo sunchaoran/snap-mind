@@ -40,52 +40,61 @@
 
 | Module | Path | Description |
 |--------|------|-------------|
-| InputAdapter | [modules/input-adapter.md](./modules/input-adapter.md) | HTTP 服务 + 认证，接收截图，触发处理流程 |
-| VLMAnalyzer | [modules/vlm-analyzer.md](./modules/vlm-analyzer.md) | 可配置 N 模型识别 + 投票合并 |
-| ContentFetcher | [modules/content-fetcher.md](./modules/content-fetcher.md) | 四级策略获取原文 |
+| InputAdapter | [modules/input-adapter.md](./modules/input-adapter.md) | HTTP 服务 + 认证 + 异步 Job 管理 |
+| VLMAnalyzer | [modules/vlm-analyzer.md](./modules/vlm-analyzer.md) | 两阶段分析：平台识别 → N 模型并发提取 + 投票合并 |
+| ContentFetcher | [modules/content-fetcher.md](./modules/content-fetcher.md) | 四级策略获取原文（含 author-first 子策略） |
 | ContentProcessor | [modules/content-processor.md](./modules/content-processor.md) | 摘要 / 标签 / 分类 |
 | ClipWriter | [modules/clip-writer.md](./modules/clip-writer.md) | Write driver 抽象层 + MarkdownWriter |
-| ScreenshotStore | [modules/screenshot-store.md](./modules/screenshot-store.md) | 截图文件存储管理 |
+| ScreenshotStore | [modules/screenshot-store.md](./modules/screenshot-store.md) | 截图文件存储 + 格式检测 |
 
 ## Project Structure
 
 ```
-clip-service/
+snap-mind/
 ├── src/
-│   ├── index.ts                # 入口，启动 HTTP 服务
-│   ├── config.ts               # 配置定义
+│   ├── index.ts                # 入口，启动 Fastify HTTP 服务
+│   ├── config.ts               # 配置定义（环境变量驱动）
 │   ├── server/
-│   │   ├── routes.ts           # HTTP 路由 (POST /clip, GET /jobs/:id)
+│   │   ├── routes.ts           # HTTP 路由 + pipeline 调度
 │   │   ├── job-store.ts        # 异步 Job 状态管理（内存）
-│   │   ├── dev-upload.html     # Dev 上传页面（含进度条）
-│   │   └── auth.ts             # 认证中间件 (API Key / JWT)
+│   │   ├── auth.ts             # 认证逻辑 (API Key / JWT)
+│   │   └── dev-upload.html     # Dev 上传页面
 │   ├── vlm/
-│   │   ├── analyzer.ts         # VLMAnalyzer 主逻辑
+│   │   ├── analyzer.ts         # 两阶段 VLM 分析主逻辑
 │   │   ├── openrouter.ts       # OpenRouter API 客户端
-│   │   ├── prompt.ts           # VLM prompt 模板
+│   │   ├── prompt.ts           # prompt 加载与模板构建
 │   │   └── merger.ts           # 投票合并逻辑
 │   ├── fetcher/
 │   │   ├── index.ts            # ContentFetcher（四级策略调度）
 │   │   ├── opencli.ts          # opencli 调用封装
-│   │   ├── web-fetch.ts        # Web fetch + LLM 正文提取
+│   │   ├── web-fetch.ts        # Playwright web fetch + LLM 正文提取
 │   │   └── search-engine.ts    # L3 搜索引擎调用
 │   ├── processor/
 │   │   └── index.ts            # ContentProcessor
+│   ├── prompts/
+│   │   ├── index.ts            # prompt 加载器
+│   │   ├── vlm-identify.md     # Step 1: 平台识别 prompt
+│   │   ├── vlm-extract.md      # Step 2: 提取模板
+│   │   ├── processor.md        # 内容处理 system prompt
+│   │   └── platforms/          # 各平台特定提取规则
+│   │       ├── xiaohongshu.md
+│   │       ├── twitter.md
+│   │       ├── bilibili.md
+│   │       ├── ...
+│   │       └── unknown.md
 │   ├── writer/
 │   │   ├── interface.ts        # ClipWriter 接口定义
 │   │   ├── markdown.ts         # MarkdownWriter 实现
 │   │   └── template.ts         # Markdown 模板渲染
 │   ├── store/
-│   │   └── screenshot.ts       # ScreenshotStore
+│   │   └── screenshot.ts       # ScreenshotStore + 格式检测
 │   ├── utils/
-│   │   ├── id.ts               # clipId 生成
+│   │   ├── id.ts               # clipId 生成 (nanoid)
 │   │   ├── slug.ts             # title slug 生成
-│   │   └── similarity.ts       # 文本相似度计算
+│   │   ├── similarity.ts       # 文本相似度 (Levenshtein)
+│   │   ├── json.ts             # LLM JSON 解析
+│   │   └── logger.ts           # pino logger 工厂
 │   └── types/
 │       └── index.ts            # TypeScript 类型定义
 └── test/
-    ├── vlm/
-    ├── fetcher/
-    ├── processor/
-    └── writer/
 ```

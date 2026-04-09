@@ -7,11 +7,14 @@
 ## 2. User Flow
 
 ```
-客户端（龙虾 / Web App / iOS App）
-    → 认证 (API Key / JWT)
-    → POST /clip (截图)
-    → ClipService 自动处理
-    → 返回结果："已收藏: 标题 [平台] #tag1 #tag2"
+单张上传：
+客户端 → POST /clip (截图) → 返回 jobId (202)
+       → 轮询 GET /jobs/:id → 处理完成后返回结果
+
+批量上传（最多 20 张）：
+客户端 → POST /clip/batch (多张截图) → 返回 batchId + jobIds (202)
+       → 轮询 GET /batch/:id 获取整体进度
+       → 轮询 GET /jobs/:id 获取单张进度
 ```
 
 ## 3. Architecture Diagram
@@ -26,10 +29,12 @@
 │                                                  │
 │  ┌──────────────┐                               │
 │  │ InputAdapter  │  HTTP 服务 + 认证，接收截图    │
+│  │               │  单张: Job → jobId (202)      │
+│  │               │  批量: BatchJob → batchId     │
 │  └──────┬───────┘                               │
-│         ▼                                        │
+│         ▼  (async pipeline, fire-and-forget)     │
 │  ┌─────────────┐                                │
-│  │ VLMAnalyzer  │  可配置 N 模型识别 + 投票合并   │
+│  │ VLMAnalyzer  │  两阶段：平台识别 → N模型提取   │
 │  └──────┬──────┘                                │
 │         ▼                                        │
 │  ┌──────────────┐                               │
@@ -45,8 +50,10 @@
 │  │  └─MarkdownWriter│  第一版实现               │
 │  └──────────────┘                                │
 │                                                  │
+│  GET /jobs/:id  → 轮询 Job 状态 + 进度           │
+│                                                  │
 │  外部依赖：                                      │
-│  ├─ OpenRouter API (Claude/Gemini/GPT-4o)       │
+│  ├─ OpenRouter API (Kimi/Gemini/Claude/GPT-4o)  │
 │  ├─ opencli (本地 CLI)                            │
 │  └─ Obsidian vault (本地文件系统)                │
 └─────────────────────────────────────────────────┘
@@ -54,31 +61,35 @@
 
 ## 4. Processing Pipeline
 
+收到 POST /clip 请求后，立即返回 `jobId`（202），pipeline 在后台异步执行，通过 JobStore 跟踪每步进度。
+
 ```
-handleClipRequest(imageBuffer)
+handleClip(jobId, clipId, imageBuffer)
     │
-    ├─ 1. generateClipId() + saveTempScreenshot()
+    ├─ Step 0: 图片预处理
+    │      └─ sharp: 缩放（最长边 ≤ 2560px）→ WebP 压缩（quality 80）
     │
-    ├─ 2. vlmAnalyzer.analyze(imageBuffer)
-    │      └─ N 模型并发调用 → 投票合并 → MergedVLMResult
+    ├─ Step 1/7: VLM 截图分析
+    │      └─ 两阶段：先识别平台 → 再用平台特定 prompt 并发提取 → 投票合并
     │
-    ├─ 3. clipWriter.findSimilar() → 去重检查
+    ├─ Step 2/7: 去重检查
+    │      └─ findSimilarClip(platform, author, title)
+    │      └─ 命中后跳过后续所有步骤
     │
-    ├─ 4. contentFetcher.fetch(vlmResult)
+    ├─ Step 3/7: 抓取原文
     │      └─ L1 → L2 → L3 → L4 逐级降级
     │
-    ├─ 5. contentProcessor.process(vlmResult, fetchResult)
+    ├─ Step 4/7: 内容处理
     │      └─ 摘要 + 标签 + 分类 + 语言检测
     │
-    ├─ 6. screenshotStore.save()
+    ├─ Step 5/7: 保存截图
+    │      └─ 自动检测图片格式 (PNG/JPEG/WEBP/GIF)
     │
-    ├─ 7. 组装 ClipRecord
+    ├─ Step 6/7: 组装 ClipRecord
     │
-    ├─ 8. clipWriter.write(record)
-    │
-    ├─ 9. saveSidecarJson()
-    │
-    └─ 10. 返回 ClipResponse
+    └─ Step 7/7: 写入 Vault
+           └─ renderClipMarkdown() + 保存 MD 文件
+           └─ saveSidecarJson() 保存 VLM 原始结果
 ```
 
 ## 5. Deployment Environment
@@ -90,7 +101,8 @@ handleClipRequest(imageBuffer)
 
 ## 6. Error Handling Strategy
 
-- 整体流程 try-catch 包裹，超时 90 秒
+- 整体流程 try-catch 包裹，超时 180 秒
+- Pipeline 在后台运行，通过 JobStore 记录状态
 - 失败时截图仍保存到 vault assets 目录
 - 写入一条最小化的失败记录（`fetchLevel: 4`），标记为待重试
 - 返回 `message` 字段供龙虾直接回复用户

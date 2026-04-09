@@ -558,7 +558,7 @@ interface ClipWriter {
 
 ```
 {VAULT_PATH}/
-  Clippings/
+  snap-mind/
     _index.md                                    # Dataview 汇总页（自动生成）
     2026-04-02_xiaohongshu_rust-async-guide.md
     2026-04-02_twitter_llm-agent-pattern.md
@@ -604,7 +604,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法，本文梳
 
 ## 截图
 
-![[assets/clip_20260402_143000_a3f2.png]]
+![[assets/clip_20260402_143000_a3f2.png|420]]
 ```
 
 **fetchLevel=4 时的模板变体**：
@@ -626,19 +626,19 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法，本文梳
 
 ## 截图
 
-![[assets/clip_20260402_143000_a3f2.png]]
+![[assets/clip_20260402_143000_a3f2.png|420]]
 ```
 
 **_index.md（Dataview 汇总页）**：
 
 ```markdown
-# 📋 Clippings
+# 📋 snap-mind
 
 ## 最近收藏
 
 \```dataview
 TABLE platform, category, tags, sourceConfidence
-FROM "Clippings"
+FROM "snap-mind"
 WHERE id != null
 SORT createdAt DESC
 LIMIT 50
@@ -648,7 +648,7 @@ LIMIT 50
 
 \```dataview
 TABLE length(rows) as "数量"
-FROM "Clippings"
+FROM "snap-mind"
 WHERE id != null
 GROUP BY platform
 SORT length(rows) DESC
@@ -658,7 +658,7 @@ SORT length(rows) DESC
 
 \```dataview
 TABLE title, platform, createdAt
-FROM "Clippings"
+FROM "snap-mind"
 WHERE fetchLevel = 4
 SORT createdAt DESC
 \```
@@ -666,7 +666,7 @@ SORT createdAt DESC
 
 **去重逻辑**：
 
-`findSimilar` 方法扫描 Clippings 目录下已有 md 文件的 frontmatter，比对 `platform + author + title`。使用简单的字符串相似度（Levenshtein 或 Jaccard），阈值 0.85 以上视为重复。返回已存在的 clipId 或 null。
+`findSimilar` 方法扫描 snap-mind 目录下已有 md 文件的 frontmatter，比对 `platform + author + title`。使用简单的字符串相似度（Levenshtein 或 Jaccard），阈值 0.85 以上视为重复。返回已存在的 clipId 或 null。
 
 ---
 
@@ -681,7 +681,7 @@ interface ScreenshotStore {
 }
 ```
 
-实现逻辑：将截图从临时目录复制到 `{VAULT_PATH}/Clippings/assets/{clipId}.{ext}`。
+实现逻辑：将截图从临时目录复制到 `{VAULT_PATH}/snap-mind/assets/{clipId}.{ext}`。
 
 ---
 
@@ -836,8 +836,8 @@ export const config = {
   // Obsidian Vault
   vault: {
     basePath: process.env.OBSIDIAN_VAULT_PATH!, // e.g. /Users/chaoran/ObsidianVault
-    clippingsDir: "Clippings",
-    assetsDir: "Clippings/assets",
+    clippingsDir: "snap-mind",
+    assetsDir: "snap-mind/assets",
   },
 
   // 处理参数

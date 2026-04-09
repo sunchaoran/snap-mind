@@ -20,6 +20,18 @@ export interface Job {
   createdAt: number;
 }
 
+export interface BatchJob {
+  id: string;
+  status: JobStatus;
+  jobIds: string[];
+  total: number;
+  completed: number;
+  succeeded: number;
+  failed: number;
+  results: ClipResponse[];
+  createdAt: number;
+}
+
 const STEP_NAMES = [
   "VLM 截图分析",
   "去重检查",
@@ -31,6 +43,7 @@ const STEP_NAMES = [
 ];
 
 const jobs = new Map<string, Job>();
+const batchJobs = new Map<string, BatchJob>();
 
 // Auto-clean jobs older than 30 minutes
 const MAX_AGE_MS = 30 * 60 * 1000;
@@ -113,11 +126,55 @@ export function jobError(jobId: string, result: ClipResponse) {
   job.result = result;
 }
 
+export function createBatchJob(batchId: string, jobIds: string[]): BatchJob {
+  const batch: BatchJob = {
+    id: batchId,
+    status: "running",
+    jobIds,
+    total: jobIds.length,
+    completed: 0,
+    succeeded: 0,
+    failed: 0,
+    results: [],
+    createdAt: Date.now(),
+  };
+  batchJobs.set(batchId, batch);
+  return batch;
+}
+
+export function getBatchJob(batchId: string): BatchJob | undefined {
+  return batchJobs.get(batchId);
+}
+
+export function batchItemDone(batchId: string, result: ClipResponse) {
+  const batch = batchJobs.get(batchId);
+  if (!batch) {
+    return;
+  }
+
+  batch.completed++;
+  batch.results.push(result);
+  if (result.success) {
+    batch.succeeded++;
+  } else {
+    batch.failed++;
+  }
+
+  if (batch.completed >= batch.total) {
+    batch.status = batch.failed === batch.total ? "error" : "done";
+  }
+}
+
 function cleanup() {
   const now = Date.now();
   for (const [id, job] of jobs) {
     if (now - job.createdAt > MAX_AGE_MS) {
       jobs.delete(id);
+    }
+  }
+  for (const [id, batch] of batchJobs) {
+    if (now - batch.createdAt > MAX_AGE_MS) {
+      batchJobs.delete(id);
     }
   }
 }

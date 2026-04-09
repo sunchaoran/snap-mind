@@ -1,3 +1,4 @@
+import { config } from "@/config.js";
 import type { ClipRecord } from "@/types/index.js";
 
 /**
@@ -32,13 +33,13 @@ export function renderClipMarkdown(record: ClipRecord): string {
   const frontmatter = [
     "---",
     `id: ${record.id}`,
-    `title: "${record.title}"`,
+    `title: ${yamlString(record.title)}`,
     `platform: ${record.platform}`,
-    `author: "${record.author}"`,
-    `originalUrl: ${record.originalUrl ? `"${record.originalUrl}"` : "null"}`,
+    `author: ${yamlString(record.author)}`,
+    `originalUrl: ${record.originalUrl ? yamlString(record.originalUrl) : "null"}`,
     `contentType: ${record.contentType}`,
     "tags:",
-    ...record.tags.map((t) => `  - ${t}`),
+    ...record.tags.map((t) => `  - ${yamlString(t)}`),
     `category: ${record.category}`,
     `language: ${record.language}`,
     `fetchLevel: ${record.fetchLevel}`,
@@ -56,7 +57,15 @@ export function renderClipMarkdown(record: ClipRecord): string {
     body = `## 原文\n\n${formatContent(record.contentFull ?? "")}`;
   }
 
-  const screenshot = `## 截图\n\n![[${record.screenshotPath}]]`;
+  const screenshotWidthSuffix =
+    config.vault.screenshotDisplayWidth > 0
+      ? `|${config.vault.screenshotDisplayWidth}`
+      : "";
+  const screenshot = `## 截图\n\n![[${record.screenshotPath}${screenshotWidthSuffix}]]`;
 
   return `${frontmatter}\n\n${summary}\n\n${body}\n\n${screenshot}\n`;
+}
+
+function yamlString(value: string): string {
+  return JSON.stringify(value);
 }

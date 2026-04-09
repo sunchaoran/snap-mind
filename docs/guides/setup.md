@@ -4,7 +4,7 @@
 
 - Node.js >= 22
 - pnpm (package manager)
-- opencli (latest)
+- opencli >= 1.6.10
 - Chrome browser (保持各平台登录态，需开启 CDP 远程调试)
 - opencli Chrome Extension
 
@@ -44,6 +44,20 @@ pnpm test
 pnpm build        # tsup → dist/
 ```
 
+## Available Scripts
+
+```bash
+pnpm dev          # tsx watch mode 开发
+pnpm build        # tsup 构建到 dist/
+pnpm start        # node dist/index.js 生产运行
+pnpm test         # vitest 交互模式
+pnpm test:run     # vitest 单次运行
+pnpm lint         # biome check
+pnpm lint:fix     # biome check --fix
+pnpm format       # biome format --write
+pnpm typecheck    # tsc --noEmit
+```
+
 ## Verify Installation
 
 ```bash
@@ -53,8 +67,10 @@ opencli --version
 # Check Node.js
 node --version  # should be >= 22
 
-# Test the endpoint
+# Test the endpoint (dev mode, no auth required)
 curl -X POST http://localhost:3210/clip \
-  -H "Authorization: Bearer <your-api-key>" \
   -F "image=@screenshot.png"
+
+# Or visit the dev upload page
+open http://localhost:3210/dev
 ```

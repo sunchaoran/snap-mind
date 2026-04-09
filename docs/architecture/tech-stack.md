@@ -9,6 +9,7 @@
 | LLM Gateway | OpenRouter API (via `openai` SDK) | 兼容 OpenAI API，切换 baseURL 即可调用多家模型 |
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
 | Web Fetch Fallback | Playwright | `connectOverCDP` 复用 Chrome 登录态，`networkidle` 等待更可靠 |
+| Image Processing | sharp (libvips) | 高性能截图压缩：缩放 + WebP 转换 |
 | Storage | 本地文件系统 (Obsidian vault) | Markdown + 截图文件 |
 | Process Manager | PM2 | 日志/监控开箱即用，跨平台可迁移 |
 | Logging | pino (Fastify built-in) | 结构化 JSON 日志，PM2 采集友好 |
@@ -18,29 +19,31 @@
 | Tool | Purpose |
 |------|---------|
 | `tsx` | 开发阶段直接运行 TypeScript，零配置 |
-| `tsup` | 生产构建，基于 esbuild，秒级打包 |
+| `tsup` | 生产构建，基于 esbuild，秒级打包（ESM only, target Node 22） |
 | `vitest` | 测试框架 |
+| `biome` | Linter + Formatter（替代 ESLint + Prettier） |
 | `dotenv` | 环境变量加载 |
 
 ## LLM Models
 
 ### VLM Analysis (Configurable N-Model Voting)
 
-模型数量可配置，必须为奇数。V1 默认单模型。
+模型数量可配置，必须为奇数。通过环境变量 `VLM_MODELS`（逗号分隔）配置。
 
 | Provider | Model | Note |
 |----------|-------|------|
-| Google | gemini-2.5-flash | **V1 默认** |
+| Moonshot | kimi-k2.5 | **默认模型** |
+| Google | gemini-2.5-flash | 可选 |
 | Anthropic | claude-sonnet-4-20250514 | 可选，增强精度 |
 | OpenAI | gpt-4o | 可选，增强精度 |
 
-> 通过配置 `openrouter.models.vlm` 数组调整模型列表和数量。
+> 通过环境变量 `VLM_MODELS` 调整模型列表。例：`VLM_MODELS=google/gemini-2.5-flash,anthropic/claude-sonnet-4-20250514,openai/gpt-4o`
 
 ### Content Processing
 
 | Provider | Model | Purpose |
 |----------|-------|---------|
-| Google | gemini-2.5-flash | 摘要/标签/分类（性价比优先） |
+| Moonshot | kimi-k2.5 | 摘要/标签/分类（默认，可通过 `PROCESSOR_MODEL` 环境变量覆盖） |
 
 ## Dependencies
 
@@ -54,14 +57,23 @@
     "openai": "^4.x",
     "playwright": "^1.x",
     "gray-matter": "^4.x",
-    "dotenv": "^16.x"
+    "dotenv": "^16.x",
+    "dayjs": "^1.x",
+    "nanoid": "^5.x",
+    "js-levenshtein": "^1.x",
+    "pino": "^10.x",
+    "sharp": "^0.34.x",
+    "slugify": "^1.x"
   },
   "devDependencies": {
     "typescript": "^5.x",
     "@types/node": "^22.x",
+    "@biomejs/biome": "^2.x",
     "tsx": "^4.x",
     "tsup": "^8.x",
-    "vitest": "^2.x"
+    "vitest": "^2.x",
+    "pino-pretty": "^13.x",
+    "@types/js-levenshtein": "^1.x"
   }
 }
 ```
