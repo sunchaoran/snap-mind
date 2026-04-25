@@ -10,7 +10,7 @@
 
 ### Install / Upgrade opencli
 
-本项目用 pnpm 全局管理 CLI 工具，**不要用 `npm install -g`**——nvm 切换 Node 版本时 npm global 会丢，pnpm global 装在固定路径不受影响。
+推荐使用 pnpm 全局管理 CLI 工具。
 
 ```bash
 # 首次：初始化 pnpm 全局 bin（一次性，幂等）
@@ -20,7 +20,7 @@ source ~/.zshrc        # 或新开终端，让 PATH 生效
 # 安装或升级到最新
 pnpm add -g @jackwener/opencli@latest
 
-# 检查本地版本 vs 最新版（任何时候都能跑）
+# 检查本地版本
 pnpm check:opencli
 ```
 
@@ -86,10 +86,6 @@ pnpm check:opencli  # 对比本地 opencli 版本与 npm 最新版（@jackwener/
 2. `.env.local` — 个人本地覆盖（gitignored）
 3. `.env.${NODE_ENV}` — 环境特定（如 `.env.production`）
 4. `.env.${NODE_ENV}.local` — 环境 + 本地组合（gitignored）
-
-任何文件不存在都安静跳过——生产环境可以完全用 OS-level 环境变量，不需要任何 `.env` 文件。
-
-> 实现：用 Node 22+ 内置的 `process.loadEnvFile()`，零依赖。
 
 ## Verify Installation
 
