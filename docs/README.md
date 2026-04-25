@@ -6,7 +6,6 @@
 
 | Section | Description |
 |---------|-------------|
-| [PRD](./clip-service-prd.md) | 原始产品技术文档 |
 | [Architecture](./architecture/) | 系统架构、数据模型、技术选型 |
 | [Modules](./modules/) | 各模块详细设计规范 |
 | [API](./api/) | HTTP API 接口规范 |
@@ -92,9 +91,11 @@ snap-mind/
 │   │   ├── id.ts               # clipId 生成 (nanoid)
 │   │   ├── slug.ts             # title slug 生成
 │   │   ├── similarity.ts       # 文本相似度 (Levenshtein)
+│   │   ├── image.ts            # 图片预处理 (sharp)
 │   │   ├── json.ts             # LLM JSON 解析
 │   │   └── logger.ts           # pino logger 工厂
 │   └── types/
 │       └── index.ts            # TypeScript 类型定义
-└── test/
+└── scripts/
+    └── check-opencli.ts        # 比对本地 opencli 版本与最新版（pnpm check:opencli）
 ```

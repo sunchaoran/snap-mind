@@ -1,6 +1,21 @@
-import "dotenv/config";
+import { existsSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
+// Cascade-load env files (Vite / Next.js convention).
+// Later files override earlier ones. Uses Node 22+ built-in
+// process.loadEnvFile (no dotenv dependency).
+const NODE_ENV = process.env.NODE_ENV ?? "development";
+for (const file of [
+  ".env",
+  ".env.local",
+  `.env.${NODE_ENV}`,
+  `.env.${NODE_ENV}.local`,
+]) {
+  if (existsSync(file)) {
+    process.loadEnvFile(file);
+  }
+}
 
 // iCloud Drive
 const defaultObsidianVaultPath = join(

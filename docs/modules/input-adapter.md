@@ -108,7 +108,7 @@ createBatchJob(batchId, jobIds[]) → 初始化批次
 ## Error Handling
 
 ```typescript
-// Pipeline 整体包裹在 withTimeout() 中（180s 超时）
+// Pipeline 整体包裹在 withTimeout() 中（300s 超时）
 withTimeout(handleClip(jobId, clipId, imageBuffer), config.processing.overallTimeout)
   .catch(async (error) => {
     // 1. 保存截图到 vault assets（即使处理失败）
