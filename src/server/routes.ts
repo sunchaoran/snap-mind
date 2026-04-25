@@ -1,6 +1,5 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
-import { fileURLToPath } from "node:url";
 import type { FastifyInstance } from "fastify";
 import { config } from "@/config.js";
 import { fetchContent } from "@/fetcher/index.js";
@@ -30,7 +29,6 @@ import {
   writeClip,
 } from "@/writer/markdown.js";
 
-const __dirname = join(fileURLToPath(import.meta.url), "..");
 const log = createLogger("pipeline");
 
 export async function registerRoutes(app: FastifyInstance) {
@@ -192,7 +190,10 @@ export async function registerRoutes(app: FastifyInstance) {
     });
 
     app.get("/dev", async (_request, reply) => {
-      const html = await readFile(join(__dirname, "dev-upload.html"), "utf-8");
+      const html = await readFile(
+        join(import.meta.dirname, "dev-upload.html"),
+        "utf-8",
+      );
       return reply.type("text/html").send(html);
     });
   }
