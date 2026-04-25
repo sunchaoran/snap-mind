@@ -4,11 +4,27 @@
 
 - Node.js >= 24
 - pnpm (package manager)
-- [opencli](https://github.com/jackwener/opencli) >= 1.6.10 (`npm install -g @jackwener/opencli`)
+- [opencli](https://github.com/jackwener/opencli) >= 1.6.10
 - Chrome browser (保持各平台登录态，需开启 CDP 远程调试)
 - opencli Chrome Extension
 
-> 已安装 opencli？跑 `pnpm check:opencli` 一键对比本地版本和最新发布版本。
+### Install / Upgrade opencli
+
+本项目用 pnpm 全局管理 CLI 工具，**不要用 `npm install -g`**——nvm 切换 Node 版本时 npm global 会丢，pnpm global 装在固定路径不受影响。
+
+```bash
+# 首次：初始化 pnpm 全局 bin（一次性，幂等）
+pnpm setup
+source ~/.zshrc        # 或新开终端，让 PATH 生效
+
+# 安装或升级到最新
+pnpm add -g @jackwener/opencli@latest
+
+# 检查本地版本 vs 最新版（任何时候都能跑）
+pnpm check:opencli
+```
+
+> opencli 的 shebang 用 `env node`，运行时跟随 nvm active 的 Node 版本——本项目要求 Node ≥ 24，nvm 切到符合的版本即可。
 
 ### Chrome CDP 远程调试
 

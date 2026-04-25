@@ -7,7 +7,7 @@ import { MIN_OPENCLI_VERSION } from "@/fetcher/opencli.js";
 const execFileAsync = promisify(execFile);
 
 const REGISTRY_URL = "https://registry.npmjs.org/@jackwener/opencli/latest";
-const INSTALL_HINT = "npm install -g @jackwener/opencli@latest";
+const INSTALL_HINT = "pnpm add -g @jackwener/opencli@latest";
 
 async function getLocalVersion(): Promise<string | null> {
   try {

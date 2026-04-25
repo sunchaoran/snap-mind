@@ -14,7 +14,7 @@ pnpm build     # tsup 构建到 dist/
 
 ```bash
 # Install PM2
-npm install -g pm2
+pnpm add -g pm2
 
 # Start service
 pm2 start dist/index.js --name clip-service
