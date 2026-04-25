@@ -48,7 +48,6 @@
   "files": {
     "includes": [
       "src/**",
-      "test/**",
       "*.ts",
       "*.json",
       "!!**/dist",
