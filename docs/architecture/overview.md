@@ -101,7 +101,7 @@ handleClip(jobId, clipId, imageBuffer)
 
 ## 6. Error Handling Strategy
 
-- 整体流程 try-catch 包裹，超时 180 秒
+- 整体流程 try-catch 包裹，超时 300 秒
 - Pipeline 在后台运行，通过 JobStore 记录状态
 - 失败时截图仍保存到 vault assets 目录
 - 写入一条最小化的失败记录（`fetchLevel: 4`），标记为待重试

@@ -138,9 +138,9 @@ async function runOpencli(args: string[]): Promise<unknown> {
 
 | Level | Timeout | Description |
 |-------|---------|-------------|
-| L1 | 80s | opencli search + author strategy |
-| L2 | 35s | Playwright web fetch |
-| L3 | 20s | 搜索引擎 API + web fetch |
-| Overall | 180s | 整体 pipeline 超时 |
+| L1 | 100s | opencli search + author strategy |
+| L2 | 50s | Playwright web fetch |
+| L3 | 50s | 搜索引擎 API + web fetch |
+| Overall | 300s | 整体 pipeline 超时 |
 
 每个 level 独立使用 `tryWithTimeout()` 包裹，超时返回 null 后降级到下一级。

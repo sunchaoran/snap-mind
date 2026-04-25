@@ -47,7 +47,7 @@ interface ClipWriter {
 
 Format: `{yyyy-MM-dd}_{platform}_{title_slug}.md`
 
-- `title_slug`: 使用 `slugify` 库生成 URL 友好的标识，截取前 50 字符
+- `title_slug`: 由 `src/utils/slug.ts` 的 `generateSlug()` 生成。保留 CJK 字符与可读性，仅去除文件系统/Obsidian 不安全字符（`/ \ : * ? " < > | # ^ [ ]`）；默认截取前 80 字符
 - 文件名冲突时追加 `-2`、`-3`
 
 ### Markdown Template (Normal)
@@ -81,7 +81,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 
 ## 截图
 
-![[assets/clip_20260402_143000_V1StGX.png|420]]
+![[assets/clip_20260402_143000_V1StGX.png|360]]
 ```
 
 ### Markdown Template (fetchLevel=4, No Original)
@@ -103,7 +103,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 
 ## 截图
 
-![[assets/clip_20260402_143000_V1StGX.png|420]]
+![[assets/clip_20260402_143000_V1StGX.png|360]]
 ```
 
 ### formatContent()

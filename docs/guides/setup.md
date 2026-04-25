@@ -2,7 +2,7 @@
 
 ## Prerequisites
 
-- Node.js >= 22
+- Node.js >= 24
 - pnpm (package manager)
 - opencli >= 1.6.10
 - Chrome browser (保持各平台登录态，需开启 CDP 远程调试)
@@ -47,16 +47,19 @@ pnpm build        # tsup → dist/
 ## Available Scripts
 
 ```bash
-pnpm dev          # tsx watch mode 开发
-pnpm build        # tsup 构建到 dist/
-pnpm start        # node dist/index.js 生产运行
-pnpm test         # vitest 交互模式
-pnpm test:run     # vitest 单次运行
-pnpm lint         # biome check
-pnpm lint:fix     # biome check --fix
-pnpm format       # biome format --write
-pnpm typecheck    # tsc --noEmit
+pnpm dev            # tsx watch mode 开发（自动加载 .env）
+pnpm build          # tsup 构建到 dist/
+pnpm start          # node dist/index.js 生产运行（自动加载 .env）
+pnpm test           # vitest 交互模式
+pnpm test:run       # vitest 单次运行
+pnpm test:coverage  # vitest run + 覆盖率报告（v8 provider）
+pnpm lint           # biome check
+pnpm lint:fix       # biome check --fix
+pnpm format         # biome format --write
+pnpm typecheck      # tsc --noEmit
 ```
+
+> `dev` 和 `start` 通过 Node 内置的 `--env-file-if-exists=.env` 加载环境变量，缺失 `.env` 时不会报错（适合 prod 用 OS 环境变量的场景）。
 
 ## Verify Installation
 
@@ -65,7 +68,7 @@ pnpm typecheck    # tsc --noEmit
 opencli --version
 
 # Check Node.js
-node --version  # should be >= 22
+node --version  # should be >= 24
 
 # Test the endpoint (dev mode, no auth required)
 curl -X POST http://localhost:3210/clip \

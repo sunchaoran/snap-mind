@@ -25,7 +25,7 @@ pnpm dev
 
 ## Prerequisites
 
-- Node.js >= 22
+- Node.js >= 24
 - [opencli](https://github.com/nicepkg/opencli) + Chrome Extension
 - Chrome（保持各平台登录态）
 - Obsidian vault

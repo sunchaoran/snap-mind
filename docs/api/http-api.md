@@ -266,6 +266,6 @@ Dev 模式专用，返回上传测试页面（HTML）。仅在 `NODE_ENV !== 'pr
 - `result` 字段仅在 `status` 为 `done` 或 `error` 时存在
 - `result.message` 字段可供聊天类客户端直接转发给用户
 - 失败时截图仍会保存到 vault assets 目录，并写入一条最小化失败记录
-- 单个 Pipeline 超时：180 秒
+- 单个 Pipeline 超时：300 秒
 - 批量上传默认最多 20 张，并发处理数默认 5（可通过 `MAX_BATCH_SIZE` 和 `MAX_CONCURRENT_PIPELINES` 配置）
 - 批量任务中每张图独立处理，互不影响——单张失败不会中断其他图的处理
