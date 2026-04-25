@@ -49,6 +49,6 @@
     "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "check:opencli": "node --import tsx src/scripts/check-opencli.ts"
+    "check:opencli": "node --import tsx scripts/check-opencli.ts"
   }
 }

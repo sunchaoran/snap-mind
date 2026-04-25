@@ -96,4 +96,6 @@ snap-mind/
 │   │   └── logger.ts           # pino logger 工厂
 │   └── types/
 │       └── index.ts            # TypeScript 类型定义
+└── scripts/
+    └── check-opencli.ts        # 比对本地 opencli 版本与最新版（pnpm check:opencli）
 ```

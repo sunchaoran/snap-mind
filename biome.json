@@ -46,6 +46,13 @@
     }
   },
   "files": {
-    "includes": ["src/**", "*.ts", "*.json", "!!**/dist", "!!**/node_modules"]
+    "includes": [
+      "src/**",
+      "scripts/**",
+      "*.ts",
+      "*.json",
+      "!!**/dist",
+      "!!**/node_modules"
+    ]
   }
 }
