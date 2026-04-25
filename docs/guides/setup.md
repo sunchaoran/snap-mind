@@ -4,9 +4,11 @@
 
 - Node.js >= 24
 - pnpm (package manager)
-- opencli >= 1.6.10
+- [opencli](https://github.com/jackwener/opencli) >= 1.6.10 (`npm install -g @jackwener/opencli`)
 - Chrome browser (保持各平台登录态，需开启 CDP 远程调试)
 - opencli Chrome Extension
+
+> 已安装 opencli？跑 `pnpm check:opencli` 一键对比本地版本和最新发布版本。
 
 ### Chrome CDP 远程调试
 
@@ -57,6 +59,7 @@ pnpm lint           # biome check
 pnpm lint:fix       # biome check --fix
 pnpm format         # biome format --write
 pnpm typecheck      # tsc --noEmit
+pnpm check:opencli  # 对比本地 opencli 版本与 npm 最新版（@jackwener/opencli）
 ```
 
 > `dev` 和 `start` 通过 Node 内置的 `--env-file-if-exists=.env` 加载环境变量，缺失 `.env` 时不会报错（适合 prod 用 OS 环境变量的场景）。
@@ -64,8 +67,9 @@ pnpm typecheck      # tsc --noEmit
 ## Verify Installation
 
 ```bash
-# Check opencli
+# Check opencli (raw version, then full check vs latest + min required)
 opencli --version
+pnpm check:opencli
 
 # Check Node.js
 node --version  # should be >= 24

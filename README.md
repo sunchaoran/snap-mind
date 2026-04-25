@@ -26,7 +26,7 @@ pnpm dev
 ## Prerequisites
 
 - Node.js >= 24
-- [opencli](https://github.com/nicepkg/opencli) + Chrome Extension
+- [opencli](https://github.com/jackwener/opencli) + Chrome Extension (`npm install -g @jackwener/opencli`)
 - Chrome（保持各平台登录态）
 - Obsidian vault
 

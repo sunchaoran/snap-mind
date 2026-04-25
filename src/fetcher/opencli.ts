@@ -10,7 +10,7 @@ const log = createLogger("opencli");
 const platformQueues = new Map<Platform, Promise<void>>();
 const platformQueueDepths = new Map<Platform, number>();
 
-const MIN_OPENCLI_VERSION = "1.6.10";
+export const MIN_OPENCLI_VERSION = "1.6.10";
 let versionChecked = false;
 
 async function ensureOpencliVersion(): Promise<void> {
