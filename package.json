@@ -25,7 +25,7 @@
     "gray-matter": "4.0.3",
     "js-levenshtein": "1.1.6",
     "nanoid": "5.1.9",
-    "openai": "4.104.0",
+    "openai": "6.34.0",
     "pino": "10.3.1",
     "playwright": "1.59.1",
     "semver": "7.7.4",
