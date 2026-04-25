@@ -1,101 +1,185 @@
 # Open Questions for OpenClaw
 
-在 [skills/snap-mind/SKILL.md](./snap-mind/SKILL.md) 落地前，需要从 OpenClaw 团队 / 文档 / 社区确认以下问题。每个问题尽量独立可问。
+> 状态记号:
+> - ✅ 已被 OpenClaw 文档机器人回复确认
+> - ⚠️ 已得到指引但仍需精确化
+> - ❌ 未答 / 还需精确问
 
 ---
 
-## 1. Skill 内如何发起 HTTP 调用？
+## ✅ 1. Skill 内如何发起 HTTP 调用？
 
-我们的 skill 需要调用一个本地 HTTP 服务（`http://localhost:3210/clip/sticky`）。OpenClaw 推荐的 pattern 是：
+**结论**：不在 SKILL.md 里堆 `curl`。封装成本地 **CLI wrapper**（短期最稳），未来可演进到 **MCP server**（长期更正）。
 
-- (a) skill markdown 里直接写 shell 命令（`curl`），由 LLM 触发执行？
-- (b) OpenClaw 内置 `http` / `fetch` tool，skill 让 LLM 调用？
-- (c) 把目标服务包装成 OpenClaw 注册的 MCP server，skill 通过 MCP tool 调用？
-- (d) 其他？
+理由：multipart upload / Bearer auth / polling / 错误恢复在 markdown 里让 LLM 现拼太脆。
 
-希望拿到一个能跑的最小示例（任意一种 pattern 都行）。
+→ 见 [cli/snap-mind-cli/CONTRACT.md](../cli/snap-mind-cli/CONTRACT.md)
 
 ---
 
-## 2. Skill 如何拿到环境变量 / secret？
+## ✅ 2. Skill 如何拿到环境变量 / secret？
 
-skill 需要 `SNAP_MIND_API_KEY`（敏感）和 `SNAP_MIND_BASE_URL`（非敏感）。
+**结论**：CLI 直接从 `process.env` 读。OpenClaw 的 env 加载链已涵盖：
 
-- OpenClaw 是否有内置 secret store / config 机制？
-- SKILL.md 里是否支持 `${VAR}` / `{{var}}` 占位符让 runtime 替换？
-- 还是 skill 通过执行环境的 `process.env` / `os.environ` 读取（要求外部用户在系统层 export）？
+1. 当前 shell
+2. 当前目录 `.env`
+3. `~/.openclaw/.env`
+4. `openclaw.json` 的 `env` 块
 
----
+**敏感** key（`SNAP_MIND_API_KEY`）建议用 `~/.openclaw/.env` 或 OpenClaw SecretRef (`openclaw secrets configure`)。
+**非敏感**（`SNAP_MIND_BASE_URL`）放普通 env 即可。
 
-## 3. Conversation / Session ID 怎么拿？
-
-skill 需要把同一对话中陆续发送的多张图绑定到同一个 sessionId（5s debounce 依赖此）。
-
-- OpenClaw 在 skill 触发上下文里暴露了哪些 ID 字段？conversation_id / chat_id / session_id / user_id / 其他？
-- 这些 ID 在跨多轮消息（同一对话内）是否保持稳定不变？
-- 如果不同 channel（微信 vs Telegram vs iOS）跑同一个 skill，conversation id 的语义是否一致？
+❌ **不要赌** SKILL.md 里的 `${VAR}` 占位符替换——文档没明确支持。
 
 ---
 
-## 4. 用户发的图片，skill 看到的是什么形态？
+## ⚠️ 3. Conversation / Session ID 怎么拿？
 
-用户在微信里发了张截图，经过 ClawBot → OpenClaw → skill 的链路，到 skill 这一层时，图片是：
+文档机器人说 OpenClaw 内部 session key 规则明确（如 `agent:<agentId>:<channel>:group:<id>`）。
 
-- (a) 一个公网 URL（OpenClaw 临时托管的）？
-- (b) 本地文件系统路径？
-- (c) base64 / bytes 直接在 message payload 里？
-- (d) 其他？
+**WeChat ClawBot README 进一步证实**：WeChat envelope (`WeixinMessage`) 里有 `session_id`、`from_user_id`、`message_id`、`create_time_ms`、`context_token` 等字段。说明**最底层一定存在 session 标识**。
 
-skill 该用什么 API 引用 / 读取这个附件，并把它作为 `multipart/form-data` 的 file 字段上传？
+**仍待精确化的问题**（去问）：
 
----
+> WeChat ClawBot 的 envelope 里有 `session_id`。在 OpenClaw markdown skill 触发时，runtime 是把这个 session_id 直接暴露给 skill（用什么变量名 / 模板语法），还是只在内部使用？如果不直接暴露，推荐的 sessionId 派生方式是什么？
 
-## 5. Stateless skill 怎么"等 N 秒再做下一步"？
-
-我们的流程是："上传所有图 → 等用户停发 5–10 秒 → polling 状态接口直到 done"。
-
-OpenClaw 的 skill 是 stateless markdown，没法 setTimeout。请问：
-
-- LLM 在一次 skill 调用里能否自然循环 tool call（`while !done: sleep && check`）？
-- OpenClaw 是否有"延迟重新触发 skill"或"scheduled callback"机制？
-- 还是必须依赖 channel 层（如 ClawBot）做 debounce？
-- 如果 stateless，只能"用户每发一张图都触发一次 skill"，那连发 5 张就 5 次回执——这能避免吗？
+**兜底设计**：CLI 接受 `--session-id <id>` 参数；如果 OpenClaw 不暴露 session_id，SKILL.md 可让 LLM 用 `from_user_id + 当日日期` 派生（同一用户连续上传归一）。
 
 ---
 
-## 6. Skill 部署 / 加载
+## ⚠️ 4. 用户发的图片，skill 看到的是什么形态？
 
-- 把 `SKILL.md` 放到 `~/.openclaw/workspace/skills/snap-mind/` 就生效吗？还是要 `openclaw reload` / 重启 daemon？
-- 项目内的 `skills/snap-mind/` 应该 symlink 到 workspace 还是 copy？官方推荐？
-- skill 加载有错误时（frontmatter parse 失败等）如何 debug？日志在哪？
+**WeChat ClawBot README 给了具体答案（针对微信 channel）**：
 
----
+- 图片以 `ImageItem` 形态传递，包含 `encrypt_query_param`（加密 CDN URL）+ `aes_key`
+- **AES-128-ECB 加密**——使用方需要先下载再解密
+- **不是本地文件路径**，**不是普通公网 URL**
 
-## 7. 触发模式选择
+这意味着 **每个 channel 的附件形态可能不同**（微信特殊，Telegram 可能给本地路径，Discord 可能给 URL）。
 
-frontmatter 支持 `user-invocable`（slash command）/ `disable-model-invocation`（仅 user 触发）/ `command-dispatch: tool`（绕过 model）。
+**仍待精确化的问题**（去问）：
 
-我们这个 skill 希望：
-- **主路径**：用户对话里说"收藏这几张" → LLM 自动判断意图调用 skill（NLU 触发）
-- **备用**：用户输入 `/snap` slash command 显式触发
+> ImageItem (encrypt_query_param + aes_key) 是由 OpenClaw runtime 自动 resolve 成本地文件 / 解密 URL 后再交给 skill，还是 skill 需要自己处理 AES 解密？是否有内置的 `media_resolve` / `attachment.toLocalFile()` API？
+>
+> 不同 channel（WeChat / Telegram / Discord / iMessage）的附件统一抽象是什么？skill 能否拿到一个 channel-agnostic 的 `attachment.localPath`？
 
-应该怎么配 frontmatter？两种触发能并存吗？
-
----
-
-## 8. WeChat ClawBot 的具体限制
-
-通过 [tencent-weixin/openclaw-weixin-cli](https://www.npmjs.com/package/@tencent-weixin/openclaw-weixin-cli) 接入微信，请问：
-
-- 用户发送的图片：原图还是压缩过？（影响 VLM 识别精度）
-- 单张图片有最大 size 限制吗？（SnapMind 端默认 10MB）
-- 微信群聊场景支持吗？还是仅私聊？
-- 图片到达 OpenClaw 是即时的吗？还是延迟批量推送？
+**对设计的影响**：CLI input 接口必须支持多种形态。**短期假设**：OpenClaw runtime 会把 ImageItem 解密下载到 `/tmp` 之后才让 skill 看到本地路径。如果不是，CLI 要扩展支持 CDN URL + AES key（见 [CLI CONTRACT](../cli/snap-mind-cli/CONTRACT.md) Open design points）。
 
 ---
 
-## 9. AgentSkills 跨 runtime 兼容
+## ⚠️ 5. Stateless skill 怎么"等 N 秒再 polling"？
 
-OpenClaw 文档说 skills 是 `AgentSkills 兼容`。这意味着同一份 SKILL.md 能在 Claude Code / 其他兼容 runtime 跑吗？
+**结论先行**：状态机**不放在 markdown skill**——已设计为 SnapMind 服务端 sticky session 处理。
 
-如果是，要避免哪些 OpenClaw 特定的扩展（保持可移植）？
+**WeChat ClawBot README 证实**：消息是 long-polling 逐条推送（35s 超时），**没有 batch 机制**——所以连发 5 张图就是 5 次独立 message event，5 次 skill trigger。
+
+**仍待精确化的问题**（去问）：
+
+> 在 OpenClaw 中，如何让一个 skill 在短时间窗口内（如 5 秒）被多次触发时仅在最后一次窗口结束后执行？
+>
+> 具体场景：用户连发 5 张图给微信，5 次 skill trigger。我希望 skill 第 1-4 次"静默"（只把图加入服务端 buffer），第 5 次（或停发 5s 后）一次性回复整批结果。
+>
+> OpenClaw 是否有：
+> 1. channel/plugin 层的 message debounce / batching 配置？
+> 2. skill 返回 "no-reply" 让 OpenClaw 不向用户回执的语义？
+> 3. cron / scheduled callback 让 skill 注册"5s 后再继续"？
+
+**兜底设计**：如果完全无解，**接受"一张一次回执"行为**——但 SnapMind 服务端在 sticky session 的 `done` 状态可以让 skill 在第 N 次 wait 时返回**仅自己之前没拿过的 result**（dedupe by jobId），让回执自然合并。
+
+---
+
+## ✅ 6. Skill 部署 / 加载
+
+**结论**：
+
+- 放到 `~/.openclaw/workspace/skills/<name>/` 后**下一会话生效**（不保证当前会话热刷新）
+- 开发期 **symlink** 项目内 `skills/snap-mind/` 到 workspace
+- 失败 debug：`openclaw channels logs` / `openclaw status` / `openclaw doctor` / `/tmp/openclaw/openclaw-*.log`
+- 没找到专用 `openclaw reload skills` 命令，必要时重启 gateway
+
+部署命令（参考）：
+```bash
+ln -s ${PWD}/skills/snap-mind ~/.openclaw/workspace/skills/snap-mind
+```
+
+---
+
+## ✅ 7. 触发模式选择
+
+**结论**：NLU 触发 + slash command **能并存**。frontmatter 配置：
+
+```yaml
+---
+name: snap-mind
+description: ...
+user-invocable: true              # 暴露为 slash command
+# disable-model-invocation: 不设  # 保留模型自动判断意图能力
+---
+```
+
+⚠️ 仍需精确化的子问题：是否要为这个 skill 显式注册 channel-level 的 `nativeSkills`（如 Telegram / Discord 的 native command 暴露）？微信 ClawBot 是否支持这个？
+
+→ 跟 #8 一起问微信插件作者。
+
+---
+
+## ⚠️ 8. WeChat ClawBot 的具体限制
+
+[Tencent/openclaw-weixin](https://github.com/Tencent/openclaw-weixin) README 提供了大量答案：
+
+| 子问题 | 答案 |
+|---|---|
+| 图片传输 | CDN URL + AES-128-ECB 加密（`ImageItem` schema） |
+| 单文件 size 上限 | ❌ README 未明确 |
+| 群聊支持 | ❌ README 没有 `is_group` / `group_id` 字段，**推断仅私聊** |
+| 时序 | Long-polling 35s 超时，**逐条推送**（不 batch） |
+| Envelope 字段 | `from_user_id`, `to_user_id`, `message_id`, `create_time_ms`, `session_id`, `message_type`, `context_token` |
+| 回复机制 | `sendMessage` endpoint，`item_list` 支持 text/image/voice/file/video |
+
+**仍待精确化的问题**（去 [Tencent/openclaw-weixin issues](https://github.com/Tencent/openclaw-weixin/issues) 问）：
+
+> 1. 单 image 是否有 size 上限？是否压缩 / 转码？
+> 2. 群聊场景目前是 unsupported 还是 future work？有 roadmap 吗？
+> 3. ImageItem 的 AES 解密是 SDK 自动做的，还是 skill 需要显式调用？
+
+**对设计的影响**：
+- ✅ **图片 ≠ 本地文件**——CLI 必须支持 ImageItem 形态（或依赖 OpenClaw runtime 先 resolve 到本地）
+- ⚠️ **仅私聊**预设——产品定位为"私聊收藏 bot"，不要承诺群聊
+- ✅ **逐条推送**确认了 Q5 的场景：连发 N 张就是 N 次 skill trigger
+
+---
+
+## ✅ 9. AgentSkills 跨 runtime 兼容
+
+**结论**：兼容是真的，但 OpenClaw 扩展不 100% 可移植。**两层架构**保可移植：
+
+### Portable core（可移植层）
+- CLI / MCP tool 自己处理 env / HTTP / polling / 附件 IO
+- SKILL.md 只用自然语言说明任务和调用契约
+
+### OpenClaw adapter layer（适配层）
+- `user-invocable` / `command-dispatch` 等 frontmatter
+- channel/session/chat metadata 注入
+- slash 注册
+
+→ 我们的设计就是按这个分层做的：CLI 是 portable core，SKILL.md frontmatter 是 OpenClaw adapter。
+
+---
+
+## 待动作清单（更新于 OpenClaw 答复后）
+
+**用户负责去问的**（基于已知信息精确化）：
+- [ ] Q3 — OpenClaw 是否把 WeChat envelope 的 `session_id` 直接暴露给 markdown skill
+- [ ] Q4 — ImageItem 是 OpenClaw runtime 自动解密下载到本地，还是 skill 自己处理 AES？
+- [ ] Q5 — OpenClaw 是否支持 skill 返回 "no-reply"（在 N-1 次触发时不向用户回执）
+- [ ] Q8 — 微信 image 大小限制 + 群聊 roadmap（仅 size + roadmap 这两个点没答）
+
+**我们可以并行做的**（不依赖未答问题）：
+- [x] 更新 SKILL.md 为 CLI 路线
+- [x] 起草 CLI 接口契约（[../cli/snap-mind-cli/CONTRACT.md](../cli/snap-mind-cli/CONTRACT.md)）
+- [ ] SnapMind 服务端实现 `/clip/sticky` API（debounce + sticky session buffer）
+- [ ] 给 sticky-store 加单测
+
+**等回答后才能做的**：
+- [ ] CLI 实际实现（要等 Q4 决定 input 接口）
+- [ ] SKILL.md 完整落地（要等 Q3/Q4/Q5）

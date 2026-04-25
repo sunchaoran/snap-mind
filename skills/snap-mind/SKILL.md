@@ -1,6 +1,7 @@
 ---
 name: snap-mind
 description: 把用户在对话中发送的截图收藏到 Obsidian 知识库（自动平台识别、原文抓取、摘要、标签）
+user-invocable: true
 ---
 
 # SnapMind: Save Screenshots to Obsidian
@@ -16,77 +17,90 @@ description: 把用户在对话中发送的截图收藏到 Obsidian 知识库（
 
 ## How to invoke
 
-服务端 (SnapMind) 已经实现了完整 pipeline。Skill 只是个**薄适配器**——把附件交给服务，把结果回执给用户。
+服务端 (SnapMind) 已经实现了完整 pipeline。Skill 通过 **`snap-mind` CLI** 调用——**不要在 markdown 里直接拼 curl**（multipart / auth / polling 让 LLM 现拼太脆）。
 
-### Step 1 — Push each screenshot into a sticky session
+### 命令契约（详见 [cli/snap-mind-cli/CONTRACT.md](../../cli/snap-mind-cli/CONTRACT.md)）
 
-对**当前对话中**用户最近发送的每一张截图，调用：
+**Step 1 — 把截图加入 sticky session（每张图一次）**：
 
-```
-POST {SNAP_MIND_BASE_URL}/clip/sticky
-Content-Type: multipart/form-data
-Authorization: Bearer {SNAP_MIND_API_KEY}
-
-image=<file bytes>
-sessionId=<conversation id>
+```bash
+snap-mind sticky push \
+  --session-id <session-id> \
+  --file <attachment-path>
 ```
 
 约定：
-- `sessionId` 用 OpenClaw 当前 conversation 的稳定 id（同一对话内的多次调用必须用同一个）。
-- 服务端会把同 sessionId 的图加入 buffer，**重置 5s 静默 timer**；停发 5s 后整批进入处理。
-- 接口立即返回 `{ sessionId, queueDepth }`，不等处理。
+- `<session-id>` 用 OpenClaw 当前对话的稳定标识（具体字段名待确认 — 见 QUESTIONS.md #3）
+- `<attachment-path>` 用户消息附件的本地路径（具体读取方式待确认 — 见 QUESTIONS.md #4）
+- CLI 内部完成 multipart upload / Auth header / 错误重试
+- 立即返回 stdout JSON：`{"sessionId": "...", "queueDepth": N}`
 
-### Step 2 — Wait for batch completion, then fetch results
+**Step 2 — 全部图发完后，等批量完成**：
 
-发完最后一张后，等 5–10 秒，然后轮询：
-
-```
-GET {SNAP_MIND_BASE_URL}/clip/sticky/{sessionId}
-Authorization: Bearer {SNAP_MIND_API_KEY}
+```bash
+snap-mind sticky wait --session-id <session-id>
 ```
 
-响应 status 状态机：`pending` → `processing` → `done`
+阻塞直到服务端 sticky session 进入 `done` 状态（5s 静默窗口结束 + pipeline 全部完成）。
 
-`done` 时附 `results: ClipResponse[]`（参见 SnapMind HTTP API spec）。
+返回 stdout JSON：
+```json
+{
+  "sessionId": "...",
+  "status": "done",
+  "total": 3,
+  "succeeded": 2,
+  "failed": 1,
+  "results": [
+    { "success": true, "title": "...", "platform": "xiaohongshu", "tags": [...], "message": "✅ 已收藏: ..." },
+    ...
+  ]
+}
+```
 
-### Step 3 — Reply once with the whole batch
+**Step 3 — 把 results 整体回执给用户（一条消息）**：
 
-仅在 status 变成 `done` 后回复用户**一次**，不要每张回。模板：
+模板：
 
 ```
-✅ 已收藏 {N} 张：
-- {title1} [{platform1}] #{tag1} #{tag2}
-- {title2} [{platform2}] #{tag3}
+✅ 已收藏 {succeeded}/{total} 张：
+- {result1.message}
+- {result2.message}
 ...
 ```
 
-失败的项标 `⚠️` 并附 error 字段：
+失败的项标 `⚠️` 并附 `error` 字段：
 
 ```
-⚠️ {title or "未识别"}: {error}（截图已保存待重试）
+⚠️ {error}（截图已保存待重试）
 ```
 
 ## Configuration
 
-通过 OpenClaw 的环境变量 / secret 注入机制提供：
+CLI 通过环境变量读取配置（OpenClaw 的 env 加载链：shell / 项目 .env / `~/.openclaw/.env` / `openclaw.json`）：
 
 | 变量 | 默认 | 说明 |
 |---|---|---|
-| `SNAP_MIND_BASE_URL` | `http://localhost:3210` | SnapMind 服务地址（同机部署默认 localhost） |
-| `SNAP_MIND_API_KEY` | (required) | SnapMind 服务的 API Key（对应 SnapMind 的 `API_KEY` env） |
+| `SNAP_MIND_BASE_URL` | `http://localhost:3210` | SnapMind 服务地址 |
+| `SNAP_MIND_API_KEY` | (必填) | SnapMind 服务的 API Key |
+
+**敏感 key 推荐**通过 OpenClaw SecretRef：
+```
+openclaw secrets configure SNAP_MIND_API_KEY
+```
 
 ## Notes
 
-- SnapMind 是**异步处理**，不要试图同步等单张图的完整结果——所有结果收口在 `/clip/sticky/{sessionId}` 的 `done` 状态。
-- 即使处理失败，截图也会被保存到 Obsidian vault 的 `assets/` 目录，并写入一条占位记录供后续重试。
-- 此 skill **不感知具体 channel**（微信 / iOS / Telegram 等）—— 只要 OpenClaw 把附件正确传过来即可。
+- SnapMind 是异步处理；所有结果在 `snap-mind sticky wait` 返回时收口。
+- 即使处理失败，截图也会被保存到 Obsidian vault 的 `assets/` 目录。
+- 此 skill **不感知具体 channel**——微信 / iOS / Telegram 通用。
+- Skill 是 **portable core**：业务逻辑全在 CLI 里。OpenClaw 适配只在 frontmatter 这层。
 
-## TODO（待 OpenClaw 文档/团队确认后填补具体实现细节）
+## TODO（依赖未答问题）
 
-详见仓库根 `skills/QUESTIONS.md`。在以下问题确认前，本 SKILL.md 是设计草稿：
+- [ ] **Q3** — 把"OpenClaw 暴露的 conversation metadata 字段名"填入 Step 1 的 `<session-id>` 取值方式
+- [ ] **Q4** — 把"附件路径 / URL / bytes 的读取方式"填入 Step 1 的 `<attachment-path>` 取值方式
+- [ ] **Q5** — 决定是否需要在 skill 层做"多次触发去重"
+- [ ] **Q8** — 微信 ClawBot 的图是否原图、是否需要质量提示
 
-- [ ] OpenClaw skill 内调用 HTTP 的官方 idiom（curl shell / 内置 fetch / MCP tool 注册）
-- [ ] env / secret 注入语法（是否支持 `${VAR}` 替换 / 还是 skill runtime 自动 inject）
-- [ ] OpenClaw 暴露给 skill 的 conversation id 字段名
-- [ ] 用户消息附件（图片）在 skill 上下文里的引用方式（URL / 本地路径 / bytes）
-- [ ] Skill 在 stateless 模式下如何"等 N 秒再 polling"——loop tool call 还是其他范式
+详见仓库 [skills/QUESTIONS.md](../QUESTIONS.md)。
