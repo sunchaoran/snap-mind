@@ -98,8 +98,12 @@ snap-mind/
 │       └── index.ts            # TypeScript 类型定义
 ├── scripts/
 │   └── check-opencli.ts        # 比对本地 opencli 版本与最新版（pnpm check:opencli）
+├── cli/
+│   └── snap-mind-cli/          # `snap-mind` CLI（OpenClaw skill 调用入口）
+│       ├── main.ts             # 实现：sticky push / wait / status
+│       └── CONTRACT.md         # 命令契约 + 退出码
 └── skills/                     # OpenClaw / AgentSkills 兼容的 Skill 定义
     ├── snap-mind/
-    │   └── SKILL.md            # "收藏截图到 Obsidian" skill（草稿）
+    │   └── SKILL.md            # "收藏截图到 Obsidian" skill
     └── QUESTIONS.md            # 待 OpenClaw 团队/文档确认的开放问题
 ```
