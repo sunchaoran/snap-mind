@@ -78,7 +78,18 @@ pnpm typecheck      # tsc --noEmit
 pnpm check:opencli  # 对比本地 opencli 版本与 npm 最新版（@jackwener/opencli）
 ```
 
-> `dev` 和 `start` 通过 Node 内置的 `--env-file-if-exists=.env` 加载环境变量，缺失 `.env` 时不会报错（适合 prod 用 OS 环境变量的场景）。
+### Environment Variables Loading
+
+启动时 `src/config.ts` 自动按以下顺序加载环境变量文件，**后者覆盖前者**（Vite / Next.js 风格的 cascade）：
+
+1. `.env` — 基础配置
+2. `.env.local` — 个人本地覆盖（gitignored）
+3. `.env.${NODE_ENV}` — 环境特定（如 `.env.production`）
+4. `.env.${NODE_ENV}.local` — 环境 + 本地组合（gitignored）
+
+任何文件不存在都安静跳过——生产环境可以完全用 OS-level 环境变量，不需要任何 `.env` 文件。
+
+> 实现：用 Node 22+ 内置的 `process.loadEnvFile()`，零依赖。
 
 ## Verify Installation
 
