@@ -96,6 +96,10 @@ snap-mind/
 │   │   └── logger.ts           # pino logger 工厂
 │   └── types/
 │       └── index.ts            # TypeScript 类型定义
-└── scripts/
-    └── check-opencli.ts        # 比对本地 opencli 版本与最新版（pnpm check:opencli）
+├── scripts/
+│   └── check-opencli.ts        # 比对本地 opencli 版本与最新版（pnpm check:opencli）
+└── skills/                     # OpenClaw / AgentSkills 兼容的 Skill 定义
+    ├── snap-mind/
+    │   └── SKILL.md            # "收藏截图到 Obsidian" skill（草稿）
+    └── QUESTIONS.md            # 待 OpenClaw 团队/文档确认的开放问题
 ```
