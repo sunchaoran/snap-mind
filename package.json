@@ -1,6 +1,6 @@
 {
   "name": "snap-mind",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "截图即收藏：从截图到结构化知识库的自动化管道",
   "type": "module",
   "engines": {
@@ -21,7 +21,7 @@
     "@fastify/multipart": "9.4.0",
     "dayjs": "1.11.20",
     "dotenv": "16.6.1",
-    "fastify": "5.8.4",
+    "fastify": "5.8.5",
     "gray-matter": "4.0.3",
     "js-levenshtein": "1.1.6",
     "nanoid": "5.1.7",
