@@ -84,4 +84,4 @@
 - Node.js >= 24
 - opencli (latest)
 - Chrome browser + opencli Chrome Extension
-- PM2 (`npm install -g pm2`)
+- PM2 (`pnpm add -g pm2`)
