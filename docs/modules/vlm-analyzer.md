@@ -113,7 +113,7 @@ function mergeVLMResults(results: Record<string, VLMResult>): MergedVLMResult {
 ## Constraints
 
 - Step 2 所有模型 **并发** 调用，不串行等待
-- 每个模型调用设 **35 秒** 超时（通过 OpenAI SDK timeout 参数）
+- 每个模型调用设 **80 秒** 超时（通过 OpenAI SDK timeout 参数）
 - 部分模型返回结果时，用可用结果合并
 - 0 个模型返回结果时，整体失败，走错误处理
 - 模型数量必须为 **奇数**（1, 3, 5...）

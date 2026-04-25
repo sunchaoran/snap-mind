@@ -4,7 +4,7 @@
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
-| Runtime | Node.js (>=22) | 主开发语言 |
+| Runtime | Node.js (>=24) | 主开发语言 |
 | HTTP Framework | Fastify 5 | 原生 multipart 支持，TypeScript 类型推导好，内置 pino 日志 |
 | LLM Gateway | OpenRouter API (via `openai` SDK) | 兼容 OpenAI API，切换 baseURL 即可调用多家模型 |
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
@@ -19,10 +19,10 @@
 | Tool | Purpose |
 |------|---------|
 | `tsx` | 开发阶段直接运行 TypeScript，零配置 |
-| `tsup` | 生产构建，基于 esbuild，秒级打包（ESM only, target Node 22） |
-| `vitest` | 测试框架 |
+| `tsup` | 生产构建，基于 esbuild，秒级打包（ESM only, target Node 24） |
+| `vitest` | 测试框架（含 `@vitest/coverage-v8` 覆盖率） |
 | `biome` | Linter + Formatter（替代 ESLint + Prettier） |
-| `dotenv` | 环境变量加载 |
+| Env loading | Node 内置 `--env-file-if-exists`（无需 dotenv） |
 
 ## LLM Models
 
@@ -53,34 +53,35 @@
 {
   "dependencies": {
     "fastify": "^5.x",
-    "@fastify/multipart": "^9.x",
-    "openai": "^4.x",
+    "@fastify/multipart": "^10.x",
+    "openai": "^6.x",
     "playwright": "^1.x",
     "gray-matter": "^4.x",
-    "dotenv": "^16.x",
     "dayjs": "^1.x",
     "nanoid": "^5.x",
     "js-levenshtein": "^1.x",
+    "semver": "^7.x",
     "pino": "^10.x",
-    "sharp": "^0.34.x",
-    "slugify": "^1.x"
+    "sharp": "^0.34.x"
   },
   "devDependencies": {
-    "typescript": "^5.x",
-    "@types/node": "^22.x",
+    "typescript": "^6.x",
+    "@types/node": "^24.x",
+    "@types/js-levenshtein": "^1.x",
+    "@types/semver": "^7.x",
     "@biomejs/biome": "^2.x",
     "tsx": "^4.x",
     "tsup": "^8.x",
-    "vitest": "^2.x",
-    "pino-pretty": "^13.x",
-    "@types/js-levenshtein": "^1.x"
+    "vitest": "^4.x",
+    "@vitest/coverage-v8": "^4.x",
+    "pino-pretty": "^13.x"
   }
 }
 ```
 
 ### System Dependencies (Mac mini)
 
-- Node.js >= 22
+- Node.js >= 24
 - opencli (latest)
 - Chrome browser + opencli Chrome Extension
 - PM2 (`npm install -g pm2`)

@@ -8,7 +8,7 @@
 |----------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | Yes | — | OpenRouter API Key |
 | `OBSIDIAN_VAULT_PATH` | No | macOS iCloud Drive 下的 `Obsidian` | Obsidian vault 绝对路径；未设置时默认使用 `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian` |
-| `OBSIDIAN_SCREENSHOT_WIDTH` | No | `420` | Obsidian 笔记中截图的默认显示宽度（像素）；设为 `0` 或负数时不限制 |
+| `OBSIDIAN_SCREENSHOT_WIDTH` | No | `360` | Obsidian 笔记中截图的默认显示宽度（像素）；设为 `0` 或负数时不限制 |
 | `API_KEY` | Yes | — | 服务间调用密钥（龙虾等 Agent） |
 | `JWT_SECRET` | Yes | — | JWT 签名密钥（暂未使用，预留） |
 | `VLM_MODELS` | No | `moonshotai/kimi-k2.5` | VLM 模型列表，逗号分隔，数量必须为奇数 |
@@ -79,18 +79,18 @@ export const config = {
     basePath: process.env.OBSIDIAN_VAULT_PATH || defaultObsidianVaultPath,
     clippingsDir: "snap-mind",
     assetsDir: "snap-mind/assets",
-    screenshotDisplayWidth: Number(process.env.OBSIDIAN_SCREENSHOT_WIDTH) || 420,
+    screenshotDisplayWidth: Number(process.env.OBSIDIAN_SCREENSHOT_WIDTH) || 360,
   },
 
   // 处理参数
   processing: {
-    overallTimeout: 180_000,   // 180 秒
+    overallTimeout: 300_000,   // 300 秒
     fetchTimeouts: {
-      l1: 80_000,   // 80 秒
-      l2: 35_000,   // 35 秒
-      l3: 20_000,   // 20 秒
+      l1: 100_000,  // 100 秒
+      l2: 50_000,   // 50 秒
+      l3: 50_000,   // 50 秒
     },
-    vlmTimeout: 35_000,        // 35 秒（每个模型调用）
+    vlmTimeout: 80_000,        // 80 秒（每个模型调用）
     vlmEscalationThreshold: Number(process.env.VLM_ESCALATION_THRESHOLD) || 0.8,
     similarityThreshold: 0.85,
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
@@ -115,7 +115,7 @@ OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxx
 # Optional: override the default iCloud Drive Obsidian vault path
 OBSIDIAN_VAULT_PATH=/Users/chaoran/Library/Mobile Documents/com~apple~CloudDocs/Obsidian
 # Optional: screenshot display width in generated notes
-OBSIDIAN_SCREENSHOT_WIDTH=420
+OBSIDIAN_SCREENSHOT_WIDTH=360
 API_KEY=sk-snapmind-xxxxxxxxxxxx
 JWT_SECRET=your-jwt-secret-here
 
