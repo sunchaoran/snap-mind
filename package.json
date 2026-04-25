@@ -6,6 +6,12 @@
   "engines": {
     "node": ">=24"
   },
+  "pnpm": {
+    "overrides": {
+      "vite": ">=6.4.2",
+      "postcss": ">=8.5.10"
+    }
+  },
   "devDependencies": {
     "@biomejs/biome": "2.4.13",
     "@types/js-levenshtein": "1.1.3",
@@ -43,11 +49,5 @@
     "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit"
-  },
-  "pnpm": {
-    "overrides": {
-      "vite": ">=6.4.2",
-      "postcss": ">=8.5.10"
-    }
   }
 }
