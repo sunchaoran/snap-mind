@@ -1,5 +1,10 @@
 import { config } from "@/config.js";
 import type { ClipRecord } from "@/types/index.js";
+import {
+  HEADING_ORIGINAL,
+  HEADING_SCREENSHOT,
+  HEADING_SUMMARY,
+} from "@/vault.js";
 
 /**
  * Restore paragraph structure from flattened text.
@@ -48,20 +53,20 @@ export function renderClipMarkdown(record: ClipRecord): string {
     "---",
   ].join("\n");
 
-  const summary = `## 摘要\n\n${record.contentSummary}`;
+  const summary = `${HEADING_SUMMARY}\n\n${record.contentSummary}`;
 
   let body: string;
   if (record.fetchLevel === 4) {
-    body = `## 原文\n\n> ⚠️ 未能获取原文。以下为截图中识别到的内容片段：\n\n${record.rawVlmResult.contentSnippet ?? ""}`;
+    body = `${HEADING_ORIGINAL}\n\n> ⚠️ 未能获取原文。以下为截图中识别到的内容片段：\n\n${record.rawVlmResult.contentSnippet ?? ""}`;
   } else {
-    body = `## 原文\n\n${formatContent(record.contentFull ?? "")}`;
+    body = `${HEADING_ORIGINAL}\n\n${formatContent(record.contentFull ?? "")}`;
   }
 
   const screenshotWidthSuffix =
     config.vault.screenshotDisplayWidth > 0
       ? `|${config.vault.screenshotDisplayWidth}`
       : "";
-  const screenshot = `## 截图\n\n![[${record.screenshotPath}${screenshotWidthSuffix}]]`;
+  const screenshot = `${HEADING_SCREENSHOT}\n\n![[${record.screenshotPath}${screenshotWidthSuffix}]]`;
 
   return `${frontmatter}\n\n${summary}\n\n${body}\n\n${screenshot}\n`;
 }
