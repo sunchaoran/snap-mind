@@ -56,6 +56,37 @@ interface ClipRecord {
 }
 ```
 
+### ClipRecordWire (Public API Projection)
+
+`GET /clip` 和 `GET /clip/:id` 返回给 client 的精简版。跟内部
+`ClipRecord` 区别：
+
+- **去掉 `contentFull`**：单条原文可能几十 KB，列表 API 全带回去太重。
+  client 真要原文时再单开 `?include=full` 或 detail/raw 端点。
+- **去掉 `rawVlmResult`**：是 VLM 调试 metadata，已落到
+  `<assets>/<id>.json` sidecar，不该出现在 client 消费的 wire format 里。
+
+```typescript
+interface ClipRecordWire {
+  id: string;
+  title: string;
+  platform: Platform;
+  author: string;
+  originalUrl: string | null;
+  contentType: ContentType;
+  contentSummary: string;
+  tags: string[];
+  category: Category;
+  language: string;
+  /** vault-relative path, e.g. "snap-mind/assets/clip_xxx.webp" */
+  screenshotPath: string;
+  fetchLevel: 1 | 2 | 3 | 4;
+  sourceConfidence: number;
+  /** ISO 8601 string，原样从 frontmatter 透出，不重新 format */
+  createdAt: string;
+}
+```
+
 ## 2. Enums
 
 ```typescript

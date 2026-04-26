@@ -3,8 +3,17 @@ import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
 import { config } from "@/config.js";
 import { fetchContent } from "@/fetcher/index.js";
+import { deleteClip, getClip, listClips } from "@/library/clips.js";
 import { processContent } from "@/processor/index.js";
 import { authenticate } from "@/server/auth.js";
+import {
+  ERR_BATCH_NOT_FOUND,
+  ERR_CLIP_NOT_FOUND,
+  ERR_JOB_NOT_FOUND,
+  ERR_MISSING_IMAGE,
+  ERR_NO_IMAGES,
+  errTooManyImages,
+} from "@/server/errors.js";
 import {
   batchItemDone,
   createBatchJob,
@@ -45,7 +54,7 @@ export async function registerRoutes(app: FastifyInstance) {
     if (!data) {
       return reply.status(400).send({
         success: false,
-        error: "Missing image file",
+        error: ERR_MISSING_IMAGE,
       });
     }
 
@@ -92,7 +101,7 @@ export async function registerRoutes(app: FastifyInstance) {
       if (buffers.length > config.processing.maxBatchSize) {
         return reply.status(400).send({
           success: false,
-          error: `Too many images. Max ${config.processing.maxBatchSize} per batch`,
+          error: errTooManyImages(config.processing.maxBatchSize),
         });
       }
     }
@@ -100,7 +109,7 @@ export async function registerRoutes(app: FastifyInstance) {
     if (buffers.length === 0) {
       return reply.status(400).send({
         success: false,
-        error: "No image files provided",
+        error: ERR_NO_IMAGES,
       });
     }
 
@@ -126,6 +135,62 @@ export async function registerRoutes(app: FastifyInstance) {
     });
   });
 
+  app.get("/clip", async (request, reply) => {
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
+    }
+    const clips = await listClips();
+    return {
+      clips,
+    };
+  });
+
+  app.get<{
+    Params: {
+      id: string;
+    };
+  }>("/clip/:id", async (request, reply) => {
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
+    }
+    const clip = await getClip(request.params.id);
+    if (!clip) {
+      return reply.status(404).send({
+        error: ERR_CLIP_NOT_FOUND,
+      });
+    }
+    return clip;
+  });
+
+  app.delete<{
+    Params: {
+      id: string;
+    };
+  }>("/clip/:id", async (request, reply) => {
+    const auth = await authenticate(request);
+    if (!auth.ok) {
+      return reply.status(401).send({
+        success: false,
+        error: auth.error.message,
+      });
+    }
+    const result = await deleteClip(request.params.id);
+    if (result === "notfound") {
+      return reply.status(404).send({
+        error: ERR_CLIP_NOT_FOUND,
+      });
+    }
+    return reply.status(204).send();
+  });
+
   app.get<{
     Params: {
       id: string;
@@ -139,7 +204,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const batch = getBatchJob(request.params.id);
       if (!batch) {
         return reply.status(404).send({
-          error: "Batch not found",
+          error: ERR_BATCH_NOT_FOUND,
         });
       }
       return batch;
@@ -159,7 +224,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const job = getJob(request.params.id);
       if (!job) {
         return reply.status(404).send({
-          error: "Job not found",
+          error: ERR_JOB_NOT_FOUND,
         });
       }
       return job;

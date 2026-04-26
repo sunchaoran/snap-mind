@@ -17,6 +17,7 @@ import {
   shortDateStamp,
   shortPlatformName,
 } from "@/utils/slug.js";
+import { VAULT_INDEX_FILENAME } from "@/vault.js";
 import { renderClipMarkdown } from "@/writer/template.js";
 
 interface ClipIndexEntry {
@@ -51,25 +52,28 @@ async function fileExists(path: string): Promise<boolean> {
 async function listClipFiles(): Promise<string[]> {
   try {
     const entries = await readdir(clippingsDir());
-    return entries.filter((f) => f.endsWith(".md") && f !== "_index.md");
+    return entries.filter(
+      (f) => f.endsWith(".md") && f !== VAULT_INDEX_FILENAME,
+    );
   } catch {
     return [];
   }
 }
 
 async function ensureIndexPage(): Promise<void> {
-  const indexPath = join(clippingsDir(), "_index.md");
+  const indexPath = join(clippingsDir(), VAULT_INDEX_FILENAME);
   if (await fileExists(indexPath)) {
     return;
   }
 
-  const content = `# snap-mind
+  const dir = config.vault.clippingsDir;
+  const content = `# ${dir}
 
 ## 最近收藏
 
 \`\`\`dataview
 TABLE platform, category, tags, sourceConfidence
-FROM "snap-mind"
+FROM "${dir}"
 WHERE id != null
 SORT createdAt DESC
 LIMIT 50
@@ -79,7 +83,7 @@ LIMIT 50
 
 \`\`\`dataview
 TABLE length(rows) as "数量"
-FROM "snap-mind"
+FROM "${dir}"
 WHERE id != null
 GROUP BY platform
 SORT length(rows) DESC
@@ -89,7 +93,7 @@ SORT length(rows) DESC
 
 \`\`\`dataview
 TABLE title, platform, createdAt
-FROM "snap-mind"
+FROM "${dir}"
 WHERE fetchLevel = 4
 SORT createdAt DESC
 \`\`\`
@@ -143,7 +147,7 @@ export async function clearSnapMindVault(): Promise<{
 
   const entries = await readdir(dir).catch(() => []);
   const removedNotes = entries.filter(
-    (entry) => entry.endsWith(".md") && entry !== "_index.md",
+    (entry) => entry.endsWith(".md") && entry !== VAULT_INDEX_FILENAME,
   ).length;
   await Promise.all(
     entries.map((entry) =>
@@ -163,6 +167,27 @@ export async function clearSnapMindVault(): Promise<{
 export async function clipExists(id: string): Promise<boolean> {
   await ensureClipIndexReady();
   return clipIndexById.has(id);
+}
+
+/**
+ * 把一条 clip 从内存中的 dedup index 里摘掉。`DELETE /clip/:id` 物理删
+ * 文件之后必须调一次，否则下次同标题/同作者的截图会被错误地 dedup 到一个
+ * 已经不存在的 id。
+ *
+ * 不动磁盘 — 那是 caller 的职责。
+ */
+export function removeClipFromIndex(id: string): void {
+  const entry = clipIndexById.get(id);
+  if (!entry) {
+    return;
+  }
+  clipIndexById.delete(id);
+  clipIdByVaultPath.delete(entry.vaultPath);
+  const ids = clipIdsByPlatform.get(entry.platform);
+  ids?.delete(id);
+  if (ids && ids.size === 0) {
+    clipIdsByPlatform.delete(entry.platform);
+  }
 }
 
 export async function findSimilarClip(

@@ -103,6 +103,34 @@ export interface ClipRecord {
   rawVlmResult: MergedVLMResult;
 }
 
+/**
+ * 对外暴露给 client 的 ClipRecord 投影。
+ *
+ * 跟内部的 {@link ClipRecord} 区别：
+ * - 不含 `contentFull`：单条原文可能几十 KB，列表 API 全带回去太重；
+ *   client 真要原文时再单独走 detail/raw 端点。
+ * - 不含 `rawVlmResult`：是 VLM debug 元数据，已落到 `<assets>/<id>.json`
+ *   sidecar，不该出现在 client 消费的 wire format 里。
+ */
+export interface ClipRecordWire {
+  id: string;
+  title: string;
+  platform: Platform;
+  author: string;
+  originalUrl: string | null;
+  contentType: ContentType;
+  contentSummary: string;
+  tags: string[];
+  category: Category;
+  language: string;
+  /** vault-relative path, e.g. "snap-mind/assets/clip_xxx.webp" */
+  screenshotPath: string;
+  fetchLevel: 1 | 2 | 3 | 4;
+  sourceConfidence: number;
+  /** ISO 8601 string, 原样从 frontmatter 透出 */
+  createdAt: string;
+}
+
 /** API 响应 */
 export interface ClipResponse {
   success: boolean;

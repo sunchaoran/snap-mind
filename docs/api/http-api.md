@@ -95,6 +95,138 @@ Authorization: Bearer <token>
 
 ---
 
+## GET /clip
+
+列出 vault 里所有 clip 的精简结构（wire format，不含原文 / VLM 调试字段）。
+每次请求都重新扫盘——backend 不维护索引/缓存，client 在内存按需 filter。
+
+### Request
+
+```
+GET /clip
+Authorization: Bearer <token>
+```
+
+### Response: OK (200)
+
+```json
+{
+  "clips": [
+    {
+      "id": "clip_20260426_115637_lCNmmh",
+      "title": "Karpathy 谈 LLM",
+      "platform": "twitter",
+      "author": "karpathy",
+      "originalUrl": "https://twitter.com/karpathy/status/...",
+      "contentType": "post",
+      "contentSummary": "三句话摘要……",
+      "tags": ["llm", "research"],
+      "category": "tech",
+      "language": "en",
+      "screenshotPath": "snap-mind/assets/clip_20260426_115637_lCNmmh.webp",
+      "fetchLevel": 1,
+      "sourceConfidence": 0.95,
+      "createdAt": "2026-04-26T03:57:19.317Z"
+    }
+  ]
+}
+```
+
+### Notes
+
+- 排序：按 `createdAt` 降序（最新的在前）
+- 跳过 vault 里的 `_index.md`（Dataview 索引页，不是 clip）
+- 同 id 重复（备份/手工编辑产生）只保留 `createdAt` 最早的那一条
+- 单条文件解析失败（YAML 损坏 / 必填字段缺失 / 枚举值未知）会被静默跳过，
+  整个列表不会因为一条坏文件失败；server 端 `console.warn` 留痕
+- 不分页、无 query 过滤——如果 vault 规模超过万级再考虑
+
+---
+
+## GET /clip/:id
+
+按 frontmatter `id` 取单条 clip。返回的是 ClipRecord 对象本身，**不**包
+`{ "clips": [...] }` 信封。
+
+### Request
+
+```
+GET /clip/clip_20260426_115637_lCNmmh
+Authorization: Bearer <token>
+```
+
+### Response: OK (200)
+
+返回值的 shape 跟 `GET /clip` 数组里的元素完全一致：
+
+```json
+{
+  "id": "clip_20260426_115637_lCNmmh",
+  "title": "Karpathy 谈 LLM",
+  "platform": "twitter",
+  "author": "karpathy",
+  "originalUrl": "https://twitter.com/karpathy/status/...",
+  "contentType": "post",
+  "contentSummary": "三句话摘要……",
+  "tags": ["llm", "research"],
+  "category": "tech",
+  "language": "en",
+  "screenshotPath": "snap-mind/assets/clip_20260426_115637_lCNmmh.webp",
+  "fetchLevel": 1,
+  "sourceConfidence": 0.95,
+  "createdAt": "2026-04-26T03:57:19.317Z"
+}
+```
+
+### Response: Not Found (404)
+
+```json
+{
+  "error": "Clip not found"
+}
+```
+
+不存在的 id 和"看起来像 path traversal"的 id（含 `..` / `/` / `\` / 空格
+等非白名单字符）一律返回 404，不暴露内部校验细节。
+
+---
+
+## DELETE /clip/:id
+
+物理删除一条 clip：
+
+1. unlink frontmatter `id` 匹配的 `<vault>/<clippingsDir>/*.md`
+2. unlink `<vault>/<assetsDir>/<id>.*`（截图本体 + `.json` sidecar）
+3. 把这条从 backend 的内存 dedup index 里摘掉，避免下次相似截图被错误 dedup
+   到一个已经不存在的 id
+
+不动 `_index.md`（下次写入时 backend 会重新生成）；也不会触碰 `<assets>/`
+之外的任何文件。删除后**不可恢复**——如果需要回收站语义，请走 Obsidian
+自己的 trash。
+
+### Request
+
+```
+DELETE /clip/clip_20260426_115637_lCNmmh
+Authorization: Bearer <token>
+```
+
+### Response: No Content (204)
+
+成功时返回空 body。
+
+### Response: Not Found (404)
+
+```json
+{
+  "error": "Clip not found"
+}
+```
+
+跟 GET 一样，越界 id 也会落到 404，不区分"找不到"和"非法"。
+
+---
+
 ## GET /batch/:id
 
 查询批量任务的整体进度。无需认证。
