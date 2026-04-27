@@ -97,8 +97,10 @@ Authorization: Bearer <token>
 
 ## GET /clip
 
-列出 vault 里所有 clip 的精简结构（wire format，不含原文 / VLM 调试字段）。
-每次请求都重新扫盘——backend 不维护索引/缓存，client 在内存按需 filter。
+列出 vault 里所有 clip 的精简结构（list view，**不含 `contentFull`**——
+原文太重，需要原文请走单条 detail 端点 `GET /clip/:id`）。也不含 VLM
+调试字段。每次请求都重新扫盘——backend 不维护索引/缓存，client 在内存
+按需 filter。
 
 ### Request
 
@@ -145,7 +147,8 @@ Authorization: Bearer <token>
 
 ## GET /clip/:id
 
-按 frontmatter `id` 取单条 clip。返回的是 ClipRecord 对象本身，**不**包
+按 frontmatter `id` 取单条 clip 的 **detail 视图**——比 list view 多一个
+`contentFull` 字段（markdown 原文）。返回的是单个对象，**不**包
 `{ "clips": [...] }` 信封。
 
 ### Request
@@ -157,8 +160,6 @@ Authorization: Bearer <token>
 
 ### Response: OK (200)
 
-返回值的 shape 跟 `GET /clip` 数组里的元素完全一致：
-
 ```json
 {
   "id": "clip_20260426_115637_lCNmmh",
@@ -168,6 +169,7 @@ Authorization: Bearer <token>
   "originalUrl": "https://twitter.com/karpathy/status/...",
   "contentType": "post",
   "contentSummary": "三句话摘要……",
+  "contentFull": "完整原文 markdown……可能几十 KB",
   "tags": ["llm", "research"],
   "category": "tech",
   "language": "en",
@@ -177,6 +179,14 @@ Authorization: Bearer <token>
   "createdAt": "2026-04-26T03:57:19.317Z"
 }
 ```
+
+### `contentFull` 字段说明
+
+- 取自 markdown body 里 `## 原文` 段
+- `fetchLevel === 4`（抓取失败）时段落是 backend 写入的 "警告 + VLM 截图
+  片段" markdown，原样返回，client 自行渲染
+- `## 原文` 段缺失或纯空白时为 `null`（手工 backfill / 老格式）
+- 不需要 `contentFull` 的场景请走 `GET /clip` 列表，省一来一回的体积
 
 ### Response: Not Found (404)
 

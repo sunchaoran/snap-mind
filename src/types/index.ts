@@ -104,13 +104,13 @@ export interface ClipRecord {
 }
 
 /**
- * 对外暴露给 client 的 ClipRecord 投影。
+ * `GET /clip` 列表里每条 clip 的精简 wire format。
  *
  * 跟内部的 {@link ClipRecord} 区别：
- * - 不含 `contentFull`：单条原文可能几十 KB，列表 API 全带回去太重；
- *   client 真要原文时再单独走 detail/raw 端点。
+ * - 不含 `contentFull`：单条原文可能几十 KB，列表里全带回去太重；
+ *   detail 端点 (`GET /clip/:id`) 用 {@link ClipRecordWireFull} 带回去
  * - 不含 `rawVlmResult`：是 VLM debug 元数据，已落到 `<assets>/<id>.json`
- *   sidecar，不该出现在 client 消费的 wire format 里。
+ *   sidecar，不该出现在 client 消费的 wire format 里
  */
 export interface ClipRecordWire {
   id: string;
@@ -129,6 +129,19 @@ export interface ClipRecordWire {
   sourceConfidence: number;
   /** ISO 8601 string, 原样从 frontmatter 透出 */
   createdAt: string;
+}
+
+/**
+ * `GET /clip/:id` detail 视图：在 {@link ClipRecordWire} 之上补 `contentFull`。
+ *
+ * `contentFull` = markdown body 里 `## 原文` 段的全文（已经过 backend 写入
+ * 时的 `formatContent` 规整）。fetchLevel=4 失败 record 的段落是"警告 +
+ * VLM snippet"的 markdown，原样返回，client 自己渲染。
+ *
+ * 仅当 `## 原文` 段缺失或纯空白时为 `null`（手工 backfill / 老格式）。
+ */
+export interface ClipRecordWireFull extends ClipRecordWire {
+  contentFull: string | null;
 }
 
 /** API 响应 */

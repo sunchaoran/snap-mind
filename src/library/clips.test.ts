@@ -6,7 +6,11 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { config } from "@/config.js";
 import { isSafeClipId } from "@/library/clips.js";
 import { registerRoutes } from "@/server/routes.js";
-import type { ClipRecord, ClipRecordWire } from "@/types/index.js";
+import type {
+  ClipRecord,
+  ClipRecordWire,
+  ClipRecordWireFull,
+} from "@/types/index.js";
 import { clearSnapMindVault } from "@/writer/markdown.js";
 
 const VALID_AUTH = {
@@ -182,7 +186,9 @@ describe("GET /clip", () => {
     ]);
   });
 
-  it("preserves wire format fields exactly", async () => {
+  it("preserves wire format fields and strips contentFull from list", async () => {
+    // contentFull IS in the markdown body — proves the list endpoint
+    // actively projects it away rather than just "happens to skip it".
     await writeClipMarkdown("2026-04-26_tw_full.md", {
       id: "clip_full_test",
       title: 'Title with "quotes" and 中文',
@@ -193,6 +199,7 @@ describe("GET /clip", () => {
         "b",
       ],
       contentSummary: "Just a summary.",
+      contentFull: "Full original article body that should be stripped.",
       createdAt: "2026-04-26T12:34:56.789Z",
       sourceConfidence: 0.87,
       fetchLevel: 2,
@@ -226,7 +233,7 @@ describe("GET /clip", () => {
       sourceConfidence: 0.87,
       createdAt: "2026-04-26T12:34:56.789Z",
     });
-    // Must not leak internal fields
+    // Must not leak internal/heavy fields
     expect(body.clips[0]).not.toHaveProperty("contentFull");
     expect(body.clips[0]).not.toHaveProperty("rawVlmResult");
   });
@@ -247,16 +254,17 @@ describe("GET /clip", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    const body = res.json() as ClipRecordWire;
+    const body = res.json() as ClipRecordWireFull;
     expect(body.screenshotPath).toBe("snap-mind/assets/clip_noembed.webp");
   });
 });
 
-describe("GET /clip/:id", () => {
-  it("returns the single clip object (not wrapped)", async () => {
+describe("GET /clip/:id (detail with contentFull)", () => {
+  it("returns the single clip object (not wrapped) with contentFull included", async () => {
     await writeClipMarkdown("2026-04-26_tw_one.md", {
       id: "clip_one",
       title: "One",
+      contentFull: "First paragraph.\n\nSecond paragraph.",
     });
 
     const res = await app.inject({
@@ -266,10 +274,74 @@ describe("GET /clip/:id", () => {
     });
 
     expect(res.statusCode).toBe(200);
-    const body = res.json() as ClipRecordWire;
+    const body = res.json() as ClipRecordWireFull;
     expect(body.id).toBe("clip_one");
     expect(body.title).toBe("One");
+    expect(body.contentFull).toBe("First paragraph.\n\nSecond paragraph.");
     expect(body).not.toHaveProperty("clips");
+    expect(body).not.toHaveProperty("rawVlmResult");
+  });
+
+  it("returns contentFull = null when ## 原文 section is absent", async () => {
+    // Default fixture body skips the `## 原文` heading entirely
+    await writeClipMarkdown("2026-04-26_tw_noorig.md", {
+      id: "clip_no_orig",
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/clip/clip_no_orig",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ClipRecordWireFull;
+    expect(body.contentFull).toBeNull();
+  });
+
+  it("preserves the fetchLevel=4 warning + snippet markdown verbatim", async () => {
+    // What the writer template produces for failed-fetch records
+    const failedBody = [
+      "## 摘要",
+      "",
+      "短摘要",
+      "",
+      "## 原文",
+      "",
+      "> ⚠️ 未能获取原文。以下为截图中识别到的内容片段：",
+      "",
+      "VLM-recognized snippet text",
+      "",
+      "## 截图",
+      "",
+      "![[assets/clip_failed.webp|360]]",
+      "",
+    ].join("\n");
+    await writeClipMarkdown(
+      "2026-04-26_tw_fail.md",
+      {
+        id: "clip_failed",
+        fetchLevel: 4,
+        sourceConfidence: 0,
+      },
+      failedBody,
+    );
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/clip/clip_failed",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ClipRecordWireFull;
+    expect(body.contentFull).toBe(
+      [
+        "> ⚠️ 未能获取原文。以下为截图中识别到的内容片段：",
+        "",
+        "VLM-recognized snippet text",
+      ].join("\n"),
+    );
   });
 
   it("returns 404 when id does not exist", async () => {
@@ -552,6 +624,8 @@ interface ClipFixture {
   sourceConfidence?: number;
   createdAt?: string;
   contentSummary?: string;
+  /** Set to a string to inject `## 原文` section; omit to skip the section. */
+  contentFull?: string;
 }
 
 async function writeClipMarkdown(
@@ -583,19 +657,18 @@ async function writeClipMarkdown(
     `createdAt: ${fixture.createdAt ?? "2026-04-26T12:00:00.000Z"}`,
     "---",
   ];
-  const body =
-    rawBody ??
-    [
-      "",
-      "## 摘要",
-      "",
-      fixture.contentSummary ?? "A quick test summary.",
-      "",
-      "## 截图",
-      "",
-      `![[assets/${id}.webp|360]]`,
-      "",
-    ].join("\n");
+  const bodyParts = [
+    "",
+    "## 摘要",
+    "",
+    fixture.contentSummary ?? "A quick test summary.",
+    "",
+  ];
+  if (fixture.contentFull !== undefined) {
+    bodyParts.push("## 原文", "", fixture.contentFull, "");
+  }
+  bodyParts.push("## 截图", "", `![[assets/${id}.webp|360]]`, "");
+  const body = rawBody ?? bodyParts.join("\n");
 
   await writeFile(
     join(vaultRoot, config.vault.clippingsDir, filename),
