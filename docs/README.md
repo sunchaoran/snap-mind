@@ -17,11 +17,18 @@
 ```
 客户端 (龙虾 / Web App / iOS App)
     │
-    │  POST /clip  (image + auth)
+    │  写：POST /clip  (image + auth)         → jobId (202)，pipeline 异步
+    │      POST /clip/batch                    → batchId + jobIds
+    │      GET /jobs/:id, GET /batch/:id       → 轮询进度
+    │
+    │  读：GET /clip                            → ClipRecordWire[] 列表（轻）
+    │      GET /clip/:id                        → ClipRecordWireFull 详情
+    │      DELETE /clip/:id                     → 204 / 404
     ▼
 ┌─────────────────────────────────────────────────┐
 │                  ClipService                     │
 │                                                  │
+│  写路径：                                         │
 │  InputAdapter → 创建 Job → 返回 jobId (202)      │
 │       │                                          │
 │       └─ async pipeline ─────────────────────    │
@@ -29,7 +36,10 @@
 │          → ContentProcessor → ClipWriter         │
 │          (每步更新 JobStore)                      │
 │                                                  │
-│  GET /jobs/:id  → 轮询 Job 状态 + 进度           │
+│  读/删路径 (src/library/clips.ts)：              │
+│  扫 vault → 解析 frontmatter + ## 摘要/原文 →    │
+│  返回 wire format / 物理删 .md + assets +        │
+│  evict writer 的 dedup index                     │
 │                                                  │
 │  External: OpenRouter API / opencli / Vault       │
 └─────────────────────────────────────────────────┘
@@ -44,6 +54,7 @@
 | ContentFetcher | [modules/content-fetcher.md](./modules/content-fetcher.md) | 四级策略获取原文（含 author-first 子策略） |
 | ContentProcessor | [modules/content-processor.md](./modules/content-processor.md) | 摘要 / 标签 / 分类 |
 | ClipWriter | [modules/clip-writer.md](./modules/clip-writer.md) | Write driver 抽象层 + MarkdownWriter |
+| ClipLibrary | `src/library/clips.ts` | Read/delete：扫 vault、解析、wire-format 投影、安全删除 |
 | ScreenshotStore | [modules/screenshot-store.md](./modules/screenshot-store.md) | 截图文件存储 + 格式检测 |
 
 ## Project Structure
@@ -53,11 +64,15 @@ snap-mind/
 ├── src/
 │   ├── index.ts                # 入口，启动 Fastify HTTP 服务
 │   ├── config.ts               # 配置定义（环境变量驱动）
+│   ├── vault.ts                # Vault 文件结构常量（heading 字面量、_index 文件名等，writer/reader 共用）
 │   ├── server/
 │   │   ├── routes.ts           # HTTP 路由 + pipeline 调度
 │   │   ├── job-store.ts        # 异步 Job 状态管理（内存）
 │   │   ├── auth.ts             # 认证逻辑 (API Key / JWT)
+│   │   ├── errors.ts           # HTTP 错误文案集中处
 │   │   └── dev-upload.html     # Dev 上传页面
+│   ├── library/
+│   │   └── clips.ts            # 读/删：扫 vault、解析、wire format 投影、安全删除
 │   ├── vlm/
 │   │   ├── analyzer.ts         # 两阶段 VLM 分析主逻辑
 │   │   ├── openrouter.ts       # OpenRouter API 客户端

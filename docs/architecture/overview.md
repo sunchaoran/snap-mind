@@ -6,6 +6,8 @@
 
 ## 2. User Flow
 
+### 写入
+
 ```
 单张上传：
 客户端 → POST /clip (截图) → 返回 jobId (202)
@@ -16,6 +18,27 @@
        → 轮询 GET /batch/:id 获取整体进度
        → 轮询 GET /jobs/:id 获取单张进度
 ```
+
+### 读取 / 删除
+
+backend 是 vault 的唯一解析者，client 直接消费 JSON 而不再各自维护
+markdown parser。
+
+```
+列表：
+客户端 → GET /clip → ClipRecordWire[] (轻量，不含原文)
+       → 内存 filter / sort
+
+详情：
+客户端 → GET /clip/:id → ClipRecordWireFull (含 contentFull)
+
+删除：
+客户端 → DELETE /clip/:id → 204
+       → 物理删 .md + 全部 assets/<id>.* + evict writer dedup index
+```
+
+每次读都重新扫盘——vault ~千条量级在可控范围内，不维护内存索引/缓存
+（writer 内部那个 dedup index 不是给 read 路径用的）。
 
 ## 3. Architecture Diagram
 
@@ -51,6 +74,12 @@
 │  └──────────────┘                                │
 │                                                  │
 │  GET /jobs/:id  → 轮询 Job 状态 + 进度           │
+│                                                  │
+│  ┌──────────────┐                                │
+│  │ ClipLibrary   │  GET /clip, GET /clip/:id,    │
+│  │ (library/    │  DELETE /clip/:id              │
+│  │  clips.ts)    │  扫 vault → wire format       │
+│  └──────────────┘                                │
 │                                                  │
 │  外部依赖：                                      │
 │  ├─ OpenRouter API (Kimi/Gemini/Claude/GPT-4o)  │
