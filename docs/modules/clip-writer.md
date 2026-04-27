@@ -131,3 +131,11 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 - 先匹配 platform，再匹配 title，最后匹配 author
 - 若 title 相似度达标且无 author 可比对，仅凭 title 即判定重复
 - 返回已存在的 clipId 或 null
+
+### Index 失效
+
+writer 在内存里维护 `clipIndexById` 等几张 Map 给 dedup 用，启动时从盘
+重建一次。`DELETE /clip/:id` (定义在 `src/library/clips.ts`) 物理删完
+.md + assets 后会调用 `removeClipFromIndex(id)` 把对应 entry 摘掉，
+否则下一次相似截图会被错误 dedup 到一个已经不存在的 id。该函数也由
+`markdown.ts` 导出。
