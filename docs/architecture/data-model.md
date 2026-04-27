@@ -56,13 +56,12 @@ interface ClipRecord {
 }
 ```
 
-### ClipRecordWire (Public API Projection)
+### ClipRecordWire (List Projection)
 
-`GET /clip` 和 `GET /clip/:id` 返回给 client 的精简版。跟内部
-`ClipRecord` 区别：
+`GET /clip` 列表里每条 clip 的精简 wire format。跟内部 `ClipRecord` 区别：
 
-- **去掉 `contentFull`**：单条原文可能几十 KB，列表 API 全带回去太重。
-  client 真要原文时再单开 `?include=full` 或 detail/raw 端点。
+- **去掉 `contentFull`**：单条原文可能几十 KB，列表全带回去太重。
+  client 想要原文走 `GET /clip/:id` (detail)。
 - **去掉 `rawVlmResult`**：是 VLM 调试 metadata，已落到
   `<assets>/<id>.json` sidecar，不该出现在 client 消费的 wire format 里。
 
@@ -84,6 +83,24 @@ interface ClipRecordWire {
   sourceConfidence: number;
   /** ISO 8601 string，原样从 frontmatter 透出，不重新 format */
   createdAt: string;
+}
+```
+
+### ClipRecordWireFull (Detail Projection)
+
+`GET /clip/:id` 单条 detail 视图：在 `ClipRecordWire` 之上补一个
+`contentFull`。跟内部 `ClipRecord` 仍然不一样——还是不暴露
+`rawVlmResult`。
+
+```typescript
+interface ClipRecordWireFull extends ClipRecordWire {
+  /**
+   * Markdown body 里 `## 原文` 段全文（已经过 backend 写入时的
+   * formatContent 规整）。fetchLevel=4 失败 record 的段落是"警告 +
+   * VLM snippet"的 markdown，原样返回。`## 原文` 段缺失或纯空白时
+   * 为 null。
+   */
+  contentFull: string | null;
 }
 ```
 

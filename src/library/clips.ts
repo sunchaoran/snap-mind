@@ -10,6 +10,7 @@ import { config } from "@/config.js";
 import type {
   Category,
   ClipRecordWire,
+  ClipRecordWireFull,
   ContentType,
   Platform,
 } from "@/types/index.js";
@@ -17,6 +18,7 @@ import { createLogger } from "@/utils/logger.js";
 import {
   FALLBACK_SCREENSHOT_EXT,
   H2_PREFIX,
+  HEADING_ORIGINAL,
   HEADING_SUMMARY,
   VAULT_INDEX_FILENAME,
 } from "@/vault.js";
@@ -82,8 +84,9 @@ export function isSafeClipId(id: string): boolean {
 }
 
 /**
- * 列出 vault 里所有 clip。每次都重新扫盘——vault 规模 (~千条量级) 完全
- * 在可控范围内，相比维护一份内存索引 + 失效逻辑，重新 scan 反而更稳。
+ * 列出 vault 里所有 clip 的精简 wire format（不含 contentFull）。每次都
+ * 重新扫盘——vault 规模 (~千条量级) 完全在可控范围内，相比维护一份内存
+ * 索引 + 失效逻辑，重新 scan 反而更稳。
  *
  * - 跳过 `_index.md`（Dataview 索引页，不是 clip）
  * - 单条解析失败的不让整批失败，只 warn 后跳过
@@ -91,6 +94,15 @@ export function isSafeClipId(id: string): boolean {
  * - 按 createdAt 倒序返回
  */
 export async function listClips(): Promise<ClipRecordWire[]> {
+  const all = await loadAllClips();
+  return all.map(stripContentFull);
+}
+
+/**
+ * 内部辅助：把 vault 里所有 .md 都 parse 出来（detail 形态，含 contentFull），
+ * dedup + 按 createdAt 倒序排好。`listClips` / `getClip` 在此基础上做投影。
+ */
+async function loadAllClips(): Promise<ClipRecordWireFull[]> {
   const dir = clippingsDir();
   let entries: string[];
   try {
@@ -105,7 +117,7 @@ export async function listClips(): Promise<ClipRecordWire[]> {
 
   const parsed: {
     file: string;
-    clip: ClipRecordWire;
+    clip: ClipRecordWireFull;
   }[] = [];
   for (const file of files) {
     const raw = await readFile(join(dir, file), "utf-8").catch(() => null);
@@ -134,7 +146,7 @@ export async function listClips(): Promise<ClipRecordWire[]> {
   });
 
   const seen = new Set<string>();
-  const deduped: ClipRecordWire[] = [];
+  const deduped: ClipRecordWireFull[] = [];
   for (const { file, clip } of parsed) {
     if (seen.has(clip.id)) {
       log.warn(
@@ -160,12 +172,20 @@ export async function listClips(): Promise<ClipRecordWire[]> {
   return deduped;
 }
 
-/** 找单条 clip。复用 listClips 的解析逻辑，找不到返回 null。 */
-export async function getClip(id: string): Promise<ClipRecordWire | null> {
+function stripContentFull(full: ClipRecordWireFull): ClipRecordWire {
+  const { contentFull: _omit, ...summary } = full;
+  return summary;
+}
+
+/**
+ * 取单条 clip 的 detail 视图（含 contentFull）。复用 list 的解析与 dedup
+ * 逻辑，所以"哪条赢"的语义跟 list 完全一致。找不到返回 null。
+ */
+export async function getClip(id: string): Promise<ClipRecordWireFull | null> {
   if (!isSafeClipId(id)) {
     return null;
   }
-  const all = await listClips();
+  const all = await loadAllClips();
   return all.find((c) => c.id === id) ?? null;
 }
 
@@ -285,15 +305,18 @@ function isInside(path: string, parent: string): boolean {
 }
 
 /**
- * 把一份 clip markdown 解析成 wire format。所有必填字段缺一不可；
+ * 把一份 clip markdown 解析成 detail wire format。所有必填字段缺一不可；
  * platform/contentType/category 必须是已知枚举，否则视为损坏，跳过。
+ *
+ * `contentFull` 取自 body 里 `## 原文` 段——段缺失或纯空白时为 `null`。
+ * `listClips` 拿到这个结果后会把 `contentFull` 投影掉。
  *
  * 文件名只用作日志上下文，不影响结果。
  */
 export function parseClipFile(
   filename: string,
   raw: string,
-): ClipRecordWire | null {
+): ClipRecordWireFull | null {
   let frontmatter: Record<string, unknown>;
   let body: string;
   try {
@@ -356,7 +379,8 @@ export function parseClipFile(
   const tags = readStringList(frontmatter.tags);
   const originalUrl = readNullableString(frontmatter.originalUrl);
   const screenshotPath = extractScreenshotPath(body, id);
-  const contentSummary = extractSummary(body);
+  const contentSummary = extractSection(body, HEADING_SUMMARY);
+  const contentFull = extractSection(body, HEADING_ORIGINAL) || null;
 
   return {
     id,
@@ -366,6 +390,7 @@ export function parseClipFile(
     originalUrl,
     contentType,
     contentSummary,
+    contentFull,
     tags,
     category,
     language,
@@ -451,10 +476,13 @@ function extractScreenshotPath(body: string, fallbackId: string): string {
   return `${config.vault.assetsDir}/${fallbackId}.${FALLBACK_SCREENSHOT_EXT}`;
 }
 
-/** {@link HEADING_SUMMARY} heading 到下一个 H2 之间，trim 后返回。没有就空串。 */
-function extractSummary(body: string): string {
+/**
+ * 抽出 body 里某个 H2 段（从 `heading` 行的下一行起，到下一个 `## ` 行
+ * 之前为止），trim 首尾空白后返回。段不存在或纯空白时返回空串。
+ */
+function extractSection(body: string, heading: string): string {
   const lines = body.split("\n");
-  const start = lines.findIndex((line) => line.trim() === HEADING_SUMMARY);
+  const start = lines.findIndex((line) => line.trim() === heading);
   if (start < 0) {
     return "";
   }
