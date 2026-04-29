@@ -63,6 +63,15 @@
 | AuthStrategy | `src/server/auth/` (V1 设计) | API key / JWT 等认证策略接口（V1 只实现 ApiKey） |
 | Pipeline | `src/pipeline/` (V1 设计) | 写入 pipeline 编排（VLM → fetch → process → write）|
 
+## 指南索引
+
+| Guide | Path | Description |
+|-------|------|-------------|
+| Setup | [guides/setup.md](./guides/setup.md) | 开发环境搭建：Node、pnpm、opencli、Chrome CDP |
+| Configuration | [guides/configuration.md](./guides/configuration.md) | 环境变量、`.env` cascade、配置项说明 |
+| Deployment | [guides/deployment.md](./guides/deployment.md) | Mac mini 上 LaunchAgent 部署（V1）+ Docker / .app 形态规划 |
+| Tailscale | [guides/tailscale.md](./guides/tailscale.md) | 用 Tailscale Serve 让 iOS app / 笔记本通过 tailnet 安全访问 backend |
+
 ## 项目结构
 
 ```
