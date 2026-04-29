@@ -1,49 +1,53 @@
-# ClipService - Engineering Documentation
+# SnapMind - Engineering Documentation
 
-> 截图即收藏：从截图到结构化知识库的自动化管道
+> 截图即收藏：从截图到结构化知识库的自动化管道。
+
+> **🚧 Active redesign**: V1 设计在 [api-v2-design.md](./architecture/api-v2-design.md)。其它文档正在跟进同步——发现冲突时以设计文档为准。
 
 ## Quick Navigation
 
 | Section | Description |
 |---------|-------------|
+| [V1 Design](./architecture/api-v2-design.md) | **权威设计文档**——产品策略、API 契约、模块边界、部署模式 |
 | [Architecture](./architecture/) | 系统架构、数据模型、技术选型 |
 | [Modules](./modules/) | 各模块详细设计规范 |
-| [API](./api/) | HTTP API 接口规范 |
+| [API](./api/) | HTTP API 接口契约（V1 公开稳定） |
 | [Guides](./guides/) | 配置、开发环境搭建、部署指南 |
-| [Roadmap](./roadmap.md) | 未来扩展规划 |
+| [Roadmap](./roadmap.md) | V1 / V2 / V3 路线图 |
 
 ## Architecture Overview
 
 ```
-客户端 (龙虾 / Web App / iOS App)
-    │
-    │  写：POST /clip  (image + auth)         → jobId (202)，pipeline 异步
-    │      POST /clip/batch                    → batchId + jobIds
-    │      GET /jobs/:id, GET /batch/:id       → 轮询进度
-    │
-    │  读：GET /clip                            → ClipRecordWire[] 列表（轻）
-    │      GET /clip/:id                        → ClipRecordWireFull 详情
-    │      DELETE /clip/:id                     → 204 / 404
-    ▼
-┌─────────────────────────────────────────────────┐
-│                  ClipService                     │
-│                                                  │
-│  写路径：                                         │
-│  InputAdapter → 创建 Job → 返回 jobId (202)      │
-│       │                                          │
-│       └─ async pipeline ─────────────────────    │
-│          VLMAnalyzer → ContentFetcher            │
-│          → ContentProcessor → ClipWriter         │
-│          (每步更新 JobStore)                      │
-│                                                  │
-│  读/删路径 (src/library/clips.ts)：              │
-│  扫 vault → 解析 frontmatter + ## 摘要/原文 →    │
-│  返回 wire format / 物理删 .md + assets +        │
-│  evict writer 的 dedup index                     │
-│                                                  │
-│  External: OpenRouter API / opencli / Vault       │
-└─────────────────────────────────────────────────┘
+┌─ 这个 repo (open source backend, AGPL-3.0) ────────┐
+│                                                     │
+│  客户端 (macOS / iOS / OpenClaw skill)              │
+│      │                                              │
+│      │  /api/v1/clip          POST 写入             │
+│      │  /api/v1/clip/batch    POST 批量             │
+│      │  /api/v1/clip/sticky   POST 防抖批量         │
+│      │  /api/v1/jobs/:id      GET 进度（轮询/SSE）  │
+│      │  /api/v1/clip          GET 列表（无 contentFull）│
+│      │  /api/v1/clip/:id      GET 详情（含 contentFull）│
+│      │  DELETE /api/v1/clip/:id                     │
+│      │  /api/v1/clip/:id/image GET 截图字节         │
+│      ▼                                              │
+│  ┌────────────────────────────────────────────┐    │
+│  │  Fastify + AuthStrategy + RateLimit + SSE   │    │
+│  │  ──────────────────────────────────────────  │    │
+│  │  routes/  →  pipeline/  →  writer/ + library/│    │
+│  │              ↓                                │    │
+│  │              VLM / fetcher / processor        │    │
+│  │              ↓                                │    │
+│  │              vault (filesystem 目录)         │    │
+│  └────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
+                       ↓
+        macOS: ~/Library/Mobile Documents/...iCloud Drive
+        Linux: /data/vault
+        Docker: volume mount
 ```
+
+完整设计、模块边界、wire format 契约、部署模式等详见 [V1 设计文档](./architecture/api-v2-design.md)。
 
 ## Module Index
 
@@ -56,6 +60,8 @@
 | ClipWriter | [modules/clip-writer.md](./modules/clip-writer.md) | Write driver 抽象层 + MarkdownWriter |
 | ClipLibrary | `src/library/clips.ts` | Read/delete：扫 vault、解析、wire-format 投影、安全删除 |
 | ScreenshotStore | [modules/screenshot-store.md](./modules/screenshot-store.md) | 截图文件存储 + 格式检测 |
+| AuthStrategy | `src/server/auth/` (V1 设计) | API key / JWT 等认证策略接口（V1 只实现 ApiKey） |
+| Pipeline | `src/pipeline/` (V1 设计) | 写入 pipeline 编排（VLM → fetch → process → write）|
 
 ## Project Structure
 
@@ -122,3 +128,5 @@ snap-mind/
     │   └── SKILL.md            # "收藏截图到 Obsidian" skill
     └── QUESTIONS.md            # 待 OpenClaw 团队/文档确认的开放问题
 ```
+
+> 上面是**当前**结构。V1 设计文档里描述了**目标**结构（routes 拆按资源、pipeline 独立模块、auth strategy 抽象等）——参见 [api-v2-design.md §6 Module Boundaries](./architecture/api-v2-design.md#6-module-boundaries)。重构按 feature 分支逐步推进，不一次性掀桌。

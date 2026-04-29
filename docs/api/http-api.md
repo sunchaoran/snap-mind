@@ -1,5 +1,19 @@
 # HTTP API Specification
 
+> **Status**: V0 (current). This is the contract closed-source apps depend on.
+>
+> **V1 plan** — see [api-v2-design.md](../architecture/api-v2-design.md):
+> - All paths move under `/api/v1/` prefix
+> - Uniform error envelope `{ error: { code, message } }` (currently mixed shapes)
+> - SSE variants for `/jobs/:id/events` and `/batch/:id/events`
+> - New `/api/v1/clip/:id/image` endpoint for streaming screenshot bytes
+>
+> **Stability commitment** (post-V1):
+> - Adding optional response fields → not breaking
+> - Adding new endpoints → not breaking
+> - Changing field types / removing fields / removing endpoints → requires `/api/v2/` and a deprecation period
+> - `error.code` values are STABLE; `error.message` may be reworded for clarity
+
 ## Authentication
 
 所有接口需携带认证信息（`/health` 和 `/dev` 除外），支持两种方式：

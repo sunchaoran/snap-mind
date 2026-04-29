@@ -1,8 +1,15 @@
 # Data Model
 
-## 1. ClipRecord (Core Data Structure)
+> **注**：这里的类型分两层——
+>
+> - **内部类型**（`ClipRecord`、`MergedVLMResult` 等）：backend 内部流转，可自由演进
+> - **Wire 类型**（`ClipRecordWire`、`ClipRecordWireFull`、错误信封等）：通过 HTTP 暴露，**对客户端是公开契约**，演进受 [api-v2-design.md §3](./api-v2-design.md#3-wire-format-the-public-contract) 的稳定性规则约束
+>
+> Source of truth 是 [`src/types/index.ts`](../../src/types/index.ts)（V1 后会拆成 `types/wire.ts` + `types/domain.ts`）。
 
-ClipWriter 的入参，所有模块的输出最终汇聚为这一个结构。
+## 1. ClipRecord (Core Data Structure, internal)
+
+ClipWriter 的入参，pipeline 各模块输出汇聚成这一个结构。**不直接通过 wire format 暴露**——客户端拿到的是 ClipRecordWire/Full（见下文）。
 
 ```typescript
 interface ClipRecord {
@@ -201,7 +208,7 @@ interface ProcessedContent {
 }
 ```
 
-### ClipResponse (API Output)
+### ClipResponse (API Output, internal job result)
 
 ```typescript
 interface ClipResponse {
@@ -219,6 +226,22 @@ interface ClipResponse {
   message: string;
 }
 ```
+
+## 6. Error Envelope (V1, wire-level)
+
+所有非 2xx 响应使用统一形状（V1 引入；V0 inconsistent shapes 见 [api-v2-design.md §3](./api-v2-design.md#error-envelope-uniform)）：
+
+```typescript
+interface ErrorEnvelope {
+  error: {
+    code: string;       // STABLE machine-readable，e.g. "clip_not_found"
+    message: string;    // Human-readable，可改文案
+    details?: unknown;  // 可选上下文
+  };
+}
+```
+
+完整错误码表见 [api-v2-design.md §3](./api-v2-design.md#error-envelope-uniform)。
 
 ## 5. ID Format
 
