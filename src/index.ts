@@ -2,7 +2,7 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyRequest } from "fastify";
 import { config } from "@/config.js";
-import { registerRoutes } from "@/server/routes.js";
+import { registerRoutes } from "@/server/routes/index.js";
 import { getLoggerOptions } from "@/utils/logger.js";
 
 const isDev = process.env.NODE_ENV !== "production";
