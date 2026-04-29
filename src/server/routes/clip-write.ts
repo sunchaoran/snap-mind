@@ -1,5 +1,8 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "@/config.js";
+import { handleFailure } from "@/pipeline/failure.js";
+import { handleClip, log, runBatch } from "@/pipeline/index.js";
+import { withTimeout } from "@/pipeline/timing.js";
 import {
   BadRequestError,
   ERR_MISSING_IMAGE,
@@ -7,16 +10,7 @@ import {
   errTooManyImages,
 } from "@/server/errors.js";
 import { createBatchJob, createJob, jobError } from "@/server/job-store.js";
-import {
-  handleClip,
-  handleFailure,
-  runBatch,
-  withTimeout,
-} from "@/server/pipeline.js";
 import { generateClipId } from "@/utils/id.js";
-import { createLogger } from "@/utils/logger.js";
-
-const log = createLogger("pipeline");
 
 export async function registerClipWriteRoutes(app: FastifyInstance) {
   app.post("/api/v1/clip", async (request, reply) => {

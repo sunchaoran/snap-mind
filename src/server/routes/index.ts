@@ -1,6 +1,6 @@
 import type { FastifyInstance } from "fastify";
+import { runBatch } from "@/pipeline/index.js";
 import { createBatchJob, createJob } from "@/server/job-store.js";
-import { runBatch } from "@/server/pipeline.js";
 import { registerBatchRoutes } from "@/server/routes/batch.js";
 import { registerClipReadRoutes } from "@/server/routes/clip-read.js";
 import { registerClipStickyRoutes } from "@/server/routes/clip-sticky.js";

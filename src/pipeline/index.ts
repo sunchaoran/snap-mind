@@ -1,9 +1,7 @@
-// TODO: move to src/pipeline/ in future PR (per docs/architecture/api-design.md §6).
-// For now this lives under src/server/ as a verbatim extraction from the old
-// monolithic src/server/routes.ts.
-
 import { config } from "@/config.js";
 import { fetchContent } from "@/fetcher/index.js";
+import { handleFailure } from "@/pipeline/failure.js";
+import { timed, withTimeout } from "@/pipeline/timing.js";
 import { processContent } from "@/processor/index.js";
 import {
   batchItemDone,
@@ -22,7 +20,7 @@ import { createLogger } from "@/utils/logger.js";
 import { analyzeScreenshot } from "@/vlm/analyzer.js";
 import { findSimilarClip, writeClip } from "@/writer/markdown.js";
 
-const log = createLogger("pipeline");
+export const log = createLogger("pipeline");
 
 export function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
   const concurrency = config.processing.maxConcurrentPipelines;
@@ -329,89 +327,4 @@ export async function handleClip(
     message: `已收藏: ${record.title} [${record.platform}] ${tagStr}`,
   };
   jobDone(jobId, result);
-}
-
-export async function handleFailure(
-  clipId: string,
-  imageBuffer: Buffer,
-): Promise<ClipResponse> {
-  let savedExt = "webp";
-  try {
-    const pp = await preprocessImage(imageBuffer);
-    await saveScreenshot(clipId, pp.buffer, pp.ext);
-    savedExt = pp.ext;
-  } catch {
-    try {
-      await saveScreenshot(clipId, imageBuffer);
-      savedExt = "png";
-    } catch {
-      // Screenshot save itself failed
-    }
-  }
-
-  try {
-    const failRecord: ClipRecord = {
-      id: clipId,
-      title: "处理失败 - 待重试",
-      platform: "unknown",
-      author: "unknown",
-      originalUrl: null,
-      contentType: "post",
-      contentFull: null,
-      contentSummary: "处理过程中发生错误，请稍后重试。",
-      tags: [],
-      category: "other",
-      language: "zh",
-      screenshotPath: `assets/${clipId}.${savedExt}`,
-      fetchLevel: 4,
-      sourceConfidence: 0,
-      createdAt: new Date().toISOString(),
-      rawVlmResult: {
-        platform: "unknown",
-        author: null,
-        title: null,
-        keywords: [],
-        publishTime: null,
-        visibleUrl: null,
-        contentSnippet: null,
-        contentType: "post",
-        confidence: 0,
-        rawResults: {},
-      },
-    };
-    await writeClip(failRecord);
-  } catch {
-    // Failure record write itself failed
-  }
-
-  return {
-    success: false,
-    clipId,
-    error: "Pipeline processing failed",
-    screenshotSaved: true,
-    message: "处理失败，已保存原始截图，请稍后重试",
-  };
-}
-
-export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
-  return new Promise((resolve, reject) => {
-    const timer = setTimeout(
-      () => reject(new Error(`Processing timed out after ${ms}ms`)),
-      ms,
-    );
-    promise.then(resolve, reject).finally(() => clearTimeout(timer));
-  });
-}
-
-export async function timed<T>(
-  key: string,
-  timings: Record<string, number>,
-  fn: () => Promise<T>,
-): Promise<T> {
-  const start = Date.now();
-  try {
-    return await fn();
-  } finally {
-    timings[key] = Date.now() - start;
-  }
 }
