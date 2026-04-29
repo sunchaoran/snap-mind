@@ -507,7 +507,7 @@ V1 是从零搭，不做 V0 → V1 的兼容迁移。下面是把工作切成可
 4. **`feat/route-split`** — 把 `routes.ts` 切到 `server/routes/clip-write.ts` 等多文件。纯 refactor，无行为变化。
 5. **`feat/pipeline-extract`** — 把 pipeline 编排从 `routes.ts` 抽到 `pipeline/`。纯 refactor。
 6. **`feat/types-split`** — 拆 `types/wire.ts`（公开）和 `types/domain.ts`（内部）。
-7. **`feat/sse-job-events`** — 加 `/jobs/:id/events` 和 `/batch/:id/events`。原 polling 端点不变。
+7. **`feat/sse-job-events`** — 加 `/api/v1/jobs/:id/events` 和 `/api/v1/batch/:id/events`。原 polling 端点不变。
 8. **`feat/rate-limit-and-logging`** — 加 `@fastify/rate-limit` + pino redaction。
 9. **`feat/openapi-swagger`** — `@fastify/swagger` + `/api/docs` UI；OpenAPI spec 在 build 时落到 `docs/api/openapi.yaml`。
 10. **`feat/install-launchd-script`** — `scripts/install-launchd.sh` + plist 模板 + 部署文档。

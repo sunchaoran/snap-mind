@@ -177,7 +177,7 @@ user-invocable: true              # 暴露为 slash command
 **我们可以并行做的**（不依赖未答问题）：
 - [x] 更新 SKILL.md 为 CLI 路线
 - [x] 起草 CLI 接口契约（[../cli/snap-mind-cli/CONTRACT.md](../cli/snap-mind-cli/CONTRACT.md)）
-- [ ] SnapMind 服务端实现 `/clip/sticky` API（debounce + sticky session buffer）
+- [ ] SnapMind 服务端实现 `/api/v1/clip/sticky` API（debounce + sticky session buffer）
 - [ ] 给 sticky-store 加单测
 
 **等回答后才能做的**：

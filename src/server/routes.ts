@@ -51,7 +51,7 @@ const log = createLogger("pipeline");
 
 export async function registerRoutes(app: FastifyInstance) {
   // Sticky commit: when a session's debounce window closes, fire a batch
-  // pipeline using the same primitives as POST /clip/batch.
+  // pipeline using the same primitives as POST /api/v1/clip/batch.
   registerCommitHandler((sessionId, buffers) => {
     const batchId = `batch_${generateClipId()}`;
     const jobIds: string[] = buffers.map(() => generateClipId());
@@ -71,7 +71,7 @@ export async function registerRoutes(app: FastifyInstance) {
     return batchId;
   });
 
-  app.post("/clip", async (request, reply) => {
+  app.post("/api/v1/clip", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -115,7 +115,7 @@ export async function registerRoutes(app: FastifyInstance) {
     });
   });
 
-  app.post("/clip/batch", async (request, reply) => {
+  app.post("/api/v1/clip/batch", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -170,7 +170,7 @@ export async function registerRoutes(app: FastifyInstance) {
     Querystring: {
       sessionId?: string;
     };
-  }>("/clip/sticky", async (request, reply) => {
+  }>("/api/v1/clip/sticky", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -218,7 +218,7 @@ export async function registerRoutes(app: FastifyInstance) {
       sessionId: string;
     };
   }>(
-    "/clip/sticky/:sessionId",
+    "/api/v1/clip/sticky/:sessionId",
     {
       logLevel: "warn",
     },
@@ -280,7 +280,7 @@ export async function registerRoutes(app: FastifyInstance) {
   );
 
   // Clip read / delete (vault-as-source-of-truth).
-  app.get("/clip", async (request, reply) => {
+  app.get("/api/v1/clip", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -298,7 +298,7 @@ export async function registerRoutes(app: FastifyInstance) {
     Params: {
       id: string;
     };
-  }>("/clip/:id", async (request, reply) => {
+  }>("/api/v1/clip/:id", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -319,7 +319,7 @@ export async function registerRoutes(app: FastifyInstance) {
     Params: {
       id: string;
     };
-  }>("/clip/:id", async (request, reply) => {
+  }>("/api/v1/clip/:id", async (request, reply) => {
     const auth = await authenticate(request);
     if (!auth.ok) {
       return reply.status(401).send({
@@ -341,7 +341,7 @@ export async function registerRoutes(app: FastifyInstance) {
       id: string;
     };
   }>(
-    "/batch/:id",
+    "/api/v1/batch/:id",
     {
       logLevel: "warn",
     },
@@ -361,7 +361,7 @@ export async function registerRoutes(app: FastifyInstance) {
       id: string;
     };
   }>(
-    "/jobs/:id",
+    "/api/v1/jobs/:id",
     {
       logLevel: "warn",
     },

@@ -1122,7 +1122,7 @@
         while (true) {
             await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
             try {
-                const resp = await fetch(`/jobs/${jobId}`);
+                const resp = await fetch(`/api/v1/jobs/${jobId}`);
                 if (!resp.ok) {
                     continue;
                 }
@@ -1156,7 +1156,7 @@
         form.append('image', tracked.sourceFile);
 
         try {
-            const resp = await fetch('/clip', {
+            const resp = await fetch('/api/v1/clip', {
                 method: 'POST',
                 body: form,
             });
@@ -1183,7 +1183,7 @@
     async function refreshBatchJobs(jobIds) {
         const jobs = await Promise.all(jobIds.map(async jobId => {
             try {
-                const resp = await fetch(`/jobs/${jobId}`);
+                const resp = await fetch(`/api/v1/jobs/${jobId}`);
                 if (!resp.ok) {
                     return {
                         jobId,
@@ -1215,7 +1215,7 @@
             await new Promise(resolve => setTimeout(resolve, POLL_INTERVAL_MS));
             try {
                 const [batchResp] = await Promise.all([
-                    fetch(`/batch/${batchId}`),
+                    fetch(`/api/v1/batch/${batchId}`),
                     refreshBatchJobs(jobIds),
                 ]);
 
@@ -1257,7 +1257,7 @@
             }
 
             try {
-                const resp = await fetch('/clip/batch', {
+                const resp = await fetch('/api/v1/clip/batch', {
                     method: 'POST',
                     body: form,
                 });
@@ -1299,7 +1299,7 @@
         form.append('image', state.selectedFiles[0]);
 
         try {
-            const resp = await fetch('/clip', {
+            const resp = await fetch('/api/v1/clip', {
                 method: 'POST',
                 body: form,
             });

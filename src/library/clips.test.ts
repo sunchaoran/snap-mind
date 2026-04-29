@@ -77,7 +77,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
 
@@ -113,7 +113,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
 
@@ -141,7 +141,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
 
@@ -173,7 +173,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
 
@@ -207,7 +207,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
 
@@ -249,7 +249,7 @@ describe("GET /clip", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip/clip_noembed",
+      url: "/api/v1/clip/clip_noembed",
       headers: VALID_AUTH,
     });
 
@@ -269,7 +269,7 @@ describe("GET /clip/:id (detail with contentFull)", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip/clip_one",
+      url: "/api/v1/clip/clip_one",
       headers: VALID_AUTH,
     });
 
@@ -290,7 +290,7 @@ describe("GET /clip/:id (detail with contentFull)", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip/clip_no_orig",
+      url: "/api/v1/clip/clip_no_orig",
       headers: VALID_AUTH,
     });
 
@@ -329,7 +329,7 @@ describe("GET /clip/:id (detail with contentFull)", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip/clip_failed",
+      url: "/api/v1/clip/clip_failed",
       headers: VALID_AUTH,
     });
 
@@ -351,7 +351,7 @@ describe("GET /clip/:id (detail with contentFull)", () => {
 
     const res = await app.inject({
       method: "GET",
-      url: "/clip/clip_missing",
+      url: "/api/v1/clip/clip_missing",
       headers: VALID_AUTH,
     });
 
@@ -392,7 +392,7 @@ describe("DELETE /clip/:id", () => {
 
     const res = await app.inject({
       method: "DELETE",
-      url: "/clip/clip_del",
+      url: "/api/v1/clip/clip_del",
       headers: VALID_AUTH,
     });
 
@@ -402,7 +402,7 @@ describe("DELETE /clip/:id", () => {
     // .md should be gone
     const list = await app.inject({
       method: "GET",
-      url: "/clip",
+      url: "/api/v1/clip",
       headers: VALID_AUTH,
     });
     const clips = (
@@ -432,7 +432,7 @@ describe("DELETE /clip/:id", () => {
   it("returns 404 when id does not exist", async () => {
     const res = await app.inject({
       method: "DELETE",
-      url: "/clip/clip_doesnotexist",
+      url: "/api/v1/clip/clip_doesnotexist",
       headers: VALID_AUTH,
     });
 
@@ -444,7 +444,7 @@ describe("DELETE /clip/:id", () => {
 
   // Cases below reach our handler (Fastify doesn't pre-normalize them away),
   // so we verify the wire-level body matches our error contract. Pure HTTP
-  // normalization paths like `/clip/..` → `/clip` are handled elsewhere by
+  // normalization paths like `/api/v1/clip/..` → `/clip` are handled elsewhere by
   // Fastify and tested via `isSafeClipId` unit cases below.
   it.each([
     [
@@ -470,7 +470,7 @@ describe("DELETE /clip/:id", () => {
 
     const res = await app.inject({
       method: "DELETE",
-      url: `/clip/${encodeURIComponent(badId)}`,
+      url: `/api/v1/clip/${encodeURIComponent(badId)}`,
       headers: VALID_AUTH,
     });
 
@@ -512,15 +512,15 @@ describe("auth", () => {
   it.each([
     [
       "GET",
-      "/clip",
+      "/api/v1/clip",
     ],
     [
       "GET",
-      "/clip/clip_x",
+      "/api/v1/clip/clip_x",
     ],
     [
       "DELETE",
-      "/clip/clip_x",
+      "/api/v1/clip/clip_x",
     ],
   ])("%s %s returns 401 with no Authorization header", async (method, url) => {
     const res = await app.inject({
@@ -536,15 +536,15 @@ describe("auth", () => {
   it.each([
     [
       "GET",
-      "/clip",
+      "/api/v1/clip",
     ],
     [
       "GET",
-      "/clip/clip_x",
+      "/api/v1/clip/clip_x",
     ],
     [
       "DELETE",
-      "/clip/clip_x",
+      "/api/v1/clip/clip_x",
     ],
   ])("%s %s returns 401 with wrong token", async (method, url) => {
     const res = await app.inject({
@@ -578,7 +578,7 @@ describe("DELETE invalidates writer dedup index", () => {
     // Delete via API
     const del = await app.inject({
       method: "DELETE",
-      url: "/clip/clip_dedup_a",
+      url: "/api/v1/clip/clip_dedup_a",
       headers: VALID_AUTH,
     });
     expect(del.statusCode).toBe(204);

@@ -98,7 +98,7 @@ pnpm check:opencli
 node --version  # 需 >= 24
 
 # 测试端点（dev 模式，无需认证）
-curl -X POST http://localhost:3210/clip \
+curl -X POST http://localhost:3210/api/v1/clip \
   -F "image=@screenshot.png"
 
 # 或打开 dev 上传调试页面

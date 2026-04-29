@@ -203,7 +203,7 @@ async function pushCommand(opts: PushOpts): Promise<void> {
     const filename = basename(file);
     vlog(
       opts.verbose,
-      `pushing ${filename} (${buffer.length}B) → ${opts.baseUrl}/clip/sticky?sessionId=${opts.sessionId}`,
+      `pushing ${filename} (${buffer.length}B) → ${opts.baseUrl}/api/v1/clip/sticky?sessionId=${opts.sessionId}`,
     );
 
     const form = new FormData();
@@ -213,7 +213,7 @@ async function pushCommand(opts: PushOpts): Promise<void> {
       filename,
     );
 
-    const url = `${opts.baseUrl}/clip/sticky?sessionId=${encodeURIComponent(opts.sessionId)}`;
+    const url = `${opts.baseUrl}/api/v1/clip/sticky?sessionId=${encodeURIComponent(opts.sessionId)}`;
     let res: Response;
     try {
       res = await fetch(url, {
@@ -260,7 +260,7 @@ async function waitCommand(opts: CommonOpts): Promise<void> {
 }
 
 async function fetchStatus(opts: CommonOpts): Promise<StickySnapshot> {
-  const url = `${opts.baseUrl}/clip/sticky/${encodeURIComponent(opts.sessionId)}`;
+  const url = `${opts.baseUrl}/api/v1/clip/sticky/${encodeURIComponent(opts.sessionId)}`;
   let res: Response;
   try {
     res = await fetch(url);
