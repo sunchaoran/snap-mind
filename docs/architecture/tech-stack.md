@@ -1,5 +1,7 @@
 # Tech Stack
 
+> 本文档列**当前实际在用**的依赖与选型。V1 计划新增的（Zod / @fastify/bearer-auth / @fastify/rate-limit / @fastify/swagger / chokidar 等）参见 [api-v2-design.md](./api-v2-design.md)。
+
 ## Core Stack
 
 | Component | Choice | Rationale |
@@ -10,9 +12,9 @@
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
 | Web Fetch Fallback | Playwright | `connectOverCDP` 复用 Chrome 登录态，`networkidle` 等待更可靠 |
 | Image Processing | sharp (libvips) | 高性能截图压缩：缩放 + WebP 转换 |
-| Storage | 本地文件系统 (Obsidian vault) | Markdown + 截图文件 |
-| Process Manager | PM2 | 日志/监控开箱即用，跨平台可迁移 |
-| Logging | pino (Fastify built-in) | 结构化 JSON 日志，PM2 采集友好 |
+| Storage | 本地文件系统（Obsidian-style vault） | Markdown frontmatter + assets 目录 |
+| Process Manager | launchd (macOS) | 系统原生，零依赖；Linux 部署用 systemd（V2 计划）|
+| Logging | pino (Fastify built-in) | 结构化 JSON 日志 |
 
 ## Build & Dev Tooling
 
@@ -22,7 +24,7 @@
 | `tsup` | 生产构建，基于 esbuild，秒级打包（ESM only, target Node 24） |
 | `vitest` | 测试框架（含 `@vitest/coverage-v8` 覆盖率） |
 | `biome` | Linter + Formatter（替代 ESLint + Prettier） |
-| Env loading | Node 内置 `--env-file-if-exists`（无需 dotenv） |
+| Env loading | Node 内置 `process.loadEnvFile()`（cascade `.env`、`.env.local`、`.env.${NODE_ENV}` 等，无需 dotenv） |
 
 ## LLM Models
 
@@ -79,9 +81,11 @@
 }
 ```
 
-### System Dependencies (Mac mini)
+### System Dependencies (macOS self-host)
 
 - Node.js >= 24
-- opencli (latest)
-- Chrome browser + opencli Chrome Extension
-- PM2 (`pnpm add -g pm2`)
+- pnpm
+- launchd（macOS 内置，无需额外安装；plist 模板见 [部署指南](../guides/deployment.md)）
+- 可选：opencli + Chrome（L1 抓取最强路径，没有时降级到 L2/L3 仍可工作）
+
+Tailscale（可选但推荐）：iOS / OpenClaw 跨设备访问 backend 时使用，详见部署指南。

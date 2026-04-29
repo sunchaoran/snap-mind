@@ -11,34 +11,36 @@
 
 ## Design Rationale
 
-录入侧不局限于单一客户端。所有客户端（龙虾/OpenClew Agent、Web App、iOS App）统一通过 HTTP API 接入，差异仅在认证方式：
+录入侧不局限于单一客户端。所有客户端统一通过 HTTP API 接入，认证逻辑收口在 `AuthStrategy`（V1 设计，详见 [api-v2-design.md §4](../architecture/api-v2-design.md#4-auth-architecture)）。
 
-| Client | Auth Method | Description |
-|--------|-------------|-------------|
-| 龙虾 (OpenClew) | API Key | 服务间调用，固定密钥 |
-| Web App | JWT (Bearer Token) | 用户登录后获取 token（暂未实现） |
-| iOS App | JWT (Bearer Token) | 同 Web App，共享认证体系（暂未实现） |
+| Client | Deployment | Auth |
+|--------|---|---|
+| macOS app | App Store / 自分发 | API key (self-host) 或 JWT (Cloud) |
+| iOS app | App Store | 同上 |
+| OpenClaw skill | 用户的聊天 channel server | API key (self-host) 或 JWT (Cloud) |
 
-认证通过后，所有客户端走同一条处理管道，不需要为每个客户端写独立 adapter。
+认证通过后所有客户端走同一条处理管道，不为每个客户端写独立 adapter。
 
 ## Authentication
 
-```typescript
-type AuthenticateResult =
-  | { ok: true; value: AuthResult }
-  | { ok: false; error: UnauthorizedError };
+V1 实现（**ApiKeyStrategy**）：
 
-async function authenticate(request: FastifyRequest): Promise<AuthenticateResult> {
-  // Dev 模式：未携带 Authorization header 时跳过认证
-  // API Key: token === config.auth.apiKey → clientType "agent"
-  // JWT: 暂未实现，当前拒绝非 API Key token
+```typescript
+interface AuthStrategy {
+  authenticate(req: FastifyRequest): Promise<AuthResult>;
 }
 
-interface AuthResult {
-  clientId: string;       // 客户端标识
-  clientType: "agent" | "webapp" | "ios";
+type AuthResult =
+  | { ok: true; principal: { type: 'user' | 'service'; id: string } }
+  | { ok: false; error: AuthError };
+
+class ApiKeyStrategy implements AuthStrategy {
+  // Bearer token 与 config.auth.apiKey 常量时间比对
+  // Dev 模式（NODE_ENV !== 'production'）下无 Authorization header 时放行
 }
 ```
+
+V3 SnapMind Cloud 会再实现一个 `JwtStrategy`，client 完全不感知（继续发 `Authorization: Bearer <token>`）。
 
 ## Async Job Pattern
 

@@ -55,12 +55,12 @@ markdown parser。
 ## 3. Architecture Diagram
 
 ```
-客户端 (龙虾 / Web App / iOS App)
+客户端 (macOS app / iOS app / OpenClaw skill)
     │
     │  HTTP POST /clip  (image + auth)
     ▼
 ┌─────────────────────────────────────────────────┐
-│                  ClipService                     │
+│                   SnapMind                       │
 │                                                  │
 │  ┌──────────────┐                               │
 │  │ InputAdapter  │  HTTP 服务 + 认证，接收截图    │
@@ -152,4 +152,4 @@ V2 计划支持 Docker / Linux / NAS 自托管——backend 代码不假设 macO
 - Pipeline 在后台运行，通过 JobStore 记录状态
 - 失败时截图仍保存到 vault assets 目录
 - 写入一条最小化的失败记录（`fetchLevel: 4`），标记为待重试
-- 返回 `message` 字段供龙虾直接回复用户
+- 返回 `message` 字段供 chat-style 客户端（如 OpenClaw skill）直接转发给用户

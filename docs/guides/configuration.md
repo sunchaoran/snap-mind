@@ -9,8 +9,8 @@
 | `OPENROUTER_API_KEY` | Yes | — | OpenRouter API Key |
 | `OBSIDIAN_VAULT_PATH` | No | macOS iCloud Drive 下的 `Obsidian` | Obsidian vault 绝对路径；未设置时默认使用 `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian` |
 | `OBSIDIAN_SCREENSHOT_WIDTH` | No | `360` | Obsidian 笔记中截图的默认显示宽度（像素）；设为 `0` 或负数时不限制 |
-| `API_KEY` | Yes | — | 服务间调用密钥（龙虾等 Agent） |
-| `JWT_SECRET` | Yes | — | JWT 签名密钥（暂未使用，预留） |
+| `API_KEY` | Yes | — | self-host bearer token，所有 client 共用 |
+| `JWT_SECRET` | No | — | 仅 SnapMind Cloud (V3) 用于 JWT 签名；self-host 不需要 |
 | `VLM_MODELS` | No | `moonshotai/kimi-k2.5` | VLM 模型列表，逗号分隔，数量必须为奇数 |
 | `PROCESSOR_MODEL` | No | `moonshotai/kimi-k2.5` | 内容处理模型 |
 | `VLM_ESCALATION_THRESHOLD` | No | `0.8` | 主 VLM 结果低于该置信度，或缺少关键字段时，升级为多模型投票 |
@@ -117,7 +117,7 @@ OBSIDIAN_VAULT_PATH=/Users/chaoran/Library/Mobile Documents/com~apple~CloudDocs/
 # Optional: screenshot display width in generated notes
 OBSIDIAN_SCREENSHOT_WIDTH=360
 API_KEY=sk-snapmind-xxxxxxxxxxxx
-JWT_SECRET=your-jwt-secret-here
+# JWT_SECRET 仅 SnapMind Cloud 用，self-host 不必设
 
 # Optional: LLM models
 VLM_MODELS=moonshotai/kimi-k2.5

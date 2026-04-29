@@ -1,27 +1,29 @@
 # HTTP API Specification
 
-> **Status**: V0 (current). This is the contract closed-source apps depend on.
+> **Status**: 当前实现的路由文档（不带 `/api/v1/` 前缀）。
 >
-> **V1 plan** — see [api-v2-design.md](../architecture/api-v2-design.md):
-> - All paths move under `/api/v1/` prefix
-> - Uniform error envelope `{ error: { code, message } }` (currently mixed shapes)
-> - SSE variants for `/jobs/:id/events` and `/batch/:id/events`
-> - New `/api/v1/clip/:id/image` endpoint for streaming screenshot bytes
+> 项目尚未正式发布——现在描述的是开发中状态。**V1 实施时**会按 [api-v2-design.md](../architecture/api-v2-design.md) 调整：
+> - 所有路径移到 `/api/v1/` 前缀
+> - 错误信封统一为 `{ error: { code, message } }`（现在多种形态混用）
+> - 加 `/api/v1/jobs/:id/events`、`/batch/:id/events` 的 SSE 变体
+> - 加 `/api/v1/clip/:id/image` 截图字节流端点
 >
-> **Stability commitment** (post-V1):
-> - Adding optional response fields → not breaking
-> - Adding new endpoints → not breaking
-> - Changing field types / removing fields / removing endpoints → requires `/api/v2/` and a deprecation period
-> - `error.code` values are STABLE; `error.message` may be reworded for clarity
+> **V1 发布之后**的稳定性承诺（针对 V1 → V2 演进）：
+> - 加可选 response 字段 → 非 breaking
+> - 加新端点 → 非 breaking
+> - 改字段类型 / 删字段 / 删端点 → 需要 `/api/v2/` 和 deprecation period
+> - `error.code` STABLE；`error.message` 可改文案
 
 ## Authentication
 
-所有接口需携带认证信息（`/health` 和 `/dev` 除外），支持两种方式：
+所有接口需携带认证信息（`/health` 和 `/dev` 除外）。
 
 | Method | Header | Use Case |
 |--------|--------|----------|
-| API Key | `Authorization: Bearer sk-xxx` | 服务间调用（龙虾等 Agent） |
-| JWT | `Authorization: Bearer eyJxxx` | 用户客户端（Web App / iOS App），暂未实现 |
+| API Key | `Authorization: Bearer <token>` | self-host 默认认证方式 |
+| JWT | `Authorization: Bearer <jwt>` | SnapMind Cloud（V3）使用，self-host 无需 |
+
+V1 self-host 只用 API key。Cloud 版本会通过同一个 `Authorization: Bearer` header 接 JWT，client 不感知。
 
 > Dev 模式下（`NODE_ENV !== 'production'`），未携带 Authorization header 时跳过认证。
 

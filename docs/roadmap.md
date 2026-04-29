@@ -10,7 +10,7 @@
 
 **Definition of Done**：
 
-- [ ] 路由全部移到 `/api/v1/` 前缀，保留旧路径作 410 Gone 引导
+- [ ] 路由全部改到 `/api/v1/` 前缀（直接 rewrite，不保留旧路径——尚未发布无 client 依赖）
 - [ ] AuthStrategy 接口 + ApiKeyStrategy 实现，inline auth 检查移除
 - [ ] 统一错误信封 `{ error: { code, message } }`
 - [ ] `routes.ts` 拆按资源（clip-write / clip-sticky / clip-read / jobs / batch / meta）

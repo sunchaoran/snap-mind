@@ -495,7 +495,7 @@ Current state (post-merge of `feature/openclaw-skill`):
 
 Migration plan (small feature branches):
 
-1. **`feat/api-v1-prefix`** — add `/api/v1/` prefix to all routes; keep old paths as 410 Gone with a hint pointing to `/api/v1/`. Update OpenClaw skill / CLI to new paths.
+1. **`feat/api-v1-prefix`** — add `/api/v1/` prefix to all routes. **Rewrite directly, no compat shim**——项目尚未发布、唯一 client（OpenClaw skill / CLI）跟着同步改即可。
 2. **`feat/auth-strategy`** — refactor inline auth into AuthStrategy + Fastify hook. ApiKeyStrategy is the only impl.
 3. **`feat/error-envelope`** — uniform `{ error: { code, message } }` everywhere; replace existing inline error shapes; update tests.
 4. **`feat/route-split`** — split `routes.ts` into `server/routes/clip-write.ts`, etc. Pure refactor, no behavior change.
