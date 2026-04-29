@@ -10,9 +10,12 @@
 export const ERR_CLIP_NOT_FOUND = "Clip not found";
 export const ERR_BATCH_NOT_FOUND = "Batch not found";
 export const ERR_JOB_NOT_FOUND = "Job not found";
+export const ERR_STICKY_SESSION_NOT_FOUND = "Sticky session not found";
 
 export const ERR_MISSING_IMAGE = "Missing image file";
 export const ERR_NO_IMAGES = "No image files provided";
+export const ERR_MISSING_SESSION_ID =
+  "Missing or empty sessionId query parameter";
 
 export function errTooManyImages(max: number): string {
   return `Too many images. Max ${max} per batch`;

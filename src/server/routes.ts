@@ -11,7 +11,9 @@ import {
   ERR_CLIP_NOT_FOUND,
   ERR_JOB_NOT_FOUND,
   ERR_MISSING_IMAGE,
+  ERR_MISSING_SESSION_ID,
   ERR_NO_IMAGES,
+  ERR_STICKY_SESSION_NOT_FOUND,
   errTooManyImages,
 } from "@/server/errors.js";
 import {
@@ -181,7 +183,7 @@ export async function registerRoutes(app: FastifyInstance) {
     if (!sessionId) {
       return reply.status(400).send({
         success: false,
-        error: "Missing or empty sessionId query parameter",
+        error: ERR_MISSING_SESSION_ID,
       });
     }
 
@@ -189,7 +191,7 @@ export async function registerRoutes(app: FastifyInstance) {
     if (!data) {
       return reply.status(400).send({
         success: false,
-        error: "Missing image file",
+        error: ERR_MISSING_IMAGE,
       });
     }
 
@@ -224,7 +226,7 @@ export async function registerRoutes(app: FastifyInstance) {
       const snapshot = getStickySnapshot(request.params.sessionId);
       if (!snapshot) {
         return reply.status(404).send({
-          error: "Sticky session not found",
+          error: ERR_STICKY_SESSION_NOT_FOUND,
         });
       }
 
