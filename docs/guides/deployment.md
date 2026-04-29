@@ -44,9 +44,21 @@ VLM_MODELS=moonshotai/kimi-k2.5
 PROCESSOR_MODEL=moonshotai/kimi-k2.5
 ```
 
-### 2. 写 LaunchAgent plist
+### 2. 安装 LaunchAgent
 
-`~/Library/LaunchAgents/dev.snap-mind.server.plist`：
+```bash
+pnpm build
+./scripts/install-launchd.sh
+```
+
+脚本会渲染 plist 模板到 `~/Library/LaunchAgents/dev.snap-mind.server.plist`、`launchctl load`、并 `curl /health` 验活。幂等——升级（见 §1.4）直接重跑即可。
+
+卸载：`./scripts/uninstall-launchd.sh`。
+
+<details>
+<summary><strong>手动安装（高级）</strong></summary>
+
+如果你想审计或自定义，模板在 `scripts/snap-mind.server.plist.template`，渲染后大致这样（替换 `<you>` 和路径，Node 路径用 `which node`）：
 
 ```xml
 <?xml version="1.0" encoding="UTF-8"?>
@@ -70,6 +82,10 @@ PROCESSOR_MODEL=moonshotai/kimi-k2.5
   <dict>
     <key>NODE_ENV</key>
     <string>production</string>
+    <key>PATH</key>
+    <string>/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+    <key>HOME</key>
+    <string>/Users/<you></string>
   </dict>
 
   <key>RunAtLoad</key>
@@ -87,9 +103,7 @@ PROCESSOR_MODEL=moonshotai/kimi-k2.5
 </plist>
 ```
 
-> 替换 `<you>` 和路径。Node 路径用 `which node` 找。
-
-### 3. 加载
+加载：
 
 ```bash
 mkdir -p ~/Library/Logs/snap-mind
@@ -98,7 +112,9 @@ launchctl list | grep snap-mind   # 应该看到 PID
 curl http://127.0.0.1:3210/health
 ```
 
-### 4. 网络暴露：Tailscale Serve（可选但推荐）
+</details>
+
+### 3. 网络暴露：Tailscale Serve（可选但推荐）
 
 如果 iOS / OpenClaw 等其他设备要访问：
 
@@ -118,17 +134,14 @@ curl https://<mac-name>.<tailnet>.ts.net/health
 
 > Backend 始终绑 `127.0.0.1`，不暴露 `0.0.0.0`——公网扫描器连接都建立不了。Tailscale Serve 只在 tailnet 内可见。
 
-### 5. 升级流程
+### 4. 升级流程
 
 ```bash
 git pull
 pnpm install
 pnpm build
-launchctl unload ~/Library/LaunchAgents/dev.snap-mind.server.plist
-launchctl load   ~/Library/LaunchAgents/dev.snap-mind.server.plist
+./scripts/install-launchd.sh    # 幂等：自动 unload + reload
 ```
-
-将来会有 `scripts/install-launchd.sh` 自动化以上。
 
 ---
 
