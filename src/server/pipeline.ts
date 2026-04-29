@@ -1,26 +1,12 @@
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
-import type { FastifyInstance } from "fastify";
+// TODO: move to src/pipeline/ in future PR (per docs/architecture/api-design.md §6).
+// For now this lives under src/server/ as a verbatim extraction from the old
+// monolithic src/server/routes.ts.
+
 import { config } from "@/config.js";
 import { fetchContent } from "@/fetcher/index.js";
-import { deleteClip, getClip, listClips } from "@/library/clips.js";
 import { processContent } from "@/processor/index.js";
-import { authenticate } from "@/server/auth.js";
-import {
-  ERR_BATCH_NOT_FOUND,
-  ERR_CLIP_NOT_FOUND,
-  ERR_JOB_NOT_FOUND,
-  ERR_MISSING_IMAGE,
-  ERR_MISSING_SESSION_ID,
-  ERR_NO_IMAGES,
-  ERR_STICKY_SESSION_NOT_FOUND,
-  errTooManyImages,
-} from "@/server/errors.js";
 import {
   batchItemDone,
-  createBatchJob,
-  createJob,
-  getBatchJob,
   getJob,
   jobDone,
   jobError,
@@ -28,388 +14,16 @@ import {
   stepSkipped,
   stepStart,
 } from "@/server/job-store.js";
-import {
-  getStickySnapshot,
-  markStickyDone,
-  pushToSticky,
-  registerCommitHandler,
-  StickyError,
-} from "@/server/sticky-store.js";
 import { saveScreenshot, saveSidecarJson } from "@/store/screenshot.js";
 import type { ClipRecord, ClipResponse } from "@/types/index.js";
-import { generateClipId } from "@/utils/id.js";
 import { preprocessImage } from "@/utils/image.js";
 import { createLogger } from "@/utils/logger.js";
 import { analyzeScreenshot } from "@/vlm/analyzer.js";
-import {
-  clearSnapMindVault,
-  findSimilarClip,
-  writeClip,
-} from "@/writer/markdown.js";
+import { findSimilarClip, writeClip } from "@/writer/markdown.js";
 
 const log = createLogger("pipeline");
 
-export async function registerRoutes(app: FastifyInstance) {
-  // Sticky commit: when a session's debounce window closes, fire a batch
-  // pipeline using the same primitives as POST /api/v1/clip/batch.
-  registerCommitHandler((sessionId, buffers) => {
-    const batchId = `batch_${generateClipId()}`;
-    const jobIds: string[] = buffers.map(() => generateClipId());
-    for (const jobId of jobIds) {
-      createJob(jobId, jobId);
-    }
-    createBatchJob(batchId, jobIds);
-    log.info(
-      {
-        sessionId,
-        batchId,
-        count: buffers.length,
-      },
-      "sticky session committed to batch",
-    );
-    runBatch(batchId, jobIds, buffers);
-    return batchId;
-  });
-
-  app.post("/api/v1/clip", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
-    const data = await request.file();
-    if (!data) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_IMAGE,
-      });
-    }
-
-    const imageBuffer = await data.toBuffer();
-    const clipId = generateClipId();
-    const jobId = clipId; // reuse clipId as jobId for simplicity
-
-    createJob(jobId, clipId);
-
-    // Fire and forget — pipeline runs in background
-    withTimeout(
-      handleClip(jobId, clipId, imageBuffer),
-      config.processing.overallTimeout,
-    ).catch(async (error) => {
-      log.error(
-        {
-          clipId,
-          error: error instanceof Error ? error.message : String(error),
-        },
-        "pipeline failed",
-      );
-      const result = await handleFailure(clipId, imageBuffer);
-      jobError(jobId, result);
-    });
-
-    return reply.status(202).send({
-      jobId,
-    });
-  });
-
-  app.post("/api/v1/clip/batch", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
-    const parts = request.files();
-    const buffers: Buffer[] = [];
-    for await (const part of parts) {
-      buffers.push(await part.toBuffer());
-      if (buffers.length > config.processing.maxBatchSize) {
-        return reply.status(400).send({
-          success: false,
-          error: errTooManyImages(config.processing.maxBatchSize),
-        });
-      }
-    }
-
-    if (buffers.length === 0) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_NO_IMAGES,
-      });
-    }
-
-    const batchId = `batch_${generateClipId()}`;
-    const jobIds: string[] = [];
-
-    for (const _ of buffers) {
-      const clipId = generateClipId();
-      const jobId = clipId;
-      createJob(jobId, clipId);
-      jobIds.push(jobId);
-    }
-
-    createBatchJob(batchId, jobIds);
-
-    // Run pipelines concurrently with concurrency limit
-    runBatch(batchId, jobIds, buffers);
-
-    return reply.status(202).send({
-      batchId,
-      jobIds,
-      total: buffers.length,
-    });
-  });
-
-  // Sticky session ingestion (debounced batch upload).
-  app.post<{
-    Querystring: {
-      sessionId?: string;
-    };
-  }>("/api/v1/clip/sticky", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
-    const sessionId = request.query.sessionId?.trim();
-    if (!sessionId) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_SESSION_ID,
-      });
-    }
-
-    const data = await request.file();
-    if (!data) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_IMAGE,
-      });
-    }
-
-    const buffer = await data.toBuffer();
-
-    try {
-      const snapshot = pushToSticky(sessionId, buffer);
-      return reply.status(202).send(snapshot);
-    } catch (err) {
-      if (err instanceof StickyError) {
-        const status = err.code === "batch_full" ? 400 : 409;
-        return reply.status(status).send({
-          success: false,
-          error: err.message,
-          code: err.code,
-        });
-      }
-      throw err;
-    }
-  });
-
-  app.get<{
-    Params: {
-      sessionId: string;
-    };
-  }>(
-    "/api/v1/clip/sticky/:sessionId",
-    {
-      logLevel: "warn",
-    },
-    async (request, reply) => {
-      const snapshot = getStickySnapshot(request.params.sessionId);
-      if (!snapshot) {
-        return reply.status(404).send({
-          error: ERR_STICKY_SESSION_NOT_FOUND,
-        });
-      }
-
-      // While buffering — no batch yet, just expose queue depth.
-      if (snapshot.status === "buffering" || !snapshot.batchId) {
-        return {
-          sessionId: snapshot.sessionId,
-          status: snapshot.status,
-          queueDepth: snapshot.queueDepth,
-          total: snapshot.queueDepth,
-          completed: 0,
-          succeeded: 0,
-          failed: 0,
-          results: [],
-        };
-      }
-
-      // Processing or done — fold in the underlying batch state.
-      const batch = getBatchJob(snapshot.batchId);
-      if (!batch) {
-        return {
-          sessionId: snapshot.sessionId,
-          status: snapshot.status,
-          queueDepth: snapshot.queueDepth,
-          batchId: snapshot.batchId,
-          total: snapshot.queueDepth,
-          completed: 0,
-          succeeded: 0,
-          failed: 0,
-          results: [],
-        };
-      }
-
-      const allDone = batch.completed >= batch.total;
-      if (allDone) {
-        markStickyDone(snapshot.sessionId);
-      }
-
-      return {
-        sessionId: snapshot.sessionId,
-        status: allDone ? "done" : "processing",
-        queueDepth: snapshot.queueDepth,
-        batchId: snapshot.batchId,
-        total: batch.total,
-        completed: batch.completed,
-        succeeded: batch.succeeded,
-        failed: batch.failed,
-        results: batch.results,
-      };
-    },
-  );
-
-  // Clip read / delete (vault-as-source-of-truth).
-  app.get("/api/v1/clip", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-    const clips = await listClips();
-    return {
-      clips,
-    };
-  });
-
-  app.get<{
-    Params: {
-      id: string;
-    };
-  }>("/api/v1/clip/:id", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-    const clip = await getClip(request.params.id);
-    if (!clip) {
-      return reply.status(404).send({
-        error: ERR_CLIP_NOT_FOUND,
-      });
-    }
-    return clip;
-  });
-
-  app.delete<{
-    Params: {
-      id: string;
-    };
-  }>("/api/v1/clip/:id", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-    const result = await deleteClip(request.params.id);
-    if (result === "notfound") {
-      return reply.status(404).send({
-        error: ERR_CLIP_NOT_FOUND,
-      });
-    }
-    return reply.status(204).send();
-  });
-
-  app.get<{
-    Params: {
-      id: string;
-    };
-  }>(
-    "/api/v1/batch/:id",
-    {
-      logLevel: "warn",
-    },
-    async (request, reply) => {
-      const batch = getBatchJob(request.params.id);
-      if (!batch) {
-        return reply.status(404).send({
-          error: ERR_BATCH_NOT_FOUND,
-        });
-      }
-      return batch;
-    },
-  );
-
-  app.get<{
-    Params: {
-      id: string;
-    };
-  }>(
-    "/api/v1/jobs/:id",
-    {
-      logLevel: "warn",
-    },
-    async (request, reply) => {
-      const job = getJob(request.params.id);
-      if (!job) {
-        return reply.status(404).send({
-          error: ERR_JOB_NOT_FOUND,
-        });
-      }
-      return job;
-    },
-  );
-
-  app.get("/health", async () => {
-    return {
-      status: "ok",
-    };
-  });
-
-  if (process.env.NODE_ENV !== "production") {
-    app.post("/dev/clear-snap-mind", async (_request, reply) => {
-      try {
-        const cleared = await clearSnapMindVault();
-        return {
-          success: true,
-          ...cleared,
-        };
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        return reply.status(500).send({
-          success: false,
-          error: message,
-        });
-      }
-    });
-
-    app.get("/dev", async (_request, reply) => {
-      const html = await readFile(
-        join(import.meta.dirname, "dev-upload.html"),
-        "utf-8",
-      );
-      return reply.type("text/html").send(html);
-    });
-  }
-}
-
-function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
+export function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
   const concurrency = config.processing.maxConcurrentPipelines;
   let cursor = 0;
 
@@ -456,7 +70,7 @@ function runBatch(batchId: string, jobIds: string[], buffers: Buffer[]) {
   }
 }
 
-async function handleClip(
+export async function handleClip(
   jobId: string,
   clipId: string,
   imageBuffer: Buffer,
@@ -716,7 +330,7 @@ async function handleClip(
   jobDone(jobId, result);
 }
 
-async function handleFailure(
+export async function handleFailure(
   clipId: string,
   imageBuffer: Buffer,
 ): Promise<ClipResponse> {
@@ -778,7 +392,7 @@ async function handleFailure(
   };
 }
 
-function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+export function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   return new Promise((resolve, reject) => {
     const timer = setTimeout(
       () => reject(new Error(`Processing timed out after ${ms}ms`)),
@@ -788,7 +402,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
   });
 }
 
-async function timed<T>(
+export async function timed<T>(
   key: string,
   timings: Record<string, number>,
   fn: () => Promise<T>,

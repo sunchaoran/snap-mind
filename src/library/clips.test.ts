@@ -5,7 +5,7 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { config } from "@/config.js";
 import { isSafeClipId } from "@/library/clips.js";
-import { registerRoutes } from "@/server/routes.js";
+import { registerRoutes } from "@/server/routes/index.js";
 import type {
   ClipRecord,
   ClipRecordWire,
