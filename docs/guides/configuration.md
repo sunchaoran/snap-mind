@@ -1,8 +1,8 @@
-# Configuration Guide
+# 配置指南
 
 所有可配置项集中在 `src/config.ts`，敏感信息通过环境变量注入。
 
-## Environment Variables
+## 环境变量
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
@@ -25,7 +25,7 @@
 | `SEARCH_PROVIDER` | No | `google` | 搜索引擎提供商 (`google` \| `bing`) |
 | `GOOGLE_CX` | No | — | Google Custom Search Engine ID |
 
-## Configuration Schema
+## 配置 Schema
 
 ```typescript
 import { homedir } from "node:os";
@@ -107,37 +107,37 @@ export const config = {
 } as const;
 ```
 
-## .env Example
+## .env 示例
 
 ```bash
-# Required
+# 必填
 OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxx
-# Optional: override the default iCloud Drive Obsidian vault path
+# 可选：覆盖默认的 iCloud Drive Obsidian vault 路径
 OBSIDIAN_VAULT_PATH=/Users/chaoran/Library/Mobile Documents/com~apple~CloudDocs/Obsidian
-# Optional: screenshot display width in generated notes
+# 可选：生成的笔记里截图的显示宽度
 OBSIDIAN_SCREENSHOT_WIDTH=360
 API_KEY=sk-snapmind-xxxxxxxxxxxx
 # JWT_SECRET 仅 SnapMind Cloud 用，self-host 不必设
 
-# Optional: LLM models
+# 可选：LLM 模型
 VLM_MODELS=moonshotai/kimi-k2.5
 PROCESSOR_MODEL=moonshotai/kimi-k2.5
 VLM_ESCALATION_THRESHOLD=0.8
 
-# Optional: Server
+# 可选：服务端口与监听地址
 PORT=3210
 HOST=0.0.0.0
 
-# Optional: opencli & Chrome
+# 可选：opencli & Chrome
 OPENCLI_PATH=opencli
 CDP_URL=http://localhost:9222
 
-# Optional: Fetch control
+# 可选：抓取控制
 MAX_FETCH_LEVEL=4
 MAX_BATCH_SIZE=20
 MAX_CONCURRENT_PIPELINES=5
 
-# Optional: Search engine (L3 fallback)
+# 可选：搜索引擎（L3 兜底）
 SEARCH_PROVIDER=google
 SEARCH_API_KEY=AIzaSyxxxxxxxxxxxx
 GOOGLE_CX=xxxxxxxxxxxx

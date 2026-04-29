@@ -1,4 +1,4 @@
-# System Architecture Overview
+# 系统架构总览
 
 > 当前文档侧重 **写入 pipeline 的实现**。读 / 删 API、模块边界、产品策略（self-host / Cloud）、wire format 契约等请看权威设计文档：[api-v2-design.md](./api-v2-design.md)。
 

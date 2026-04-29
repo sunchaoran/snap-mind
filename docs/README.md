@@ -1,21 +1,21 @@
-# SnapMind - Engineering Documentation
+# SnapMind 工程文档
 
 > 截图即收藏：从截图到结构化知识库的自动化管道。
 
 > **🚧 Active redesign**: V1 设计在 [api-v2-design.md](./architecture/api-v2-design.md)。其它文档正在跟进同步——发现冲突时以设计文档为准。
 
-## Quick Navigation
+## 快速导航
 
-| Section | Description |
+| 章节 | 说明 |
 |---------|-------------|
-| [V1 Design](./architecture/api-v2-design.md) | **权威设计文档**——产品策略、API 契约、模块边界、部署模式 |
-| [Architecture](./architecture/) | 系统架构、数据模型、技术选型 |
-| [Modules](./modules/) | 各模块详细设计规范 |
+| [V1 设计](./architecture/api-v2-design.md) | **权威设计文档**——产品策略、API 契约、模块边界、部署模式 |
+| [架构](./architecture/) | 系统架构、数据模型、技术选型 |
+| [模块](./modules/) | 各模块详细设计规范 |
 | [API](./api/) | HTTP API 接口契约（V1 公开稳定） |
-| [Guides](./guides/) | 配置、开发环境搭建、部署指南 |
-| [Roadmap](./roadmap.md) | V1 / V2 / V3 路线图 |
+| [指南](./guides/) | 配置、开发环境搭建、部署指南 |
+| [路线图](./roadmap.md) | V1 / V2 / V3 路线图 |
 
-## Architecture Overview
+## 架构总览
 
 ```
 ┌─ 这个 repo (open source backend, AGPL-3.0) ────────┐
@@ -49,7 +49,7 @@
 
 完整设计、模块边界、wire format 契约、部署模式等详见 [V1 设计文档](./architecture/api-v2-design.md)。
 
-## Module Index
+## 模块索引
 
 | Module | Path | Description |
 |--------|------|-------------|
@@ -63,7 +63,7 @@
 | AuthStrategy | `src/server/auth/` (V1 设计) | API key / JWT 等认证策略接口（V1 只实现 ApiKey） |
 | Pipeline | `src/pipeline/` (V1 设计) | 写入 pipeline 编排（VLM → fetch → process → write）|
 
-## Project Structure
+## 项目结构
 
 ```
 snap-mind/

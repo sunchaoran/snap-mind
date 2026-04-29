@@ -1,8 +1,8 @@
-# Tech Stack
+# 技术栈
 
 > 本文档列**当前实际在用**的依赖与选型。V1 计划新增的（Zod / @fastify/bearer-auth / @fastify/rate-limit / @fastify/swagger / chokidar 等）参见 [api-v2-design.md](./api-v2-design.md)。
 
-## Core Stack
+## 核心栈
 
 | Component | Choice | Rationale |
 |-----------|--------|-----------|
@@ -16,7 +16,7 @@
 | Process Manager | launchd (macOS) | 系统原生，零依赖；Linux 部署用 systemd（V2 计划）|
 | Logging | pino (Fastify built-in) | 结构化 JSON 日志 |
 
-## Build & Dev Tooling
+## 构建与开发工具
 
 | Tool | Purpose |
 |------|---------|
@@ -26,9 +26,9 @@
 | `biome` | Linter + Formatter（替代 ESLint + Prettier） |
 | Env loading | Node 内置 `process.loadEnvFile()`（cascade `.env`、`.env.local`、`.env.${NODE_ENV}` 等，无需 dotenv） |
 
-## LLM Models
+## LLM 模型
 
-### VLM Analysis (Configurable N-Model Voting)
+### VLM 分析（可配置 N 模型投票）
 
 模型数量可配置，必须为奇数。通过环境变量 `VLM_MODELS`（逗号分隔）配置。
 
@@ -41,15 +41,15 @@
 
 > 通过环境变量 `VLM_MODELS` 调整模型列表。例：`VLM_MODELS=google/gemini-2.5-flash,anthropic/claude-sonnet-4-20250514,openai/gpt-4o`
 
-### Content Processing
+### 内容处理
 
 | Provider | Model | Purpose |
 |----------|-------|---------|
 | Moonshot | kimi-k2.5 | 摘要/标签/分类（默认，可通过 `PROCESSOR_MODEL` 环境变量覆盖） |
 
-## Dependencies
+## 依赖
 
-### NPM Packages
+### npm 包
 
 ```json
 {
@@ -81,7 +81,7 @@
 }
 ```
 
-### System Dependencies (macOS self-host)
+### 系统依赖（macOS self-host）
 
 - Node.js >= 24
 - pnpm

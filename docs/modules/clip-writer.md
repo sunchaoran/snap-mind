@@ -1,14 +1,14 @@
-# Module: ClipWriter
+# 模块：ClipWriter
 
 > Write driver 抽象层，第一版实现 MarkdownWriter。
 
-## Source Files
+## 源文件
 
 - `src/writer/interface.ts` — ClipWriter 接口定义
 - `src/writer/markdown.ts` — MarkdownWriter 实现
 - `src/writer/template.ts` — Markdown 模板渲染 + 内容格式化
 
-## Interface
+## 接口
 
 ```typescript
 interface ClipWriter {
@@ -27,9 +27,9 @@ interface ClipWriter {
 }
 ```
 
-## MarkdownWriter Implementation
+## MarkdownWriter 实现
 
-### Vault Directory Structure
+### Vault 目录结构
 
 ```
 {VAULT_PATH}/
@@ -43,14 +43,14 @@ interface ClipWriter {
       clip_20260402_143000_V1StGX.json           # rawVlmResult sidecar
 ```
 
-### File Naming
+### 文件命名
 
 Format: `{yyyy-MM-dd}_{platform}_{title_slug}.md`
 
 - `title_slug`: 由 `src/utils/slug.ts` 的 `generateSlug()` 生成。保留 CJK 字符与可读性，仅去除文件系统/Obsidian 不安全字符（`/ \ : * ? " < > | # ^ [ ]`）；默认截取前 80 字符
 - 文件名冲突时追加 `-2`、`-3`
 
-### Markdown Template (Normal)
+### Markdown 模板（正常）
 
 ```markdown
 ---
@@ -84,7 +84,7 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 ![[assets/clip_20260402_143000_V1StGX.png|360]]
 ```
 
-### Markdown Template (fetchLevel=4, No Original)
+### Markdown 模板（fetchLevel=4，无原文）
 
 ```markdown
 ---
@@ -116,13 +116,13 @@ Rust 的异步编程模型基于 Future trait 和 async/await 语法...
 - 在 bullet points（•, ·）前插入换行
 - 去除尾部的 hashtag 块（如 `#AI助手 #Mac ...`）
 
-### Dataview Index Page (_index.md)
+### Dataview 索引页（_index.md）
 
 自动生成，包含三个 Dataview 查询：最近收藏、按平台统计、待补充原文。
 
 仅在 `_index.md` 不存在时创建（不会覆盖已有文件）。
 
-## Deduplication
+## 去重
 
 `findSimilarClip` 方法扫描 snap-mind 目录下已有 md 文件的 frontmatter，比对 `platform + author + title`。
 

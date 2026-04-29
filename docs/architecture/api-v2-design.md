@@ -1,110 +1,120 @@
-# SnapMind V1 Design
+# SnapMind V1 设计
 
-> **Status**: Draft, in progress on `feat/api-redesign-multi-client`. Authoritative once merged to `develop`.
+> **状态**：草稿，在 `feat/api-redesign-multi-client` 分支演进中。merge 进 `develop` 后转为权威。
 >
-> **Audience**: Backend implementers, app developers (Mac / iOS), future Cloud team.
+> **读者**：backend 实现者、apps 开发者（macOS / iOS）、未来的 Cloud 团队。
 >
-> **Scope**: Defines the V1 backend architecture, the public HTTP wire format clients depend on, and the deployment paths the project supports. Does **not** specify app UX, app architecture, or future Cloud internals.
+> **范围**：定义 V1 backend 架构、客户端依赖的公开 HTTP wire format、项目支持的部署形态。**不**涉及 app UX、app 架构、或未来 Cloud 内部实现。
 
-## 1. Product Strategy
+## 1. 产品策略
 
-SnapMind ships as **open core + closed apps + future managed Cloud**:
+SnapMind 走 **open core + 闭源 apps + 未来托管 Cloud** 路线：
 
 ```
 ┌─ open source backend ────────────────┐
-│  • V1: 你 self-host on Mac mini       │
-│  • V2: 其他 self-hosters (Mac / Docker / NAS)│
-└─ ↑ same HTTP API contract ───────────┘
+│  • V1: 你 self-host 在 Mac mini       │
+│  • V2: 其他 self-hosters (Mac/Docker/NAS) │
+└─ ↑ 同一份 HTTP API 契约 ──────────────┘
    ↓
 ┌─ closed source apps ─────────────────┐
-│  iOS + macOS, App Store distribution  │
-│  Onboarding 二选一: self-host / cloud │
-└─ ↓ same HTTP API contract ───────────┘
+│  iOS + macOS, App Store 分发          │
+│  Onboarding 二选一: self-host / Cloud │
+└─ ↓ 同一份 HTTP API 契约 ──────────────┘
    ↑
-┌─ Cloud (V3, hosted by us) ───────────┐
-│  Multi-tenant, account auth           │
+┌─ Cloud (V3, 由我们托管) ──────────────┐
+│  Multi-tenant，账户认证                │
 └──────────────────────────────────────┘
 ```
 
-| Layer | Repo | License | Distribution |
+| 层 | 仓库 | License | 分发 |
 |---|---|---|---|
-| Backend | `snap-mind` | AGPL-3.0 | Source on GitHub; future: Docker image, macOS .app installer |
-| Apple apps | `snap-mind-apple` | Closed | App Store (eventually) |
-| Cloud | `snap-mind-cloud` | Closed | Hosted service (V3) |
+| Backend | `snap-mind` | AGPL-3.0 | GitHub 源码；后续：Docker image、macOS .app installer |
+| Apple apps | `snap-mind-apple` | 闭源 | App Store（最终目标）|
+| Cloud | `snap-mind-cloud` | 闭源 | 托管服务（V3）|
 
-The closed-source apps talk to either a self-hosted backend OR Cloud through **the same wire format**. This is the central design constraint that drives everything below.
+闭源 apps 既能连 self-hosted backend、也能连 Cloud，**走同一份 wire format**。这是 V1 设计的核心约束。
 
-### Audience
+### 受众
 
-| Audience | What they need | Priority |
+| 受众 | 需要什么 | 优先级 |
 |---|---|---|
-| You (V1) | Backend works on your Mac mini, simple install | P0 |
-| Other self-hosters (V2+) | Docker image, clear setup docs, vault path config | P1 |
-| App developers (your own work, V1+) | Stable wire format, OpenAPI spec, error codes | P0 |
-| Cloud users (V3) | Account auth, quota, billing | P3 |
+| 你（V1） | backend 在 Mac mini 跑得稳、安装简单 | P0 |
+| 其他 self-hosters（V2+） | Docker image、清晰的部署文档、vault path 配置 | P1 |
+| Apps 开发者（你自己，V1+） | 稳定的 wire format、OpenAPI spec、错误码 | P0 |
+| OpenClaw 等 chat-style 集成（V1+） | sticky session API、CLI 工具入口 | P2（接口保留，不催实现） |
+| Cloud 用户（V3） | 账户认证、配额、计费 | P3 |
 
-V1 ships only what P0 needs but **does not preclude** any P1+ requirement.
+V1 只交付 P0 需要的，但**不阻断**任何 P1+ 的需求。
 
-## 2. Repository & Licensing
+## 2. 仓库与许可
 
-### Layout
+### 仓库结构
 
-- `snap-mind` (this repo) — backend + skill + CLI, open source AGPL-3.0
+- `snap-mind`（本仓库）— backend + skill + CLI，AGPL-3.0 开源
   - `src/` — TypeScript backend
-  - `cli/snap-mind-cli/` — small CLI used by OpenClaw skill
-  - `skills/` — OpenClaw / similar skill definitions
-  - `docs/` — public design + API + deployment docs
-- `snap-mind-apple` (separate, private) — iOS + macOS clients, SwiftPM workspace
-- `snap-mind-cloud` (separate, private, V3) — Cloud-specific code
+  - `cli/snap-mind-cli/` — OpenClaw skill 调用的小 CLI（接口保留，V1 不催实现）
+  - `skills/` — OpenClaw 等 skill 定义
+  - `docs/` — 公开的设计 + API + 部署文档
+- `snap-mind-apple`（独立私有仓）— iOS + macOS 客户端，SwiftPM workspace
+- `snap-mind-cloud`（独立私有仓，V3）— Cloud 专用代码
 
-### Why AGPL-3.0
+### 为什么选 AGPL-3.0
 
-Self-hosters can use freely. Anyone modifying and offering as a service must open-source their changes. Protects future Cloud business from being trivially re-hosted by a third party (AWS, China cloud vendors, etc.) while still being a real open-source license recognized by OSI / FSF.
+Self-hosters 自由使用。任何人修改后**作为服务对外提供**必须开源他们的修改。这保护了未来 Cloud 业务不被第三方（AWS、国内云厂等）轻易托管搬走，同时仍是 OSI / FSF 认可的真正开源 license。
 
-Alternatives considered: MIT (no protection), BSL (not OSI-approved, smaller community).
+考虑过的替代：MIT（无保护）、BSL（非 OSI 认可、社区接受度低）。
 
-### Wire format ownership
+### Wire format 归属
 
-The OpenAPI spec lives in this repo at `docs/api/openapi.yaml` (generated from Fastify routes via `@fastify/swagger`). Apps repo consumes it via codegen. **Backend is the source of truth** for the contract.
+OpenAPI spec 放在本仓 `docs/api/openapi.yaml`（由 `@fastify/swagger` 从 Fastify 路由自动生成）。Apps 仓通过 codegen 消费。**Backend 是契约的 source of truth**。
 
-## 3. Wire Format (the public contract)
+## 3. Wire Format（公开契约）
 
-### Versioning
+### 版本前缀
 
-- All resource paths under **`/api/v1/`** from V1 onwards. Non-prefixed paths from V0 are removed (no back-compat — V1 is the first stable shape).
-- Version bump rule: **breaking changes** require `/api/v2/` and a deprecation period for `/api/v1/`. Adding optional fields to existing responses is **not** breaking.
-- `/health` and `/api/docs` (Swagger UI) sit outside `/api/v1/` because they're not part of the contract.
+- 所有资源路径自 V1 起统一在 **`/api/v1/`** 下。项目尚未发布，无遗留路径需要兼容。
+- 版本升级规则：**breaking change** 走 `/api/v2/`，并对 `/api/v1/` 保留一段 deprecation period。给已有 response 加可选字段**不是** breaking。
+- `/health` 和 `/api/docs`（Swagger UI）在 `/api/v1/` 之外——它们不是契约的一部分。
 
-### Route Table
+### 路由表
 
 ```
 # Auth + meta
-GET  /health                                  no auth — liveness
-GET  /api/docs                                no auth — Swagger UI
-GET  /api/v1/whoami                           returns auth context (debug aid)
+GET  /health                                  无需 auth — 存活探测
+GET  /api/docs                                无需 auth — Swagger UI
+GET  /api/v1/whoami                           返回当前 auth context（debug 辅助）
 
-# Clip write
-POST /api/v1/clip                             single screenshot → jobId
-POST /api/v1/clip/batch                       up to 20 screenshots → batchId + jobIds
-POST /api/v1/clip/sticky?sessionId=...        debounced batch (chat-style channels)
-GET  /api/v1/clip/sticky/:sessionId           sticky session snapshot
+# Clip 写入
+POST /api/v1/clip                             单张截图 → jobId
+POST /api/v1/clip/batch                       最多 20 张 → batchId + jobIds
+POST /api/v1/clip/sticky?sessionId=...        debounced batch（chat-style channels）
+GET  /api/v1/clip/sticky/:sessionId           sticky session 快照
 
-# Async progress
-GET  /api/v1/jobs/:id                         job snapshot (poll)
-GET  /api/v1/jobs/:id/events                  SSE stream of job progress
-GET  /api/v1/batch/:id                        batch snapshot (poll)
-GET  /api/v1/batch/:id/events                 SSE stream of batch progress
+# 异步进度
+GET  /api/v1/jobs/:id                         job 快照（polling）
+GET  /api/v1/jobs/:id/events                  job 进度 SSE 流
+GET  /api/v1/batch/:id                        batch 快照（polling）
+GET  /api/v1/batch/:id/events                 batch 进度 SSE 流
 
-# Clip read / detail / delete
-GET  /api/v1/clip                             list (ClipRecordWire[], no contentFull)
-GET  /api/v1/clip/:id                         detail (ClipRecordWireFull, contentFull)
-DELETE /api/v1/clip/:id                       hard delete
-GET  /api/v1/clip/:id/image                   stream screenshot bytes (with optional ?w=)
+# Clip 读取 / 详情 / 删除
+GET  /api/v1/clip                             list（ClipRecordWire[]，不含 contentFull）
+GET  /api/v1/clip/:id                         detail（ClipRecordWireFull，含 contentFull）
+DELETE /api/v1/clip/:id                       硬删除
+GET  /api/v1/clip/:id/image                   截图字节流（可选 ?w=）
 ```
 
-### Wire Types
+仅在 dev 环境额外注册的 endpoint（不属于 wire format 契约）：
 
-The TypeScript types in `src/types/index.ts` are the source. Two key types:
+```
+GET  /dev                                     上传调试页面（NODE_ENV !== production）
+POST /dev/clear-snap-mind                     清空 vault 测试数据
+```
+
+这两个仅供 backend 开发自测，不暴露给 apps。
+
+### Wire 类型
+
+TypeScript 类型放在 `src/types/wire.ts`，是 source of truth。两个核心类型：
 
 ```typescript
 interface ClipRecordWire {
@@ -129,13 +139,13 @@ interface ClipRecordWireFull extends ClipRecordWire {
 }
 ```
 
-`ClipRecordWire` ships in `GET /api/v1/clip` (list). `ClipRecordWireFull` ships in `GET /api/v1/clip/:id` (detail).
+`ClipRecordWire` 走 `GET /api/v1/clip`（list）。`ClipRecordWireFull` 走 `GET /api/v1/clip/:id`（detail）。
 
-`rawVlmResult` is **never** exposed via wire format — it's debug metadata, available only as the `<assets>/<id>.json` sidecar inside the vault.
+`rawVlmResult` **永远不**通过 wire format 暴露——它是 debug 元数据，仅在 vault 内的 `<assets>/<id>.json` sidecar 文件里。
 
-### Error Envelope (uniform)
+### 统一错误信封
 
-All non-2xx responses use this shape:
+所有非 2xx response 用同一个 shape：
 
 ```json
 {
@@ -147,125 +157,122 @@ All non-2xx responses use this shape:
 }
 ```
 
-| `code` (snake_case) | HTTP status | Meaning |
+| `code`（snake_case） | HTTP status | 含义 |
 |---|---|---|
-| `unauthorized` | 401 | Missing or invalid Bearer token |
-| `forbidden` | 403 | Authenticated but lacks permission (placeholder for V2) |
-| `clip_not_found` | 404 | id doesn't exist; also returned for malformed id (avoid leaking validation logic) |
-| `job_not_found` | 404 | jobId expired or never existed |
-| `batch_not_found` | 404 | batchId expired or never existed |
-| `sticky_session_not_found` | 404 | sessionId expired or never existed |
-| `missing_image` | 400 | multipart upload missing image field |
-| `no_images` | 400 | batch upload had zero images |
-| `too_many_images` | 400 | batch exceeded MAX_BATCH_SIZE |
-| `missing_session_id` | 400 | sticky upload without sessionId |
-| `sticky_wrong_state` | 409 | sticky session moved past `buffering` |
-| `sticky_batch_full` | 400 | sticky session reached MAX_BATCH_SIZE |
-| `rate_limited` | 429 | rate limit exceeded |
-| `internal_error` | 500 | unhandled — should not happen in steady state |
+| `unauthorized` | 401 | 缺失或无效的 Bearer token |
+| `forbidden` | 403 | 已认证但无权限（V2 占位）|
+| `clip_not_found` | 404 | id 不存在；非法 id 也返这个（避免泄漏校验细节）|
+| `job_not_found` | 404 | jobId 已过期或从未存在 |
+| `batch_not_found` | 404 | batchId 已过期或从未存在 |
+| `sticky_session_not_found` | 404 | sessionId 已过期或从未存在 |
+| `missing_image` | 400 | multipart 缺 image 字段 |
+| `no_images` | 400 | batch 上传零张图 |
+| `too_many_images` | 400 | batch 超过 MAX_BATCH_SIZE |
+| `missing_session_id` | 400 | sticky 上传缺 sessionId |
+| `sticky_wrong_state` | 409 | sticky session 已离开 `buffering` 阶段 |
+| `sticky_batch_full` | 400 | sticky session 已达 MAX_BATCH_SIZE |
+| `rate_limited` | 429 | 超过限流 |
+| `internal_error` | 500 | 兜底——稳态下不应出现 |
 
-**Stability**: codes are STABLE — clients branch on `error.code`. Messages may change for clarity; codes do not.
+**稳定性**：`code` 是 STABLE 的——客户端按 code 做分支。`message` 可改写以提升清晰度，code 不动。
 
-### Request / Response Headers
+### 请求 / 响应头
 
-| Header | Direction | Use |
+| Header | 方向 | 用途 |
 |---|---|---|
-| `Authorization: Bearer <token>` | client → server | API key (V1) or JWT (V2 Cloud) |
-| `Content-Type: application/json` | both | default |
-| `Content-Type: multipart/form-data` | client → server | screenshot upload |
-| `Content-Type: text/event-stream` | server → client | SSE responses |
-| `Cache-Control: no-store` | server → client | mutating responses |
-| `X-Request-Id: <uuid>` | both | per-request tracing (server generates if absent) |
+| `Authorization: Bearer <token>` | client → server | API key（V1）或 JWT（V3 Cloud）|
+| `Content-Type: application/json` | 双向 | 默认 |
+| `Content-Type: multipart/form-data` | client → server | 截图上传 |
+| `Content-Type: text/event-stream` | server → client | SSE response |
+| `Cache-Control: no-store` | server → client | 写操作 response |
+| `X-Request-Id: <uuid>` | 双向 | per-request 追踪（server 在缺失时生成）|
 
-## 4. Auth Architecture
+## 4. Auth 架构
 
-### Strategy interface
+### Strategy 接口
 
 ```typescript
 interface AuthStrategy {
   authenticate(req: FastifyRequest): Promise<AuthResult>;
 }
 
-interface AuthResult {
-  ok: true;
-  principal: { type: 'user' | 'service'; id: string };
-} | {
-  ok: false;
-  error: AuthError;
-}
+type AuthResult =
+  | { ok: true; principal: { type: 'user' | 'service'; id: string } }
+  | { ok: false; error: AuthError };
 ```
 
-V1 ships **only `ApiKeyStrategy`**. V2 Cloud will add `JwtStrategy`. Same Fastify hook, runtime-selectable strategy.
+V1 **只交付 `ApiKeyStrategy`**。V3 Cloud 加 `JwtStrategy`。同一个 Fastify hook，运行时按部署模式选 strategy。
 
-### V1 ApiKeyStrategy
+### V1 的 ApiKeyStrategy
 
-Single shared API key from `process.env.API_KEY`. Bearer token compared in constant time.
+从 `process.env.API_KEY` 读单个共享 token。Bearer token 用 constant-time 比对。
 
-Future-friendly variants without breaking the API:
-- Multiple keys with labels (service vs user)
+未来不破坏 API 的演进方向：
+
+- 多个 key 带 label（service vs user）
 - Key rotation
 - Per-key rate limit / scope
 
-These are internal extensions; clients always send `Authorization: Bearer <token>`.
+这些是 server 内部扩展；clients 始终发 `Authorization: Bearer <token>`。
 
-### V2 Cloud JwtStrategy (sketch only, not V1 work)
+### V3 Cloud 的 JwtStrategy（仅勾画，非 V1 工作）
 
-Validate JWT signed by Cloud's auth service. Claims include `userId`, `tier`, etc. `principal.type === 'user'` and `principal.id === userId`. Backend uses principal to scope vault path / quota.
+校验由 Cloud auth service 签发的 JWT。Claims 含 `userId`、`tier` 等。`principal.type === 'user'`、`principal.id === userId`。Backend 用 principal 隔离 vault 路径 / 计算配额。
 
-### Dev mode skip
+### Dev 模式跳过
 
-`NODE_ENV !== 'production'` and missing `Authorization` header → ApiKeyStrategy returns ok with `principal: { type: 'service', id: 'dev' }`. Tests opt into strict mode by setting `NODE_ENV=production` (see `vitest.config.ts`).
+`NODE_ENV !== 'production'` 且无 `Authorization` header → ApiKeyStrategy 返回 ok，`principal: { type: 'service', id: 'dev' }`。测试通过设 `NODE_ENV=production` 走严格分支（参见 `vitest.config.ts`）。
 
-## 5. Storage / Vault Architecture
+## 5. Storage / Vault 架构
 
-### Vault is just a directory
+### Vault 就是一个目录
 
 ```
 <VAULT_BASE>/
-  <clippingsDir>/                    # default "snap-mind"
-    _index.md                        # Dataview index page (auto-regenerated)
-    YYYY-MM-DD_<platform>_<slug>.md  # one .md per clip
+  <clippingsDir>/                    # 默认 "snap-mind"
+    _index.md                        # Dataview 索引页（自动重生成）
+    YYYY-MM-DD_<platform>_<slug>.md  # 每条 clip 一个 .md
     assets/
-      <clipId>.<ext>                 # screenshot
+      <clipId>.<ext>                 # 截图
       <clipId>.json                  # rawVlmResult sidecar
 ```
 
-The vault is a **filesystem directory**. Backend reads and writes files using standard `fs` APIs. No assumption about the underlying storage:
+Vault 是**文件系统目录**，backend 用标准 `fs` API 读写。对底层存储不做任何假设：
 
-- macOS users: typically points at `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian/`
-- Linux self-hosters: `/data/vault` or wherever they want
-- NAS: SMB / NFS mount
-- Docker: a volume mount
+- macOS 用户：通常指向 `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian/`
+- Linux self-hosters：`/data/vault` 或任何路径
+- NAS：SMB / NFS mount
+- Docker：volume mount
 
-### macOS-iCloud edge cases (deployment, not core)
+### macOS-iCloud 边界条件（部署关切，非核心架构）
 
-These are handled at the parser level but the **rules live in the deployment guide, not core architecture**:
+下面这些在 parser 层处理，但**规则放在部署文档，不放在核心架构**：
 
-- Files marked "online-only" by iCloud: backend opens them on demand. First read may block briefly while iCloud downloads. Acceptable.
-- Conflict files (`foo (Conflict 1).md`, `foo (冲突 1).md`): parser **skips** these and warns. User resolves in Obsidian.
-- Eventual consistency: chokidar watches vault; index invalidated on any change. Other Mac (if user has multi-Mac) writes settle within iCloud's normal sync window.
+- iCloud 标记为 "online-only" 的文件：backend 按需打开，首次读会短暂阻塞等 iCloud 下载。可接受。
+- 冲突文件（`foo (Conflict 1).md`、`foo (冲突 1).md`）：parser **跳过**并 warn，让用户在 Obsidian 里自己合并。
+- 最终一致：chokidar 监听 vault；任何文件变化触发 dedup index 失效。多 Mac 场景下，对端 Mac 的写入在 iCloud 正常同步窗口内可见。
 
-Linux / Docker users encounter none of the above.
+Linux / Docker 用户碰不到上述任何一条。
 
-### No SQLite for V1
+### V1 不上 SQLite
 
-Read path scans the vault each `GET /api/v1/clip` call. Acceptable up to several thousand clips. Past that, swap in a SQLite index without changing the API.
+读路径每次 `GET /api/v1/clip` 都全量扫盘。几千条以内可接受。再大就无脑加 SQLite index，**不改 API**。
 
-The implementation is contained in `src/library/clips.ts` — a single module, not pretending to be polymorphic. When SQLite arrives, this module gets rewritten.
+实现收口在 `src/library/clips.ts` 单文件——不假装 polymorphic。SQLite 真要来时，重写这个文件即可。
 
-## 6. Module Boundaries
+## 6. 模块边界
 
 ```
 src/
-├── index.ts                # bootstrap: Fastify + plugins + routes
-├── config.ts               # env-driven configuration
-├── vault.ts                # shared vault format constants
+├── index.ts                # 入口：Fastify + plugins + routes
+├── config.ts               # env 驱动的配置
+├── vault.ts                # 共享的 vault 格式常量
 ├── server/
 │   ├── plugins/
-│   │   ├── auth.ts         # registers AuthStrategy hook
+│   │   ├── auth.ts         # 注册 AuthStrategy hook
 │   │   ├── rate-limit.ts   # @fastify/rate-limit
 │   │   ├── swagger.ts      # @fastify/swagger + swagger-ui
-│   │   └── error-handler.ts# uniform error envelope
+│   │   └── error-handler.ts# 统一错误信封
 │   ├── routes/
 │   │   ├── clip-write.ts   # POST /clip, /clip/batch
 │   │   ├── clip-sticky.ts  # POST /clip/sticky, GET /clip/sticky/:id
@@ -274,73 +281,73 @@ src/
 │   │   ├── batch.ts        # GET /batch/:id, /batch/:id/events
 │   │   └── meta.ts         # /health, /whoami
 │   ├── auth/
-│   │   ├── strategy.ts     # AuthStrategy interface
-│   │   ├── api-key.ts      # V1 implementation
-│   │   └── (jwt.ts)        # V2 placeholder
-│   ├── errors.ts           # error code constants + envelope helpers
-│   └── job-store.ts        # in-memory Job/Batch/Sticky state (TTL'd)
+│   │   ├── strategy.ts     # AuthStrategy 接口
+│   │   ├── api-key.ts      # V1 实现
+│   │   └── (jwt.ts)        # V3 占位
+│   ├── errors.ts           # 错误码常量 + 信封 helper
+│   └── job-store.ts        # 内存中的 Job/Batch/Sticky 状态（带 TTL）
 ├── pipeline/
-│   ├── index.ts            # handleClip orchestration
+│   ├── index.ts            # handleClip 编排
 │   ├── timing.ts           # step timing helpers
-│   └── failure.ts          # handleFailure (fetchLevel=4 path)
+│   └── failure.ts          # handleFailure（fetchLevel=4 路径）
 ├── library/
-│   └── clips.ts            # vault read/parse/delete (current shape)
+│   └── clips.ts            # vault 读 / 解析 / 删除
 ├── writer/
 │   ├── interface.ts
 │   ├── markdown.ts
 │   └── template.ts
 ├── store/
 │   └── screenshot.ts
-├── fetcher/                # unchanged
-├── processor/              # unchanged
-├── vlm/                    # unchanged
-├── prompts/                # unchanged
-├── utils/                  # unchanged
+├── fetcher/                # 不变
+├── processor/              # 不变
+├── vlm/                    # 不变
+├── prompts/                # 不变
+├── utils/                  # 不变
 └── types/
     ├── wire.ts             # ClipRecordWire, ClipRecordWireFull, ErrorEnvelope, Job, Batch, Sticky
-    └── domain.ts           # ClipRecord (internal), MergedVLMResult, Platform, Category, ContentType
+    └── domain.ts           # ClipRecord（内部）, MergedVLMResult, Platform, Category, ContentType
 ```
 
-### Why this split
+### 为什么这么切
 
-- **`server/` vs `pipeline/`**: HTTP transport is decoupled from business logic. Tests for pipeline don't need Fastify. Cloud version can later move pipeline to a worker.
-- **`library/` vs `writer/`**: Read and write are separate concerns. Same vault format, different operations.
-- **`auth/strategy.ts`**: Future-proofs auth without paying the V2 cost now.
-- **`types/wire.ts` vs `types/domain.ts`**: Public contract types vs internal types. Wire types ship to clients.
+- **`server/` vs `pipeline/`**：HTTP transport 跟业务逻辑解耦。pipeline 的测试不需要 Fastify。Cloud 版本可以把 pipeline 挪到 worker。
+- **`library/` vs `writer/`**：读和写是不同关注点。同一份 vault 格式，操作不同。
+- **`auth/strategy.ts`**：现在不付 V2 成本，但留好接口。
+- **`types/wire.ts` vs `types/domain.ts`**：公开契约 vs 内部类型。Wire types 出口给 clients。
 
-### Plugin order at boot
-
-```
-1. registerErrorHandler  (so all later errors get uniform envelope)
-2. registerRateLimit     (early, before expensive handlers)
-3. registerAuth          (before route registration)
-4. registerSwagger       (introspects all subsequent routes)
-5. registerRoutes        (the API surface)
-```
-
-## 7. Async Pipeline & Real-time Updates
-
-### Job model (write paths)
-
-All three write entrypoints share the same async substrate:
+### 启动时的 plugin 顺序
 
 ```
-POST /api/v1/clip              → 1 jobId
-POST /api/v1/clip/batch        → 1 batchId + N jobIds
-POST /api/v1/clip/sticky       → 1 sessionId, debounce → 1 batchId + N jobIds
+1. registerErrorHandler  （最早，让后续所有错误都走统一信封）
+2. registerRateLimit     （在重 handler 之前）
+3. registerAuth          （在路由注册之前）
+4. registerSwagger       （introspect 之后注册的所有路由）
+5. registerRoutes        （API 表面）
 ```
 
-A **Job** is one screenshot's pipeline run (~7 steps). A **Batch** groups N Jobs. A **Sticky session** groups uploads with debounce, then resolves to a Batch.
+## 7. 异步 pipeline 与实时进度
+
+### Job 模型（写路径）
+
+三个写入入口共享同一份异步底座：
+
+```
+POST /api/v1/clip              → 1 个 jobId
+POST /api/v1/clip/batch        → 1 个 batchId + N 个 jobIds
+POST /api/v1/clip/sticky       → 1 个 sessionId，debounce 后 → 1 个 batchId + N 个 jobIds
+```
+
+**Job** 是一张截图的 pipeline 跑（约 7 步）。**Batch** 把 N 个 Job 聚合。**Sticky session** 把多次上传按 debounce 合并，最终落到一个 Batch。
 
 ### Polling vs SSE
 
-**Both supported**. SSE is preferred for long pipelines (≥10s); polling is the fallback.
+**两者都支持**。pipeline 长（≥10s）时优先 SSE；polling 是 fallback。
 
 ```
-# Polling (works always)
-GET /api/v1/jobs/:id           → snapshot
+# Polling（永远可用）
+GET /api/v1/jobs/:id           → 快照
 
-# SSE (open one connection, get every step)
+# SSE（开一条长连接、推每一步）
 GET /api/v1/jobs/:id/events    → text/event-stream
                                  event: step
                                  data: {"step":2,"status":"running","message":"..."}
@@ -349,52 +356,54 @@ GET /api/v1/jobs/:id/events    → text/event-stream
                                  data: {"result":{...}}
 ```
 
-Same shape applies to batches.
+batch 用一样的形式。
 
-### State persistence: none in V1
+### V1 状态不持久化
 
-Job / Batch / Sticky state lives in process memory with 30-min TTL. Restart loses in-flight jobs.
+Job / Batch / Sticky 状态在进程内存里，30 分钟 TTL。重启丢失在飞 Job。
 
-This is acceptable for V1 because:
-- Single-Mac deployment
-- LaunchAgent restarts are rare
-- Mac sleep doesn't kill the process; only OS updates do
-- Lost pipeline = client retries the upload
+V1 接受这个的理由：
 
-V2+ may add SQLite-backed job persistence if it becomes painful. The `JobStore` module already encapsulates the storage.
+- 单 Mac 部署
+- LaunchAgent 重启不频繁
+- Mac 睡眠不会杀进程；只有系统更新会
+- 丢一个 pipeline = 客户端重传一次
 
-## 8. Deployment Modes
+V2+ 如果痛了再加 SQLite-backed job 持久化。`JobStore` 模块已经把存储封装好。
 
-### Mode 1: Personal self-host on Mac mini (V1, you)
+## 8. 部署形态
+
+### Mode 1：你自己在 Mac mini 上 self-host（V1）
 
 ```bash
 git clone https://github.com/<you>/snap-mind
 cd snap-mind
 pnpm install
-cp .env.example .env  # set API_KEY, OPENROUTER_API_KEY, OBSIDIAN_VAULT_PATH
+cp .env.example .env  # 填 API_KEY、OPENROUTER_API_KEY、OBSIDIAN_VAULT_PATH
 pnpm build
 
-# Install as LaunchAgent (auto-start, KeepAlive)
+# 装成 LaunchAgent（自启 + KeepAlive）
 ./scripts/install-launchd.sh
 
-# Verify
+# 验证
 curl http://localhost:3210/health
 ```
 
-The `install-launchd.sh` script writes `~/Library/LaunchAgents/dev.snap-mind.server.plist` and `launchctl load`s it.
+`install-launchd.sh` 写 `~/Library/LaunchAgents/dev.snap-mind.server.plist` 然后 `launchctl load`。
 
-Other devices reach the backend via Tailscale: `https://<mac-name>.<tailnet>.ts.net:3210` (Tailscale Serve handles TLS).
+其它设备通过 Tailscale 访问：`https://<mac-name>.<tailnet>.ts.net:3210`（Tailscale Serve 处理 TLS）。
 
-### Mode 2: Mac users via .app installer (V2)
+### Mode 2：Mac 用户通过 .app installer（V2）
 
-A macOS .app bundle:
-- Ships `snap-mind-server` binary (Node SEA or Bun --compile)
-- Onboarding: collect API key, vault path, OpenRouter token, set up LaunchAgent
-- Self-update mechanism (Sparkle or similar)
+一个 macOS .app bundle：
 
-Out of scope for V1; the install-launchd.sh script is the bridge until then.
+- 内嵌 `snap-mind-server` binary（Node SEA 或 Bun --compile）
+- Onboarding 收集 API key、vault path、OpenRouter token，写 LaunchAgent
+- 自更新机制（Sparkle 或类似）
 
-### Mode 3: Linux / Docker self-host (V2)
+V1 不做；`install-launchd.sh` 是过渡。
+
+### Mode 3：Linux / Docker self-host（V2）
 
 ```yaml
 # docker-compose.yml
@@ -410,40 +419,43 @@ services:
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
 ```
 
-For V1, write the Dockerfile but don't publish the image. Documenting the path makes future contributors' lives easier.
+V1 写好 Dockerfile 但不 publish image。文档里留这条路给将来贡献者。
 
-Notes for non-macOS deployment:
-- No iCloud edge cases
-- Playwright (L2 fetch) needs Chromium installed in the image — adds ~300MB
-- chokidar works fine on Linux (uses inotify)
+非 macOS 部署需要注意：
 
-### Mode 4: SnapMind Cloud (V3)
+- 没有 iCloud 边界条件
+- Playwright（L2 fetch）需要 image 里装 Chromium（约 +300MB）
+- chokidar 在 Linux 用 inotify，工作正常
 
-Deferred. Outline only:
-- Multi-tenant deployment of the same backend code
-- Auth: JWT + user accounts (separate auth service)
-- Storage: per-user S3 bucket OR shared bucket with prefix isolation
-- No iCloud / Obsidian integration (Cloud users edit through the apps directly)
-- Different product, same wire format
+### Mode 4：SnapMind Cloud（V3）
 
-## 9. Cross-cutting concerns
+延后。仅勾画：
 
-### Network exposure
+- 同一份 backend 代码的多租户部署
+- Auth：JWT + 账户系统（独立的 auth service）
+- 存储：每用户单独 S3 bucket，或共享 bucket + prefix 隔离
+- 没有 iCloud / Obsidian 集成（Cloud 用户直接通过 apps 编辑）
+- 不同的产品形态，但 wire format 共用
 
-**Default**: bind to `127.0.0.1` and `100.x.y.z` (Tailscale interface). **Never** to `0.0.0.0` unless explicitly opted in via env var (with a startup warning).
+## 9. 横切关切
 
-This is the primary defense against public scanners. Rate limiting is layer-2.
+### 网络暴露
+
+**默认**绑 `127.0.0.1` + `100.x.y.z`（Tailscale 接口）。**绝不**绑 `0.0.0.0`，除非通过 env var 显式 opt-in（启动时打 warning）。
+
+这是防公网扫描的第一道防线，rate limit 是第二道。
 
 ### Rate limiting
 
-`@fastify/rate-limit`:
-- Authenticated routes: 120 req/min/IP (generous; legit clients won't hit this)
-- Unauthenticated requests: 10 req/min/IP (kills brute-force / scanner traffic)
-- 429 response uses the standard error envelope
+`@fastify/rate-limit`：
 
-### Logging
+- 已认证路由：120 req/min/IP（很宽，正经客户端打不到）
+- 未认证请求：10 req/min/IP（卡爆破和扫描器流量）
+- 429 response 走统一错误信封
 
-`pino` with redaction:
+### 日志
+
+`pino` + redaction：
 
 ```typescript
 {
@@ -454,64 +466,60 @@ This is the primary defense against public scanners. Rate limiting is layer-2.
 }
 ```
 
-Each request gets `X-Request-Id`. Errors logged at `error` level include the request id; clients can quote it when reporting issues.
+每个请求带 `X-Request-Id`。`error` 级别的 log 带 request id，client 报问题时引用。
 
-### CORS, Helmet, etc.
+### CORS、Helmet 等
 
-**Not needed in V1** (Tailscale-only access, single-origin clients, no browser environment).
+**V1 不需要**（Tailscale-only 访问、单一来源 client、无浏览器环境）。
 
-Reserved for V2:
-- CORS: needed if a web client (someone else's, not yours) is built against the API
-- Helmet: needed if any browser-served content shows up
+延后到 V2+：
+
+- CORS：仅在出现"由你之外的人"用浏览器写客户端时考虑
+- Helmet：仅在出现需要由 backend 输出浏览器内容时考虑
+
+`/dev` 上传页面是 backend 自身调试用，不构成对外的 web 客户端，不需要为它加 CORS。
 
 ### Observability
 
-V1 ships pino logs and that's it. No metrics, no tracing, no Sentry. Single user, you read your own logs.
+V1 只发 pino logs，不接 metrics、tracing、Sentry。单用户，自己看自己的日志。
 
-## 10. Open decisions
+## 10. 待确认决策
 
-These are not blockers but should be confirmed before implementation finalizes:
+下面这些不阻断开工，但实施定型前要 confirm：
 
-| Decision | Default | Status |
+| 决策 | 默认值 | 状态 |
 |---|---|---|
-| Tailscale used for cross-device access | Yes | Pending your confirmation |
-| Backend listens on Tailscale + 127.0.0.1 only | Yes | Implied by Tailscale decision |
-| LaunchAgent for production process management | Yes | Confirmed |
-| OpenAPI / Swagger UI exposed | Yes | Confirmed |
-| SSE for job progress | Yes | Confirmed |
-| mDNS / Bonjour for app auto-discovery | No (V1+) | Nice-to-have |
-| Docker image published | Not in V1 | Documented for V2 |
+| Tailscale 用于跨设备访问 | 是 | 等你确认 |
+| Backend 仅监听 Tailscale + 127.0.0.1 | 是 | 由 Tailscale 决策推导 |
+| 用 LaunchAgent 做 production 进程管理 | 是 | 已确认 |
+| 暴露 OpenAPI / Swagger UI | 是 | 已确认 |
+| Job 进度用 SSE | 是 | 已确认 |
+| mDNS / Bonjour 让 app 自动发现 backend | 否（V1+ 加分项）| 锦上添花 |
+| 发布 Docker image | V1 不发布 | V2 文档化 |
 
-## 11. Migration from current code
+## 11. V1 实现 backlog
 
-Current state (post-merge of `feature/openclaw-skill`):
+V1 是从零搭，不做 V0 → V1 的兼容迁移。下面是把工作切成可独立 land 的 feature 分支顺序：
 
-- All routes at `/clip`, `/clip/sticky`, `/jobs/:id`, etc.
-- Error shapes inconsistent (some `{ error }`, some `{ success: false, error }`, sticky has `{ error, code }`)
-- Auth inline in each handler
-- No SSE, no rate limit
-- Routes file is ~700 lines
-- Wire format types in single `types/index.ts`
+1. **`feat/api-v1-prefix`** — 全部路由加 `/api/v1/` 前缀。直接重写，无兼容 shim。仓内现有的 OpenClaw skill / CLI 跟着同步改即可（接口保留，本身不重写）。
+2. **`feat/auth-strategy`** — 把内联 auth 重构为 `AuthStrategy` + Fastify hook。`ApiKeyStrategy` 是唯一实现。
+3. **`feat/error-envelope`** — 全部 response 走统一 `{ error: { code, message } }`；替换现有不一致的错误形态；同步更新测试。
+4. **`feat/route-split`** — 把 `routes.ts` 切到 `server/routes/clip-write.ts` 等多文件。纯 refactor，无行为变化。
+5. **`feat/pipeline-extract`** — 把 pipeline 编排从 `routes.ts` 抽到 `pipeline/`。纯 refactor。
+6. **`feat/types-split`** — 拆 `types/wire.ts`（公开）和 `types/domain.ts`（内部）。
+7. **`feat/sse-job-events`** — 加 `/jobs/:id/events` 和 `/batch/:id/events`。原 polling 端点不变。
+8. **`feat/rate-limit-and-logging`** — 加 `@fastify/rate-limit` + pino redaction。
+9. **`feat/openapi-swagger`** — `@fastify/swagger` + `/api/docs` UI；OpenAPI spec 在 build 时落到 `docs/api/openapi.yaml`。
+10. **`feat/install-launchd-script`** — `scripts/install-launchd.sh` + plist 模板 + 部署文档。
 
-Migration plan (small feature branches):
+每个分支 1-3 个 commit 体量。顺序不强制，但 1-3 落完才能让客户端开始切到 V1。9 在前面稳定后做最有意义。
 
-1. **`feat/api-v1-prefix`** — add `/api/v1/` prefix to all routes. **Rewrite directly, no compat shim**——项目尚未发布、唯一 client（OpenClaw skill / CLI）跟着同步改即可。
-2. **`feat/auth-strategy`** — refactor inline auth into AuthStrategy + Fastify hook. ApiKeyStrategy is the only impl.
-3. **`feat/error-envelope`** — uniform `{ error: { code, message } }` everywhere; replace existing inline error shapes; update tests.
-4. **`feat/route-split`** — split `routes.ts` into `server/routes/clip-write.ts`, etc. Pure refactor, no behavior change.
-5. **`feat/pipeline-extract`** — pull pipeline orchestration out of `routes.ts` into `pipeline/`. Pure refactor.
-6. **`feat/types-split`** — separate `types/wire.ts` (public) and `types/domain.ts` (internal).
-7. **`feat/sse-job-events`** — add `/jobs/:id/events` and `/batch/:id/events`. Existing polling endpoints unchanged.
-8. **`feat/rate-limit-and-logging`** — add `@fastify/rate-limit` + pino redaction.
-9. **`feat/openapi-swagger`** — `@fastify/swagger` + `/api/docs` UI; OpenAPI spec written to `docs/api/openapi.yaml` at build time.
-10. **`feat/install-launchd-script`** — `scripts/install-launchd.sh` + plist template + deployment doc.
+OpenClaw skill / CLI 本身的功能完善（比如 `--cdn`/`--aes-key` 那些）属于 P2，**V1 不催**。设计文档把它们的入口（POST /clip/sticky 等）锁定即可。
 
-Each is small enough to land in 1-3 commits. Order isn't strict, but `1-3` need to land before clients can fully migrate, and `9` is most useful after the others stabilize.
+## 12. 实施节奏
 
-## 12. Implementation cadence
-
-Given V1 audience is you alone, no race. Land branches as they're ready, run on your Mac mini for a few days between, sand down rough edges. Final cut tag = `v1.0.0`, then start putting the apps repo together.
+V1 受众只有你一个，无 race。分支随写随 land，间隔几天在 Mac mini 上跑一跑，磨掉粗糙边。最后切 `v1.0.0` tag，开 apps 仓。
 
 ---
 
-**Next**: lock the open decisions in §10, then start with `feat/api-v1-prefix`.
+**下一步**：锁掉 §10 待确认决策，从 `feat/api-v1-prefix` 开始。
