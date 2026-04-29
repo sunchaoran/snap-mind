@@ -168,6 +168,6 @@ ERROR: {"code": 4, "message": "Connection refused", "detail": "ECONNREFUSED loca
 
 ## Reference
 
-- 服务端 API：[docs/api/http-api.md](../../docs/api/http-api.md) + 待新增的 `/clip/sticky` 章节
+- 服务端 API：[docs/architecture/api-design.md](../../docs/architecture/api-design.md)（V1 全部路由在 `/api/v1/` 前缀下；sticky 端点：`POST /api/v1/clip/sticky`、`GET /api/v1/clip/sticky/:sessionId`）
 - Skill：[skills/snap-mind/SKILL.md](../../skills/snap-mind/SKILL.md)
 - 待答问题：[skills/QUESTIONS.md](../../skills/QUESTIONS.md)

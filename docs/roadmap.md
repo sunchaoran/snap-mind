@@ -16,7 +16,7 @@
 - [ ] `routes.ts` 拆按资源（clip-write / clip-sticky / clip-read / jobs / batch / meta）
 - [ ] Pipeline 编排从 routes 抽出到 `src/pipeline/`
 - [ ] Wire 类型与内部类型分离 (`types/wire.ts` + `types/domain.ts`)
-- [ ] SSE：`GET /api/v1/jobs/:id/events`、`/batch/:id/events`
+- [ ] SSE：`GET /api/v1/jobs/:id/events`、`GET /api/v1/batch/:id/events`
 - [ ] `@fastify/rate-limit` + pino redaction
 - [ ] OpenAPI spec via `@fastify/swagger` + `/api/docs` UI
 - [ ] `scripts/install-launchd.sh` + plist template + 部署文档
