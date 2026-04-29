@@ -1,8 +1,20 @@
-# System Architecture Overview
+# 系统架构总览
+
+> 当前文档侧重 **写入 pipeline 的实现**。读 / 删 API、模块边界、产品策略（self-host / Cloud）、wire format 契约等请看权威设计文档：[api-design.md](./api-design.md)。
 
 ## 1. Problem Statement
 
-用户在浏览手机 App（Twitter、小红书、Reddit、微博、知乎等）时，看到感兴趣的内容想收藏，但只想做最轻量的动作——截图。ClipService 接收截图后，自动完成内容识别、原文获取、摘要生成、标签分类，最终存入 Obsidian vault，形成结构化的个人知识库。
+用户在浏览手机 App（Twitter、小红书、Reddit、微博、知乎等）时，看到感兴趣的内容想收藏，但只想做最轻量的动作——截图。SnapMind 接收截图后，自动完成内容识别、原文获取、摘要生成、标签分类，最终存入 Obsidian vault，形成结构化的个人知识库。
+
+## 1.1 Product Shape
+
+SnapMind 是 **open core + closed apps + 未来 Cloud** 的产品形态：
+
+- **Backend** (this repo)：AGPL-3.0 开源，自托管。V1 跑在你 Mac mini 上，V2 加 Docker / Linux 自托管支持
+- **Apps** (separate, closed source)：iOS + macOS native，App Store 分发，onboarding 选 self-host 或 Cloud
+- **Cloud** (V3, separate, hosted)：托管多租户版本，跟 self-host 共用同一套 wire format
+
+详细策略 → [api-design.md §1 Product Strategy](./api-design.md#1-product-strategy)。
 
 ## 2. User Flow
 
@@ -43,12 +55,12 @@ markdown parser。
 ## 3. Architecture Diagram
 
 ```
-客户端 (龙虾 / Web App / iOS App)
+客户端 (macOS app / iOS app / OpenClaw skill)
     │
     │  HTTP POST /clip  (image + auth)
     ▼
 ┌─────────────────────────────────────────────────┐
-│                  ClipService                     │
+│                   SnapMind                       │
 │                                                  │
 │  ┌──────────────┐                               │
 │  │ InputAdapter  │  HTTP 服务 + 认证，接收截图    │
@@ -123,10 +135,16 @@ handleClip(jobId, clipId, imageBuffer)
 
 ## 5. Deployment Environment
 
-- **运行环境**：Mac mini，本地常驻 Node.js 服务
-- **依赖服务**：Chrome 浏览器（保持各平台登录态）、opencli CLI 工具、OpenRouter API
-- **存储**：本地 Obsidian vault
-- **进程管理**：PM2 或 launchd
+V1 默认部署形态：
+
+- **运行环境**：用户自己的 Mac mini（"backend Mac"），常驻 Node.js 服务
+- **进程管理**：launchd（LaunchAgent，自启 + KeepAlive）
+- **网络**：监听 `127.0.0.1` + Tailscale 接口（**不**绑 `0.0.0.0`，避免公网扫描）
+- **HTTPS**：Tailscale Serve 自动签证书 + 反向代理
+- **依赖服务**：OpenRouter API（VLM + 内容处理）、可选 opencli + Chrome（L1 抓取最强）
+- **存储**：用户的 Obsidian vault（macOS 上一般是 iCloud Drive 路径）
+
+V2 计划支持 Docker / Linux / NAS 自托管——backend 代码不假设 macOS-only。详细见 [api-design.md §8 Deployment Modes](./api-design.md#8-deployment-modes) 与 [部署指南](../guides/deployment.md)。
 
 ## 6. Error Handling Strategy
 
@@ -134,4 +152,4 @@ handleClip(jobId, clipId, imageBuffer)
 - Pipeline 在后台运行，通过 JobStore 记录状态
 - 失败时截图仍保存到 vault assets 目录
 - 写入一条最小化的失败记录（`fetchLevel: 4`），标记为待重试
-- 返回 `message` 字段供龙虾直接回复用户
+- 返回 `message` 字段供 chat-style 客户端（如 OpenClaw skill）直接转发给用户

@@ -1,13 +1,13 @@
-# Module: ScreenshotStore
+# 模块：ScreenshotStore
 
 > 管理截图文件的存储，支持自动格式检测和图片预处理（压缩）。
 
-## Source Files
+## 源文件
 
 - `src/store/screenshot.ts` — 文件存储
 - `src/utils/image.ts` — 图片预处理（sharp）
 
-## Functions
+## 函数
 
 ### detectImageExt(buf)
 
@@ -62,7 +62,7 @@ interface PreprocessedImage {
 - **格式转换**：统一转为 WebP（lossy, quality 80）
 - **依赖**：[sharp](https://sharp.pixelplumbing.com/)（基于 libvips，高性能）
 
-### Storage Path
+### 存储路径
 
 ```
 {VAULT_PATH}/snap-mind/assets/clip_20260402_143000_V1StGX.webp  # 截图（压缩后）

@@ -1,24 +1,24 @@
-# Module: VLMAnalyzer
+# 模块：VLMAnalyzer
 
 > 两阶段分析：先识别平台，再用平台特定 prompt 并发提取，投票合并出结构化信息。
 
-## Source Files
+## 源文件
 
 - `src/vlm/analyzer.ts` — 主逻辑（两阶段分析）
 - `src/vlm/openrouter.ts` — OpenRouter API 客户端
 - `src/vlm/prompt.ts` — prompt 加载与模板构建
 - `src/vlm/merger.ts` — 投票合并逻辑
 
-## Input / Output
+## 输入 / 输出
 
 - **Input**: `imageBuffer: Buffer` (截图二进制)
 - **Output**: `MergedVLMResult` (see [data-model](../architecture/data-model.md))
 
-## Two-Step Analysis Flow
+## 两步分析流程
 
 与早期的单步分析不同，当前实现采用两阶段流程：
 
-### Step 1: Platform Identification
+### 第 1 步：平台识别
 
 使用第一个 VLM 模型 + `vlm-identify.md` prompt 识别截图来源平台。
 
@@ -27,7 +27,7 @@ const identifyResult = await callVLMRaw(models[0], dataUrl, VLM_IDENTIFY_PROMPT)
 const platform = identifyResult.platform ?? "unknown";
 ```
 
-### Step 2: Platform-Specific Extraction
+### 第 2 步：平台特定提取
 
 根据 Step 1 识别出的平台，构建平台特定的 extract prompt，然后 **所有 VLM 模型并发调用**。
 
@@ -40,7 +40,7 @@ const settled = await Promise.allSettled(
 
 这样做的好处：每个平台有针对性的提取规则，提升关键字段的提取精度。
 
-## Model Configuration
+## 模型配置
 
 模型数量可配置，**必须为单数**（投票机制要求多数胜出）。
 
@@ -50,7 +50,7 @@ const settled = await Promise.allSettled(
 | 增强模式 | 3 个模型 | 三取二投票合并 |
 | 更高精度 | 5 个模型 | 五取三投票合并 |
 
-### Default Configuration
+### 默认配置
 
 通过环境变量 `VLM_MODELS` 配置，逗号分隔。默认值为 `moonshotai/kimi-k2.5`（单模型）。
 
@@ -64,7 +64,7 @@ VLM_MODELS=anthropic/claude-sonnet-4-20250514,google/gemini-2.5-flash,openai/gpt
 
 > 启动时校验 `vlm.length` 必须为奇数，否则抛出配置错误。
 
-## Prompt Design
+## Prompt 设计
 
 Prompt 从文件系统加载（`src/prompts/` 目录），而非硬编码。
 
@@ -92,7 +92,7 @@ function buildExtractPrompt(platform: Platform): string {
 }
 ```
 
-## Voting & Merge Logic
+## 投票与合并逻辑
 
 ```typescript
 function mergeVLMResults(results: Record<string, VLMResult>): MergedVLMResult {
@@ -110,7 +110,7 @@ function mergeVLMResults(results: Record<string, VLMResult>): MergedVLMResult {
 }
 ```
 
-## Constraints
+## 约束
 
 - Step 2 所有模型 **并发** 调用，不串行等待
 - 每个模型调用设 **80 秒** 超时（通过 OpenAI SDK timeout 参数）

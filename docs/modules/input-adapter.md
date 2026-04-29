@@ -1,46 +1,48 @@
-# Module: InputAdapter
+# 模块：InputAdapter
 
 > 统一的输入接入层，接收来自不同客户端的截图，经认证后触发异步处理流程。
 
-## Source Files
+## 源文件
 
 - `src/index.ts` — 入口，启动 Fastify HTTP 服务
 - `src/server/routes.ts` — HTTP 路由定义 + pipeline 调度
 - `src/server/auth.ts` — 认证逻辑
 - `src/server/job-store.ts` — 异步 Job 状态管理（内存）
 
-## Design Rationale
+## 设计理由
 
-录入侧不局限于单一客户端。所有客户端（龙虾/OpenClew Agent、Web App、iOS App）统一通过 HTTP API 接入，差异仅在认证方式：
+录入侧不局限于单一客户端。所有客户端统一通过 HTTP API 接入，认证逻辑收口在 `AuthStrategy`（V1 设计，详见 [api-design.md §4](../architecture/api-design.md#4-auth-架构)）。
 
-| Client | Auth Method | Description |
-|--------|-------------|-------------|
-| 龙虾 (OpenClew) | API Key | 服务间调用，固定密钥 |
-| Web App | JWT (Bearer Token) | 用户登录后获取 token（暂未实现） |
-| iOS App | JWT (Bearer Token) | 同 Web App，共享认证体系（暂未实现） |
+| 客户端 | 分发 | 认证 |
+|--------|---|---|
+| macOS app | App Store / 自分发 | API key (self-host) 或 JWT (Cloud) |
+| iOS app | App Store | 同上 |
+| OpenClaw skill | 用户的聊天 channel server | API key (self-host) 或 JWT (Cloud) |
 
-认证通过后，所有客户端走同一条处理管道，不需要为每个客户端写独立 adapter。
+认证通过后所有客户端走同一条处理管道，不为每个客户端写独立 adapter。
 
-## Authentication
+## 认证
+
+V1 实现（**ApiKeyStrategy**）：
 
 ```typescript
-type AuthenticateResult =
-  | { ok: true; value: AuthResult }
-  | { ok: false; error: UnauthorizedError };
-
-async function authenticate(request: FastifyRequest): Promise<AuthenticateResult> {
-  // Dev 模式：未携带 Authorization header 时跳过认证
-  // API Key: token === config.auth.apiKey → clientType "agent"
-  // JWT: 暂未实现，当前拒绝非 API Key token
+interface AuthStrategy {
+  authenticate(req: FastifyRequest): Promise<AuthResult>;
 }
 
-interface AuthResult {
-  clientId: string;       // 客户端标识
-  clientType: "agent" | "webapp" | "ios";
+type AuthResult =
+  | { ok: true; principal: { type: 'user' | 'service'; id: string } }
+  | { ok: false; error: AuthError };
+
+class ApiKeyStrategy implements AuthStrategy {
+  // Bearer token 与 config.auth.apiKey 常量时间比对
+  // Dev 模式（NODE_ENV !== 'production'）下无 Authorization header 时放行
 }
 ```
 
-## Async Job Pattern
+V3 SnapMind Cloud 会再实现一个 `JwtStrategy`，client 完全不感知（继续发 `Authorization: Bearer <token>`）。
+
+## 异步 Job 模式
 
 当前实现采用异步 Job 模式，而非同步串行返回：
 
@@ -59,7 +61,7 @@ interface AuthResult {
 4. BatchJob 聚合所有子 Job 的完成状态和结果
 5. 单张失败不影响其他图的处理
 
-### Job Lifecycle
+### Job 生命周期
 
 ```
 createJob(jobId, clipId) → 初始化 7 个步骤 (pending)
@@ -72,7 +74,7 @@ createJob(jobId, clipId) → 初始化 7 个步骤 (pending)
     └─ jobError(jobId, result) → 整体失败
 ```
 
-### Batch Lifecycle
+### Batch 生命周期
 
 ```
 createBatchJob(batchId, jobIds[]) → 初始化批次
@@ -84,9 +86,9 @@ createBatchJob(batchId, jobIds[]) → 初始化批次
     └─ 全部完成后 batch.status → "done" / "error"
 ```
 
-### 7-Step Pipeline
+### 7 步 Pipeline
 
-| Step | Name | Description |
+| 步骤 | 名称 | 说明 |
 |------|------|-------------|
 | 0 | VLM 截图分析 | 两阶段 VLM 分析 |
 | 1 | 去重检查 | findSimilarClip()，命中则跳过后续步骤 |
@@ -96,7 +98,7 @@ createBatchJob(batchId, jobIds[]) → 初始化批次
 | 5 | 组装记录 | 构建 ClipRecord |
 | 6 | 写入 Vault | Markdown 文件 + sidecar JSON |
 
-## Responsibilities
+## 职责
 
 1. 接收截图上传请求（单张或批量），执行认证
 2. 生成 `clipId`（复用为 `jobId`），批量时额外生成 `batchId`
@@ -105,7 +107,7 @@ createBatchJob(batchId, jobIds[]) → 初始化批次
 5. 批量上传时通过并发池（默认 5）控制同时处理数量，防止资源耗尽
 6. 通过 JobStore 更新每步进度
 
-## Error Handling
+## 错误处理
 
 ```typescript
 // Pipeline 整体包裹在 withTimeout() 中（300s 超时）
@@ -134,7 +136,7 @@ withTimeout(handleClip(jobId, clipId, imageBuffer), config.processing.overallTim
   });
 ```
 
-## Server Configuration
+## 服务配置
 
 - Fastify 实例，注册 `@fastify/multipart` 插件（单文件最大 10MB，单次请求最多 20 个文件）
 - Dev 模式：启用 `pino-pretty` 日志格式化，提供 `/dev` 上传测试页面（支持多图选择）

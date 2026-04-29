@@ -1,8 +1,15 @@
-# Data Model
+# 数据模型
 
-## 1. ClipRecord (Core Data Structure)
+> **注**：这里的类型分两层——
+>
+> - **内部类型**（`ClipRecord`、`MergedVLMResult` 等）：backend 内部流转，可自由演进
+> - **Wire 类型**（`ClipRecordWire`、`ClipRecordWireFull`、错误信封等）：通过 HTTP 暴露，**对客户端是公开契约**，演进受 [api-design.md §3](./api-design.md#3-wire-format-the-public-contract) 的稳定性规则约束
+>
+> Source of truth 是 [`src/types/index.ts`](../../src/types/index.ts)（V1 后会拆成 `types/wire.ts` + `types/domain.ts`）。
 
-ClipWriter 的入参，所有模块的输出最终汇聚为这一个结构。
+## 1. ClipRecord（核心结构，内部）
+
+ClipWriter 的入参，pipeline 各模块输出汇聚成这一个结构。**不直接通过 wire format 暴露**——客户端拿到的是 ClipRecordWire/Full（见下文）。
 
 ```typescript
 interface ClipRecord {
@@ -104,7 +111,7 @@ interface ClipRecordWireFull extends ClipRecordWire {
 }
 ```
 
-## 2. Enums
+## 2. 枚举
 
 ```typescript
 type Platform =
@@ -135,13 +142,14 @@ type Category =
   | "culture"
   | "career"
   | "other";
-
-type ClientType = "agent" | "webapp" | "ios";
 ```
 
-## 3. VLM Types
+> V1 把"client 是谁"挪到 auth 层（`Principal`），不再以枚举形式暴露给业务代码——
+> 详见 [api-design.md §4](./api-design.md#4-auth-architecture)。
 
-### VLMResult (Single Model Output)
+## 3. VLM 类型
+
+### VLMResult（单模型输出）
 
 ```typescript
 interface VLMResult {
@@ -157,7 +165,7 @@ interface VLMResult {
 }
 ```
 
-### MergedVLMResult (Voting-Merged Result)
+### MergedVLMResult（投票合并后的结果）
 
 ```typescript
 interface MergedVLMResult {
@@ -178,9 +186,9 @@ interface MergedVLMResult {
 }
 ```
 
-## 4. Module IO Types
+## 4. 模块 I/O 类型
 
-### FetchResult (ContentFetcher Output)
+### FetchResult（ContentFetcher 输出）
 
 ```typescript
 interface FetchResult {
@@ -190,7 +198,7 @@ interface FetchResult {
 }
 ```
 
-### ProcessedContent (ContentProcessor Output)
+### ProcessedContent（ContentProcessor 输出）
 
 ```typescript
 interface ProcessedContent {
@@ -201,7 +209,7 @@ interface ProcessedContent {
 }
 ```
 
-### ClipResponse (API Output)
+### ClipResponse（API 输出，内部 job 结果）
 
 ```typescript
 interface ClipResponse {
@@ -220,12 +228,28 @@ interface ClipResponse {
 }
 ```
 
-## 5. ID Format
+## 5. 错误信封（V1，wire-level）
+
+所有非 2xx 响应使用统一 shape：
+
+```typescript
+interface ErrorEnvelope {
+  error: {
+    code: string;       // STABLE machine-readable，例如 "clip_not_found"
+    message: string;    // 人读，可改文案
+    details?: unknown;  // 可选上下文
+  };
+}
+```
+
+完整错误码表见 [api-design.md §3](./api-design.md#3-wire-format公开契约)。
+
+## 6. ID 格式
 
 ```
 clip_{yyyyMMdd}_{HHmmss}_{6位nanoid}
 
-Example: clip_20260402_143000_V1StGX
+示例: clip_20260402_143000_V1StGX
 ```
 
-使用 `nanoid(6)` 生成 6 位随机字符串，结合时间戳保证全局唯一性。
+用 `nanoid(6)` 生成 6 位随机字符串，配合时间戳保证全局唯一。

@@ -1,16 +1,16 @@
-# Configuration Guide
+# 配置指南
 
 所有可配置项集中在 `src/config.ts`，敏感信息通过环境变量注入。
 
-## Environment Variables
+## 环境变量
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENROUTER_API_KEY` | Yes | — | OpenRouter API Key |
 | `OBSIDIAN_VAULT_PATH` | No | macOS iCloud Drive 下的 `Obsidian` | Obsidian vault 绝对路径；未设置时默认使用 `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian` |
 | `OBSIDIAN_SCREENSHOT_WIDTH` | No | `360` | Obsidian 笔记中截图的默认显示宽度（像素）；设为 `0` 或负数时不限制 |
-| `API_KEY` | Yes | — | 服务间调用密钥（龙虾等 Agent） |
-| `JWT_SECRET` | Yes | — | JWT 签名密钥（暂未使用，预留） |
+| `API_KEY` | Yes | — | self-host bearer token，所有 client 共用 |
+| `JWT_SECRET` | No | — | 仅 SnapMind Cloud (V3) 用于 JWT 签名；self-host 不需要 |
 | `VLM_MODELS` | No | `moonshotai/kimi-k2.5` | VLM 模型列表，逗号分隔，数量必须为奇数 |
 | `PROCESSOR_MODEL` | No | `moonshotai/kimi-k2.5` | 内容处理模型 |
 | `VLM_ESCALATION_THRESHOLD` | No | `0.8` | 主 VLM 结果低于该置信度，或缺少关键字段时，升级为多模型投票 |
@@ -25,7 +25,7 @@
 | `SEARCH_PROVIDER` | No | `google` | 搜索引擎提供商 (`google` \| `bing`) |
 | `GOOGLE_CX` | No | — | Google Custom Search Engine ID |
 
-## Configuration Schema
+## 配置 Schema
 
 ```typescript
 import { homedir } from "node:os";
@@ -107,37 +107,37 @@ export const config = {
 } as const;
 ```
 
-## .env Example
+## .env 示例
 
 ```bash
-# Required
+# 必填
 OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxx
-# Optional: override the default iCloud Drive Obsidian vault path
+# 可选：覆盖默认的 iCloud Drive Obsidian vault 路径
 OBSIDIAN_VAULT_PATH=/Users/chaoran/Library/Mobile Documents/com~apple~CloudDocs/Obsidian
-# Optional: screenshot display width in generated notes
+# 可选：生成的笔记里截图的显示宽度
 OBSIDIAN_SCREENSHOT_WIDTH=360
 API_KEY=sk-snapmind-xxxxxxxxxxxx
-JWT_SECRET=your-jwt-secret-here
+# JWT_SECRET 仅 SnapMind Cloud 用，self-host 不必设
 
-# Optional: LLM models
+# 可选：LLM 模型
 VLM_MODELS=moonshotai/kimi-k2.5
 PROCESSOR_MODEL=moonshotai/kimi-k2.5
 VLM_ESCALATION_THRESHOLD=0.8
 
-# Optional: Server
+# 可选：服务端口与监听地址
 PORT=3210
 HOST=0.0.0.0
 
-# Optional: opencli & Chrome
+# 可选：opencli & Chrome
 OPENCLI_PATH=opencli
 CDP_URL=http://localhost:9222
 
-# Optional: Fetch control
+# 可选：抓取控制
 MAX_FETCH_LEVEL=4
 MAX_BATCH_SIZE=20
 MAX_CONCURRENT_PIPELINES=5
 
-# Optional: Search engine (L3 fallback)
+# 可选：搜索引擎（L3 兜底）
 SEARCH_PROVIDER=google
 SEARCH_API_KEY=AIzaSyxxxxxxxxxxxx
 GOOGLE_CX=xxxxxxxxxxxx
