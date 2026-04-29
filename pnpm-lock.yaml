@@ -24,6 +24,9 @@ importers:
       fastify:
         specifier: 5.8.5
         version: 5.8.5
+      fastify-plugin:
+        specifier: 5.1.0
+        version: 5.1.0
       gray-matter:
         specifier: 4.0.3
         version: 4.0.3

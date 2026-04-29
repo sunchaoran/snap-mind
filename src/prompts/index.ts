@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
-import type { Platform } from "@/types/index.js";
+import type { Platform } from "@/types/domain.js";
 
 function loadPrompt(filename: string): string {
   return readFileSync(resolve(import.meta.dirname, filename), "utf-8");

@@ -4,7 +4,7 @@ import type {
   FetchResult,
   MergedVLMResult,
   ProcessedContent,
-} from "@/types/index.js";
+} from "@/types/domain.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger } from "@/utils/logger.js";
 import { openrouter } from "@/vlm/openrouter.js";

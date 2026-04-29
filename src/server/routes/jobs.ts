@@ -1,5 +1,5 @@
 import type { FastifyInstance } from "fastify";
-import { ERR_JOB_NOT_FOUND } from "@/server/errors.js";
+import { ERR_JOB_NOT_FOUND, NotFoundError } from "@/server/errors.js";
 import { getJob } from "@/server/job-store.js";
 
 export async function registerJobsRoutes(app: FastifyInstance) {
@@ -12,12 +12,10 @@ export async function registerJobsRoutes(app: FastifyInstance) {
     {
       logLevel: "warn",
     },
-    async (request, reply) => {
+    async (request) => {
       const job = getJob(request.params.id);
       if (!job) {
-        return reply.status(404).send({
-          error: ERR_JOB_NOT_FOUND,
-        });
+        throw new NotFoundError("job_not_found", ERR_JOB_NOT_FOUND);
       }
       return job;
     },

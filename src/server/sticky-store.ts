@@ -1,4 +1,5 @@
 import { config } from "@/config.js";
+import { ApiError } from "@/server/errors.js";
 
 const DEBOUNCE_MS = 5000;
 const TTL_MS = 30 * 60 * 1000;
@@ -21,16 +22,33 @@ export interface StickySnapshot {
   batchId: string | null;
 }
 
-export class StickyError extends Error {
+/**
+ * sticky-store 抛出的可控错误。
+ *
+ * 现在 extend `ApiError`，所以 route handler 不需要 catch — 直接让它
+ * 冒到 global error handler 即可，会自动写出统一信封。
+ *
+ * `no_handler` 是配置 / 启动顺序错误（commitHandler 没注册），按 500
+ * 内部错处理（最初只发生在测试场景，生产路径在启动时就 register 了）。
+ */
+export class StickyError extends ApiError {
   constructor(
-    public readonly code:
+    public readonly stickyCode:
       | "wrong_state"
       | "batch_full"
       | "no_handler"
       | "not_found",
     message: string,
   ) {
-    super(message);
+    const code =
+      stickyCode === "wrong_state"
+        ? "sticky_wrong_state"
+        : stickyCode === "batch_full"
+          ? "sticky_batch_full"
+          : stickyCode === "not_found"
+            ? "sticky_session_not_found"
+            : "internal_error";
+    super(code, message);
     this.name = "StickyError";
   }
 }

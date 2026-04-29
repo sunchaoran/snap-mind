@@ -16,20 +16,15 @@ export async function registerMetaRoutes(app: FastifyInstance) {
     return;
   }
 
-  app.post("/dev/clear-snap-mind", async (_request, reply) => {
-    try {
-      const cleared = await clearSnapMindVault();
-      return {
-        success: true,
-        ...cleared,
-      };
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      return reply.status(500).send({
-        success: false,
-        error: message,
-      });
-    }
+  // Dev-only: any throw here propagates to the global error handler, which
+  // produces the unified envelope. The handler also logs the original error
+  // (including stack) without leaking it into the response.
+  app.post("/dev/clear-snap-mind", async () => {
+    const cleared = await clearSnapMindVault();
+    return {
+      success: true,
+      ...cleared,
+    };
   });
 
   app.get("/dev", async (_request, reply) => {

@@ -127,7 +127,7 @@ describe("sticky-store", () => {
     try {
       pushToSticky("s1", FAKE_BUF);
     } catch (err) {
-      expect((err as StickyError).code).toBe("wrong_state");
+      expect((err as StickyError).stickyCode).toBe("wrong_state");
     }
   });
 
@@ -141,7 +141,7 @@ describe("sticky-store", () => {
     try {
       pushToSticky("s1", FAKE_BUF);
     } catch (err) {
-      expect((err as StickyError).code).toBe("batch_full");
+      expect((err as StickyError).stickyCode).toBe("batch_full");
     }
   });
 

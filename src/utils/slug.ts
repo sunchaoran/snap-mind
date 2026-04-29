@@ -1,4 +1,4 @@
-import type { Platform } from "@/types/index.js";
+import type { Platform } from "@/types/domain.js";
 
 /**
  * Sanitize a title for use as an Obsidian-friendly filename.

@@ -9,7 +9,7 @@ import {
 import { join } from "node:path";
 import matter from "gray-matter";
 import { config } from "@/config.js";
-import type { ClipRecord } from "@/types/index.js";
+import type { ClipRecord } from "@/types/domain.js";
 import { createLogger } from "@/utils/logger.js";
 import { textSimilarity } from "@/utils/similarity.js";
 import {

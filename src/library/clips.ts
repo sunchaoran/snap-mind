@@ -7,13 +7,8 @@ import {
 import dayjs from "dayjs";
 import matter from "gray-matter";
 import { config } from "@/config.js";
-import type {
-  Category,
-  ClipRecordWire,
-  ClipRecordWireFull,
-  ContentType,
-  Platform,
-} from "@/types/index.js";
+import type { Category, ContentType, Platform } from "@/types/domain.js";
+import type { ClipRecordWire, ClipRecordWireFull } from "@/types/wire.js";
 import { createLogger } from "@/utils/logger.js";
 import {
   FALLBACK_SCREENSHOT_EXT,

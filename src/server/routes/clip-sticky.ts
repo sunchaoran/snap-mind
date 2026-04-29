@@ -1,16 +1,16 @@
 import type { FastifyInstance } from "fastify";
-import { authenticate } from "@/server/auth.js";
 import {
+  BadRequestError,
   ERR_MISSING_IMAGE,
   ERR_MISSING_SESSION_ID,
   ERR_STICKY_SESSION_NOT_FOUND,
+  NotFoundError,
 } from "@/server/errors.js";
 import { getBatchJob } from "@/server/job-store.js";
 import {
   getStickySnapshot,
   markStickyDone,
   pushToSticky,
-  StickyError,
 } from "@/server/sticky-store.js";
 
 export async function registerClipStickyRoutes(app: FastifyInstance) {
@@ -20,46 +20,23 @@ export async function registerClipStickyRoutes(app: FastifyInstance) {
       sessionId?: string;
     };
   }>("/api/v1/clip/sticky", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
     const sessionId = request.query.sessionId?.trim();
     if (!sessionId) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_SESSION_ID,
-      });
+      throw new BadRequestError("missing_session_id", ERR_MISSING_SESSION_ID);
     }
 
     const data = await request.file();
     if (!data) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_IMAGE,
-      });
+      throw new BadRequestError("missing_image", ERR_MISSING_IMAGE);
     }
 
     const buffer = await data.toBuffer();
 
-    try {
-      const snapshot = pushToSticky(sessionId, buffer);
-      return reply.status(202).send(snapshot);
-    } catch (err) {
-      if (err instanceof StickyError) {
-        const status = err.code === "batch_full" ? 400 : 409;
-        return reply.status(status).send({
-          success: false,
-          error: err.message,
-          code: err.code,
-        });
-      }
-      throw err;
-    }
+    // pushToSticky throws StickyError (extends ApiError) on wrong_state /
+    // batch_full — let it bubble to the global error handler instead of
+    // catching here. Keeps the route handler focused on the happy path.
+    const snapshot = pushToSticky(sessionId, buffer);
+    return reply.status(202).send(snapshot);
   });
 
   app.get<{
@@ -71,12 +48,13 @@ export async function registerClipStickyRoutes(app: FastifyInstance) {
     {
       logLevel: "warn",
     },
-    async (request, reply) => {
+    async (request) => {
       const snapshot = getStickySnapshot(request.params.sessionId);
       if (!snapshot) {
-        return reply.status(404).send({
-          error: ERR_STICKY_SESSION_NOT_FOUND,
-        });
+        throw new NotFoundError(
+          "sticky_session_not_found",
+          ERR_STICKY_SESSION_NOT_FOUND,
+        );
       }
 
       // While buffering — no batch yet, just expose queue depth.

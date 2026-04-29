@@ -1,36 +1,20 @@
-import type { ClipResponse } from "@/types/index.js";
+import type {
+  BatchWire,
+  ClipResponse,
+  JobStatus,
+  JobStepWire,
+  JobWire,
+  StepStatus,
+} from "@/types/wire.js";
 
-export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
-
-export interface JobStep {
-  name: string;
-  status: StepStatus;
-  message?: string;
-}
-
-export type JobStatus = "running" | "done" | "error";
-
-export interface Job {
-  id: string;
-  clipId: string;
-  status: JobStatus;
-  steps: JobStep[];
-  currentStep: number;
-  result?: ClipResponse;
-  createdAt: number;
-}
-
-export interface BatchJob {
-  id: string;
-  status: JobStatus;
-  jobIds: string[];
-  total: number;
-  completed: number;
-  succeeded: number;
-  failed: number;
-  results: ClipResponse[];
-  createdAt: number;
-}
+// Re-export wire-side aliases under their historical names so callers that
+// referenced the old in-memory types (`Job`, `BatchJob`, `JobStep`) keep
+// compiling. The in-memory state and the wire snapshot are intentionally the
+// same shape — `GET /api/v1/jobs/:id` etc. just return the in-memory object.
+export type { JobStatus, StepStatus };
+export type Job = JobWire;
+export type BatchJob = BatchWire;
+export type JobStep = JobStepWire;
 
 const STEP_NAMES = [
   "VLM 截图分析",
