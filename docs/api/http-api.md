@@ -95,6 +95,148 @@ Authorization: Bearer <token>
 
 ---
 
+## POST /clip/sticky
+
+把一张截图加入指定 sticky session 的 buffer。同 sessionId 的连续上传会**重置 5 秒静默 timer**；停发 5 秒后整批转给 `/clip/batch` 处理流程。专为 chat-style channel（OpenClaw skill / 微信 ClawBot）设计：用户连发多张图归并成一次回执。
+
+### Request
+
+```
+POST /clip/sticky?sessionId=<id>
+Content-Type: multipart/form-data
+Authorization: Bearer <token>
+```
+
+| Field / Param | Type | Required | Description |
+|---|---|---|---|
+| `sessionId` (query) | string | Yes | 客户端定义的稳定标识；同一 sessionId 的多次上传归并为一批 |
+| `image` | File | Yes | 单张截图（最大 10MB） |
+
+### Response: Accepted (202)
+
+```json
+{
+  "sessionId": "u_alice_20260425",
+  "queueDepth": 3,
+  "status": "buffering"
+}
+```
+
+`queueDepth` = session 当前已累计的图数；`status` 在此阶段恒为 `buffering`。
+
+### Response: Bad Request (400)
+
+```json
+{
+  "success": false,
+  "error": "Session ... reached max batch size (20)",
+  "code": "batch_full"
+}
+```
+
+### Response: Conflict (409)
+
+session 已经进入 `processing` / `done` 阶段后再 push：
+
+```json
+{
+  "success": false,
+  "error": "Session ... is no longer buffering (current: processing)",
+  "code": "wrong_state"
+}
+```
+
+调用方应使用新的 sessionId 开新 session。
+
+---
+
+## GET /clip/sticky/:sessionId
+
+查询 sticky session 的状态。无需认证。
+
+### Request
+
+```
+GET /clip/sticky/:sessionId
+```
+
+### Response: Buffering (200)
+
+debounce 窗口未结束，还在等更多图：
+
+```json
+{
+  "sessionId": "u_alice_20260425",
+  "status": "buffering",
+  "queueDepth": 3,
+  "total": 3,
+  "completed": 0,
+  "succeeded": 0,
+  "failed": 0,
+  "results": []
+}
+```
+
+### Response: Processing (200)
+
+debounce 关闭后批量 pipeline 已启动，部分完成：
+
+```json
+{
+  "sessionId": "u_alice_20260425",
+  "status": "processing",
+  "queueDepth": 3,
+  "batchId": "batch_clip_20260425_153000_AbCdEf",
+  "total": 3,
+  "completed": 1,
+  "succeeded": 1,
+  "failed": 0,
+  "results": [
+    {
+      "success": true,
+      "clipId": "...",
+      "title": "...",
+      "platform": "xiaohongshu",
+      "tags": ["..."],
+      "message": "已收藏: ..."
+    }
+  ]
+}
+```
+
+### Response: Done (200)
+
+```json
+{
+  "sessionId": "u_alice_20260425",
+  "status": "done",
+  "queueDepth": 3,
+  "batchId": "batch_...",
+  "total": 3,
+  "completed": 3,
+  "succeeded": 2,
+  "failed": 1,
+  "results": ["..."]
+}
+```
+
+### Response: Not Found (404)
+
+```json
+{
+  "error": "Sticky session not found"
+}
+```
+
+### Notes
+
+- Debounce 窗口：**5 秒静默**触发批量；每次 push 重置。
+- 单 session 最多累积 `MAX_BATCH_SIZE` 张（默认 20）。
+- session 数据在内存中保留 30 分钟（与 Job/Batch 一致），过期清理。
+- `done` 状态下 results 数组就是最终结果，可直接展示给用户；包含 `success: false` 的项是失败但截图仍保存到 vault。
+
+---
+
 ## GET /clip
 
 列出 vault 里所有 clip 的精简结构（list view，**不含 `contentFull`**——
@@ -139,7 +281,7 @@ Authorization: Bearer <token>
 - 排序：按 `createdAt` 降序（最新的在前）
 - 跳过 vault 里的 `_index.md`（Dataview 索引页，不是 clip）
 - 同 id 重复（备份/手工编辑产生）只保留 `createdAt` 最早的那一条
-- 单条文件解析失败（YAML 损坏 / 必填字段缺失 / 枚举值未知）会被静默跳过，
+- 单条文件解析失败（YAML 损坏 / 必填字段缺失 / 枚举值未知）会被静默跳过,
   整个列表不会因为一条坏文件失败；server 端 `console.warn` 留痕
 - 不分页、无 query 过滤——如果 vault 规模超过万级再考虑
 
