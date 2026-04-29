@@ -5,7 +5,7 @@
 
 ## 当前 spec 来源
 
-V1 期间，权威 spec 在设计文档里：[api-v2-design.md](../architecture/api-v2-design.md)。
+V1 期间，权威 spec 在设计文档里：[api-design.md](../architecture/api-design.md)。
 该文档定义：
 
 - 路由表（全部带 `/api/v1/` 前缀）

@@ -11,7 +11,7 @@
 
 ## 设计理由
 
-录入侧不局限于单一客户端。所有客户端统一通过 HTTP API 接入，认证逻辑收口在 `AuthStrategy`（V1 设计，详见 [api-v2-design.md §4](../architecture/api-v2-design.md#4-auth-架构)）。
+录入侧不局限于单一客户端。所有客户端统一通过 HTTP API 接入，认证逻辑收口在 `AuthStrategy`（V1 设计，详见 [api-design.md §4](../architecture/api-design.md#4-auth-架构)）。
 
 | 客户端 | 分发 | 认证 |
 |--------|---|---|

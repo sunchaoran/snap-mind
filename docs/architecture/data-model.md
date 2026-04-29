@@ -3,7 +3,7 @@
 > **注**：这里的类型分两层——
 >
 > - **内部类型**（`ClipRecord`、`MergedVLMResult` 等）：backend 内部流转，可自由演进
-> - **Wire 类型**（`ClipRecordWire`、`ClipRecordWireFull`、错误信封等）：通过 HTTP 暴露，**对客户端是公开契约**，演进受 [api-v2-design.md §3](./api-v2-design.md#3-wire-format-the-public-contract) 的稳定性规则约束
+> - **Wire 类型**（`ClipRecordWire`、`ClipRecordWireFull`、错误信封等）：通过 HTTP 暴露，**对客户端是公开契约**，演进受 [api-design.md §3](./api-design.md#3-wire-format-the-public-contract) 的稳定性规则约束
 >
 > Source of truth 是 [`src/types/index.ts`](../../src/types/index.ts)（V1 后会拆成 `types/wire.ts` + `types/domain.ts`）。
 
@@ -145,7 +145,7 @@ type Category =
 ```
 
 > V1 把"client 是谁"挪到 auth 层（`Principal`），不再以枚举形式暴露给业务代码——
-> 详见 [api-v2-design.md §4](./api-v2-design.md#4-auth-architecture)。
+> 详见 [api-design.md §4](./api-design.md#4-auth-architecture)。
 
 ## 3. VLM 类型
 
@@ -242,7 +242,7 @@ interface ErrorEnvelope {
 }
 ```
 
-完整错误码表见 [api-v2-design.md §3](./api-v2-design.md#3-wire-format公开契约)。
+完整错误码表见 [api-design.md §3](./api-design.md#3-wire-format公开契约)。
 
 ## 6. ID 格式
 

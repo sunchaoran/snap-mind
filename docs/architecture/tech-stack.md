@@ -1,6 +1,6 @@
 # 技术栈
 
-> 本文档列**当前实际在用**的依赖与选型。V1 计划新增的（Zod / @fastify/bearer-auth / @fastify/rate-limit / @fastify/swagger / chokidar 等）参见 [api-v2-design.md](./api-v2-design.md)。
+> 本文档列**当前实际在用**的依赖与选型。V1 计划新增的（Zod / @fastify/bearer-auth / @fastify/rate-limit / @fastify/swagger / chokidar 等）参见 [api-design.md](./api-design.md)。
 
 ## 核心栈
 

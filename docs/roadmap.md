@@ -34,7 +34,7 @@
 - ❌ SQLite / Redis / 任何额外持久化层
 - ❌ 任何 V2/V3 列出的能力
 
-详细设计：[api-v2-design.md](./architecture/api-v2-design.md)。
+详细设计：[api-design.md](./architecture/api-design.md)。
 
 ---
 

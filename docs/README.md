@@ -2,13 +2,13 @@
 
 > 截图即收藏：从截图到结构化知识库的自动化管道。
 
-> **🚧 Active redesign**: V1 设计在 [api-v2-design.md](./architecture/api-v2-design.md)。其它文档正在跟进同步——发现冲突时以设计文档为准。
+> **🚧 Active redesign**: V1 设计在 [api-design.md](./architecture/api-design.md)。其它文档正在跟进同步——发现冲突时以设计文档为准。
 
 ## 快速导航
 
 | 章节 | 说明 |
 |---------|-------------|
-| [V1 设计](./architecture/api-v2-design.md) | **权威设计文档**——产品策略、API 契约、模块边界、部署模式 |
+| [V1 设计](./architecture/api-design.md) | **权威设计文档**——产品策略、API 契约、模块边界、部署模式 |
 | [架构](./architecture/) | 系统架构、数据模型、技术选型 |
 | [模块](./modules/) | 各模块详细设计规范 |
 | [API](./api/) | HTTP API 接口契约（V1 公开稳定） |
@@ -47,7 +47,7 @@
         Docker: volume mount
 ```
 
-完整设计、模块边界、wire format 契约、部署模式等详见 [V1 设计文档](./architecture/api-v2-design.md)。
+完整设计、模块边界、wire format 契约、部署模式等详见 [V1 设计文档](./architecture/api-design.md)。
 
 ## 模块索引
 
@@ -129,4 +129,4 @@ snap-mind/
     └── QUESTIONS.md            # 待 OpenClaw 团队/文档确认的开放问题
 ```
 
-> 上面是**当前**结构。V1 设计文档里描述了**目标**结构（routes 拆按资源、pipeline 独立模块、auth strategy 抽象等）——参见 [api-v2-design.md §6 Module Boundaries](./architecture/api-v2-design.md#6-module-boundaries)。重构按 feature 分支逐步推进，不一次性掀桌。
+> 上面是**当前**结构。V1 设计文档里描述了**目标**结构（routes 拆按资源、pipeline 独立模块、auth strategy 抽象等）——参见 [api-design.md §6 Module Boundaries](./architecture/api-design.md#6-module-boundaries)。重构按 feature 分支逐步推进，不一次性掀桌。

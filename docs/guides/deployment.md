@@ -2,7 +2,7 @@
 
 > SnapMind backend 是 V1 设计的 self-hostable 服务。本文档覆盖 3 种部署形态——按你的环境挑一个。
 >
-> 完整设计参见 [api-v2-design.md §8 部署形态](../architecture/api-v2-design.md#8-部署形态)
+> 完整设计参见 [api-design.md §8 部署形态](../architecture/api-design.md#8-部署形态)
 
 ---
 

@@ -1,6 +1,6 @@
 # 系统架构总览
 
-> 当前文档侧重 **写入 pipeline 的实现**。读 / 删 API、模块边界、产品策略（self-host / Cloud）、wire format 契约等请看权威设计文档：[api-v2-design.md](./api-v2-design.md)。
+> 当前文档侧重 **写入 pipeline 的实现**。读 / 删 API、模块边界、产品策略（self-host / Cloud）、wire format 契约等请看权威设计文档：[api-design.md](./api-design.md)。
 
 ## 1. Problem Statement
 
@@ -14,7 +14,7 @@ SnapMind 是 **open core + closed apps + 未来 Cloud** 的产品形态：
 - **Apps** (separate, closed source)：iOS + macOS native，App Store 分发，onboarding 选 self-host 或 Cloud
 - **Cloud** (V3, separate, hosted)：托管多租户版本，跟 self-host 共用同一套 wire format
 
-详细策略 → [api-v2-design.md §1 Product Strategy](./api-v2-design.md#1-product-strategy)。
+详细策略 → [api-design.md §1 Product Strategy](./api-design.md#1-product-strategy)。
 
 ## 2. User Flow
 
@@ -144,7 +144,7 @@ V1 默认部署形态：
 - **依赖服务**：OpenRouter API（VLM + 内容处理）、可选 opencli + Chrome（L1 抓取最强）
 - **存储**：用户的 Obsidian vault（macOS 上一般是 iCloud Drive 路径）
 
-V2 计划支持 Docker / Linux / NAS 自托管——backend 代码不假设 macOS-only。详细见 [api-v2-design.md §8 Deployment Modes](./api-v2-design.md#8-deployment-modes) 与 [部署指南](../guides/deployment.md)。
+V2 计划支持 Docker / Linux / NAS 自托管——backend 代码不假设 macOS-only。详细见 [api-design.md §8 Deployment Modes](./api-design.md#8-deployment-modes) 与 [部署指南](../guides/deployment.md)。
 
 ## 6. Error Handling Strategy
 

@@ -52,14 +52,14 @@ SnapMind 是 **open core + closed apps + 未来 Cloud** 模型：
 └────────────────────────────────────────────────┘
 ```
 
-完整设计见 [API V1 设计文档](./docs/architecture/api-v2-design.md)。
+完整设计见 [API V1 设计文档](./docs/architecture/api-design.md)。
 
 ## Documentation
 
 详细工程文档在 [docs/](./docs/README.md)：
 
 - [系统架构](./docs/architecture/overview.md)
-- [API V1 设计](./docs/architecture/api-v2-design.md) ← 新设计，权威文档
+- [API V1 设计](./docs/architecture/api-design.md) ← 新设计，权威文档
 - [数据模型](./docs/architecture/data-model.md)
 - [HTTP API 契约](./docs/api/http-api.md)
 - [模块规范](./docs/modules/)
