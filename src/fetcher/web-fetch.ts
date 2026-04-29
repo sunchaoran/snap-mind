@@ -1,7 +1,7 @@
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import { config } from "@/config.js";
-import type { MergedVLMResult, Platform } from "@/types/index.js";
+import type { MergedVLMResult, Platform } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { openrouter } from "@/vlm/openrouter.js";
 

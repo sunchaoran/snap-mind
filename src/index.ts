@@ -2,6 +2,9 @@ import multipart from "@fastify/multipart";
 import rateLimit from "@fastify/rate-limit";
 import Fastify, { type FastifyRequest } from "fastify";
 import { config } from "@/config.js";
+import { RateLimitError } from "@/server/errors.js";
+import authPlugin from "@/server/plugins/auth.js";
+import errorHandlerPlugin from "@/server/plugins/error-handler.js";
 import { registerRoutes } from "@/server/routes/index.js";
 import { getLoggerOptions } from "@/utils/logger.js";
 
@@ -11,39 +14,16 @@ const app = Fastify({
   logger: getLoggerOptions(),
 });
 
+// error-handler must register first so plugin-stage errors (multipart parse,
+// rate-limit overflow, auth failure) all flow through the unified envelope.
+await app.register(errorHandlerPlugin);
+
 await app.register(multipart, {
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max per file
     files: 20, // max files per request (batch upload)
   },
 });
-
-/**
- * Custom Error subclass thrown by the rate-limit `errorResponseBuilder`.
- * Carries the V1 unified error envelope (`{ error: { code, message } }`)
- * via `toJSON`, while still exposing `statusCode` so Fastify's default
- * error handler returns HTTP 429.
- */
-class RateLimitError extends Error {
-  readonly statusCode: number;
-  readonly code: string;
-
-  constructor(statusCode: number, code: string, message: string) {
-    super(message);
-    this.name = "RateLimitError";
-    this.statusCode = statusCode;
-    this.code = code;
-  }
-
-  toJSON() {
-    return {
-      error: {
-        code: this.code,
-        message: this.message,
-      },
-    };
-  }
-}
 
 await app.register(rateLimit, {
   max: config.server.rateLimit.max,
@@ -61,22 +41,16 @@ await app.register(rateLimit, {
     }
     return req.ip;
   },
+  // The plugin throws this; our setErrorHandler picks it up via instanceof
+  // ApiError and writes the V1 envelope at the right HTTP status.
   errorResponseBuilder: (_req, context) =>
     new RateLimitError(
-      context.statusCode,
-      "RATE_LIMITED",
       `Too many requests, retry after ${context.after}.`,
+      typeof context.after === "number" ? context.after : undefined,
     ),
 });
 
-// Shape rate-limit errors into the V1 unified envelope. Other errors still
-// fall through to Fastify's default handler.
-app.setErrorHandler((error, _request, reply) => {
-  if (error instanceof RateLimitError) {
-    return reply.status(error.statusCode).send(error.toJSON());
-  }
-  throw error;
-});
+await app.register(authPlugin);
 
 await registerRoutes(app);
 

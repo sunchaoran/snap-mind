@@ -1,5 +1,5 @@
 import { config } from "@/config.js";
-import type { MergedVLMResult } from "@/types/index.js";
+import type { MergedVLMResult } from "@/types/domain.js";
 import { createLogger } from "@/utils/logger.js";
 
 const log = createLogger("search-engine");

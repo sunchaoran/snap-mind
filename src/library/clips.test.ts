@@ -5,12 +5,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { config } from "@/config.js";
 import { isSafeClipId } from "@/library/clips.js";
+import authPlugin from "@/server/plugins/auth.js";
+import errorHandlerPlugin from "@/server/plugins/error-handler.js";
 import { registerRoutes } from "@/server/routes/index.js";
-import type {
-  ClipRecord,
-  ClipRecordWire,
-  ClipRecordWireFull,
-} from "@/types/index.js";
+import type { ClipRecord } from "@/types/domain.js";
+import type { ClipRecordWire, ClipRecordWireFull } from "@/types/wire.js";
 import { clearSnapMindVault } from "@/writer/markdown.js";
 
 const VALID_AUTH = {
@@ -43,6 +42,10 @@ beforeEach(async () => {
   app = Fastify({
     logger: false,
   });
+  // error-handler must register first so any throw — including auth —
+  // flows through the unified envelope. Same order as src/index.ts.
+  await app.register(errorHandlerPlugin);
+  await app.register(authPlugin);
   await registerRoutes(app);
   await app.ready();
 });
@@ -357,7 +360,10 @@ describe("GET /clip/:id (detail with contentFull)", () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
-      error: "Clip not found",
+      error: {
+        code: "clip_not_found",
+        message: "Clip not found",
+      },
     });
   });
 });
@@ -438,7 +444,10 @@ describe("DELETE /clip/:id", () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
-      error: "Clip not found",
+      error: {
+        code: "clip_not_found",
+        message: "Clip not found",
+      },
     });
   });
 
@@ -476,7 +485,10 @@ describe("DELETE /clip/:id", () => {
 
     expect(res.statusCode).toBe(404);
     expect(res.json()).toEqual({
-      error: "Clip not found",
+      error: {
+        code: "clip_not_found",
+        message: "Clip not found",
+      },
     });
 
     // The legitimate clip is untouched
@@ -529,7 +541,9 @@ describe("auth", () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json()).toMatchObject({
-      success: false,
+      error: {
+        code: "unauthorized",
+      },
     });
   });
 
@@ -554,7 +568,9 @@ describe("auth", () => {
     });
     expect(res.statusCode).toBe(401);
     expect(res.json()).toMatchObject({
-      success: false,
+      error: {
+        code: "unauthorized",
+      },
     });
   });
 });

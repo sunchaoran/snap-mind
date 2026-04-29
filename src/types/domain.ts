@@ -1,3 +1,12 @@
+/**
+ * 内部 domain 类型 — pipeline / vlm / fetcher / writer 等模块共用的核心
+ * 数据结构。这些类型不上 wire（包含 `rawVlmResult`、`contentFull` 等 VLM
+ * debug 元数据 / 重字段），客户端永远看不到。
+ *
+ * 公开/客户端可见的类型放在 {@link ./wire.ts}，会 re-export 这里的枚举
+ * （Platform / Category / ContentType）以保持 single source of truth。
+ */
+
 /** 来源平台标识 */
 export type Platform =
   | "xiaohongshu"
@@ -29,15 +38,6 @@ export type Category =
   | "culture"
   | "career"
   | "other";
-
-/** 客户端类型 */
-export type ClientType = "agent" | "webapp" | "ios";
-
-/** 认证结果 */
-export interface AuthResult {
-  clientId: string;
-  clientType: ClientType;
-}
 
 /** 单个 VLM 模型的输出 */
 export interface VLMResult {
@@ -101,61 +101,4 @@ export interface ClipRecord {
   sourceConfidence: number;
   createdAt: string;
   rawVlmResult: MergedVLMResult;
-}
-
-/**
- * `GET /clip` 列表里每条 clip 的精简 wire format。
- *
- * 跟内部的 {@link ClipRecord} 区别：
- * - 不含 `contentFull`：单条原文可能几十 KB，列表里全带回去太重；
- *   detail 端点 (`GET /clip/:id`) 用 {@link ClipRecordWireFull} 带回去
- * - 不含 `rawVlmResult`：是 VLM debug 元数据，已落到 `<assets>/<id>.json`
- *   sidecar，不该出现在 client 消费的 wire format 里
- */
-export interface ClipRecordWire {
-  id: string;
-  title: string;
-  platform: Platform;
-  author: string;
-  originalUrl: string | null;
-  contentType: ContentType;
-  contentSummary: string;
-  tags: string[];
-  category: Category;
-  language: string;
-  /** vault-relative path, e.g. "snap-mind/assets/clip_xxx.webp" */
-  screenshotPath: string;
-  fetchLevel: 1 | 2 | 3 | 4;
-  sourceConfidence: number;
-  /** ISO 8601 string, 原样从 frontmatter 透出 */
-  createdAt: string;
-}
-
-/**
- * `GET /clip/:id` detail 视图：在 {@link ClipRecordWire} 之上补 `contentFull`。
- *
- * `contentFull` = markdown body 里 `## 原文` 段的全文（已经过 backend 写入
- * 时的 `formatContent` 规整）。fetchLevel=4 失败 record 的段落是"警告 +
- * VLM snippet"的 markdown，原样返回，client 自己渲染。
- *
- * 仅当 `## 原文` 段缺失或纯空白时为 `null`（手工 backfill / 老格式）。
- */
-export interface ClipRecordWireFull extends ClipRecordWire {
-  contentFull: string | null;
-}
-
-/** API 响应 */
-export interface ClipResponse {
-  success: boolean;
-  clipId: string;
-  title?: string;
-  platform?: Platform;
-  tags?: string[];
-  category?: Category;
-  fetchLevel?: 1 | 2 | 3 | 4;
-  /** Vault-relative path to the clip file, e.g. "snap-mind/2026-04-05_twitter_xxx.md" */
-  vaultPath?: string;
-  error?: string;
-  screenshotSaved?: boolean;
-  message: string;
 }

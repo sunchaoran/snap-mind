@@ -2,7 +2,7 @@ import { config } from "@/config.js";
 import { runOpencli } from "@/fetcher/opencli.js";
 import { searchForUrl } from "@/fetcher/search-engine.js";
 import { fetchAndExtract, findPostUrlOnPlatform } from "@/fetcher/web-fetch.js";
-import type { FetchResult, MergedVLMResult, Platform } from "@/types/index.js";
+import type { FetchResult, MergedVLMResult, Platform } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { textSimilarity } from "@/utils/similarity.js";
 

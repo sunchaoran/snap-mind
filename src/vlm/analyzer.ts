@@ -1,5 +1,5 @@
 import { config } from "@/config.js";
-import type { MergedVLMResult, Platform, VLMResult } from "@/types/index.js";
+import type { MergedVLMResult, Platform, VLMResult } from "@/types/domain.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { mergeVLMResults } from "@/vlm/merger.js";

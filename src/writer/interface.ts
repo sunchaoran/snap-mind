@@ -1,4 +1,4 @@
-import type { ClipRecord } from "@/types/index.js";
+import type { ClipRecord } from "@/types/domain.js";
 
 export interface ClipWriter {
   /** Write a clip record and return the vault-relative file path. */

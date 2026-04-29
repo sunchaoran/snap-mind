@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { config } from "@/config.js";
-import { authenticate } from "@/server/auth.js";
 import {
+  BadRequestError,
   ERR_MISSING_IMAGE,
   ERR_NO_IMAGES,
   errTooManyImages,
@@ -20,20 +20,9 @@ const log = createLogger("pipeline");
 
 export async function registerClipWriteRoutes(app: FastifyInstance) {
   app.post("/api/v1/clip", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
     const data = await request.file();
     if (!data) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_MISSING_IMAGE,
-      });
+      throw new BadRequestError("missing_image", ERR_MISSING_IMAGE);
     }
 
     const imageBuffer = await data.toBuffer();
@@ -64,31 +53,20 @@ export async function registerClipWriteRoutes(app: FastifyInstance) {
   });
 
   app.post("/api/v1/clip/batch", async (request, reply) => {
-    const auth = await authenticate(request);
-    if (!auth.ok) {
-      return reply.status(401).send({
-        success: false,
-        error: auth.error.message,
-      });
-    }
-
     const parts = request.files();
     const buffers: Buffer[] = [];
     for await (const part of parts) {
       buffers.push(await part.toBuffer());
       if (buffers.length > config.processing.maxBatchSize) {
-        return reply.status(400).send({
-          success: false,
-          error: errTooManyImages(config.processing.maxBatchSize),
-        });
+        throw new BadRequestError(
+          "too_many_images",
+          errTooManyImages(config.processing.maxBatchSize),
+        );
       }
     }
 
     if (buffers.length === 0) {
-      return reply.status(400).send({
-        success: false,
-        error: ERR_NO_IMAGES,
-      });
+      throw new BadRequestError("no_images", ERR_NO_IMAGES);
     }
 
     const batchId = `batch_${generateClipId()}`;

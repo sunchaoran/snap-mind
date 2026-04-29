@@ -15,7 +15,8 @@ import {
   stepStart,
 } from "@/server/job-store.js";
 import { saveScreenshot, saveSidecarJson } from "@/store/screenshot.js";
-import type { ClipRecord, ClipResponse } from "@/types/index.js";
+import type { ClipRecord } from "@/types/domain.js";
+import type { ClipResponse } from "@/types/wire.js";
 import { preprocessImage } from "@/utils/image.js";
 import { createLogger } from "@/utils/logger.js";
 import { analyzeScreenshot } from "@/vlm/analyzer.js";

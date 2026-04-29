@@ -1,6 +1,6 @@
 import matter from "gray-matter";
 import { describe, expect, it } from "vitest";
-import type { ClipRecord } from "../types/index.js";
+import type { ClipRecord } from "../types/domain.js";
 import { renderClipMarkdown } from "./template.js";
 
 describe("renderClipMarkdown", () => {

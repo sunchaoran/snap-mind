@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { gte, valid } from "semver";
 import { config } from "@/config.js";
-import type { Platform } from "@/types/index.js";
+import type { Platform } from "@/types/domain.js";
 import { createLogger } from "@/utils/logger.js";
 
 const execFileAsync = promisify(execFile);

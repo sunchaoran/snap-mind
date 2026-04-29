@@ -3,7 +3,7 @@ import type {
   MergedVLMResult,
   Platform,
   VLMResult,
-} from "@/types/index.js";
+} from "@/types/domain.js";
 import { textSimilarity } from "@/utils/similarity.js";
 
 /**

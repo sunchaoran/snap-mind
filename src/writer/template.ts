@@ -1,5 +1,5 @@
 import { config } from "@/config.js";
-import type { ClipRecord } from "@/types/index.js";
+import type { ClipRecord } from "@/types/domain.js";
 import {
   HEADING_ORIGINAL,
   HEADING_SCREENSHOT,
