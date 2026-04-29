@@ -30,6 +30,14 @@ export const config = {
   server: {
     port: Number(process.env.PORT) || 3210,
     host: process.env.HOST || "0.0.0.0",
+    /**
+     * @fastify/rate-limit settings. Single-user / Tailscale-only deployment,
+     * so this is mainly there to stop runaway scripts, not DDoS mitigation.
+     */
+    rateLimit: {
+      max: Number(process.env.RATE_LIMIT_MAX) || 200,
+      timeWindow: process.env.RATE_LIMIT_WINDOW || "1 minute",
+    },
   },
 
   auth: {
