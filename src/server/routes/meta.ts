@@ -7,6 +7,52 @@ const isDev = process.env.NODE_ENV !== "production";
 
 export async function registerMetaRoutes(app: FastifyInstance) {
   app.get(
+    "/",
+    {
+      schema: {
+        tags: [
+          "meta",
+        ],
+        summary: "Root liveness + entry point",
+        description:
+          "Returns 200 with a tiny JSON body — useful as a quick `is the server up?` probe in a browser, and as a discovery hook pointing at `/api/docs`. No auth.",
+        security: [],
+        response: {
+          200: {
+            type: "object",
+            required: [
+              "name",
+              "status",
+              "docs",
+            ],
+            properties: {
+              name: {
+                type: "string",
+              },
+              status: {
+                type: "string",
+                enum: [
+                  "ok",
+                ],
+              },
+              docs: {
+                type: "string",
+              },
+            },
+          },
+        },
+      },
+    },
+    async () => {
+      return {
+        name: "snap-mind",
+        status: "ok",
+        docs: "/api/docs",
+      };
+    },
+  );
+
+  app.get(
     "/health",
     {
       schema: {

@@ -210,6 +210,18 @@ Three phases: `buffering` (collecting images), `processing` (committed to a batc
 
 > 存活探测 / 系统元数据
 
+#### `GET /`
+
+> Root liveness + entry point
+
+Returns 200 with a tiny JSON body — useful as a quick `is the server up?` probe in a browser, and as a discovery hook pointing at `/api/docs`. No auth.
+
+- **Auth**: not required
+- **Responses**:
+  - `200`: object `{ name, status, docs }`
+
+---
+
 #### `GET /health`
 
 > Liveness probe
