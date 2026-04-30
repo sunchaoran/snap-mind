@@ -58,6 +58,7 @@ await app.register(rateLimit, {
 // `swagger.ts`'s routePrefix.
 await app.register(authPlugin, {
   skipPaths: [
+    "/",
     "/health",
     "/dev",
     "/dev/clear-snap-mind",
