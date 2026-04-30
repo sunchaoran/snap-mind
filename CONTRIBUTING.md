@@ -25,7 +25,7 @@ PRs likely to land:
 
 PRs likely to bounce without prior discussion:
 
-- New endpoints or wire-format changes (these are public contract — see [API v2 design](./docs/architecture/api-v2-design.md))
+- New endpoints or wire-format changes (these are public contract — see [API design](./docs/architecture/api-design.md))
 - New storage backends (the design discusses why this isn't a priority)
 - New auth schemes (V1 is API-key-only by intent; JWT is for Cloud)
 - Major architectural changes
@@ -92,7 +92,17 @@ The HTTP API under `/api/v1/` is a **public contract** — closed-source apps de
 - Removing endpoints / fields / changing field types: requires a `/api/v2/` and a deprecation plan
 - Error codes (the `error.code` field) are stable; messages are not
 
-Always update `docs/api/http-api.md` and `docs/architecture/data-model.md` in the same PR.
+### API documentation is auto-generated
+
+The HTTP API doc at [`docs/api/reference.md`](./docs/api/reference.md) is **generated** from the OpenAPI spec emitted by Fastify (`src/server/plugins/swagger.ts` + per-route `schema` annotations). Don't edit `reference.md` by hand — it'll be overwritten.
+
+When changing routes or wire types, regenerate:
+
+```bash
+pnpm gen:api-doc
+```
+
+The pre-commit hook runs `pnpm gen:api-doc --check` whenever you touch `src/server/plugins/swagger.ts`, `src/server/routes/*`, or `src/types/wire.ts`, and rejects the commit on drift. Update `docs/architecture/data-model.md` by hand if the underlying domain shape changes.
 
 ## License
 

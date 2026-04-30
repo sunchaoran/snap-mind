@@ -17,3 +17,16 @@ fi
 if [ -n "$staged_files" ]; then
   echo "$staged_files" | xargs -I {} git add {}
 fi
+
+# Verify docs/api/reference.md is in sync with the OpenAPI spec.
+# Triggered only when source-of-truth files are touched, so day-to-day
+# commits aren't slowed down by an unrelated check.
+api_source_changed=$(echo "$staged_files" | grep -E '^src/(server/(plugins/swagger\.ts|routes/.+)|types/wire\.ts)$' || true)
+if [ -n "$api_source_changed" ]; then
+  echo "API source changed — checking docs/api/reference.md is in sync..."
+  pnpm gen:api-doc --check
+  if [ $? -ne 0 ]; then
+    echo "API doc out of sync. Run 'pnpm gen:api-doc' and re-stage."
+    exit 1
+  fi
+fi
