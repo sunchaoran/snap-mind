@@ -45,6 +45,7 @@
     "sharp": "0.34.5"
   },
   "scripts": {
+    "prepare": "git config --local core.hooksPath .githooks || true",
     "dev": "tsx watch src/index.ts",
     "build": "tsup",
     "start": "node dist/index.js",
@@ -57,6 +58,7 @@
     "lint:fix-unsafe": "biome check --fix --unsafe .",
     "format": "biome format --write .",
     "typecheck": "tsc --noEmit",
-    "check:opencli": "node --import tsx scripts/check-opencli.ts"
+    "check:opencli": "node --import tsx scripts/check-opencli.ts",
+    "gen:api-doc": "node --import tsx scripts/gen-api-doc.ts"
   }
 }
