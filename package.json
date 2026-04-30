@@ -2,6 +2,24 @@
   "name": "snap-mind",
   "version": "0.3.0",
   "description": "截图即收藏：从截图到结构化知识库的自动化管道",
+  "keywords": [
+    "screenshot",
+    "obsidian",
+    "self-host",
+    "vlm",
+    "knowledge-base",
+    "ai"
+  ],
+  "homepage": "https://github.com/sunchaoran/snap-mind#readme",
+  "bugs": {
+    "url": "https://github.com/sunchaoran/snap-mind/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sunchaoran/snap-mind.git"
+  },
+  "license": "AGPL-3.0-only",
+  "author": "sunchaoran <mail@sunchaoran.com>",
   "type": "module",
   "bin": {
     "snap-mind": "dist/cli.js"
@@ -9,6 +27,7 @@
   "engines": {
     "node": ">=24"
   },
+  "packageManager": "pnpm@10.33.2",
   "pnpm": {
     "overrides": {
       "vite": ">=6.4.2",
