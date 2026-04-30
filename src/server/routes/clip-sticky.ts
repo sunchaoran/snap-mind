@@ -19,25 +19,67 @@ export async function registerClipStickyRoutes(app: FastifyInstance) {
     Querystring: {
       sessionId?: string;
     };
-  }>("/api/v1/clip/sticky", async (request, reply) => {
-    const sessionId = request.query.sessionId?.trim();
-    if (!sessionId) {
-      throw new BadRequestError("missing_session_id", ERR_MISSING_SESSION_ID);
-    }
+  }>(
+    "/api/v1/clip/sticky",
+    {
+      schema: {
+        tags: [
+          "sticky",
+        ],
+        summary: "Push one image to a sticky session",
+        description:
+          "multipart/form-data with one `image` file field; `sessionId` in querystring. The session debounces multiple uploads into a single batch. Body schema intentionally omitted — see POST /api/v1/clip.",
+        consumes: [
+          "multipart/form-data",
+        ],
+        querystring: {
+          type: "object",
+          required: [
+            "sessionId",
+          ],
+          properties: {
+            sessionId: {
+              type: "string",
+              minLength: 1,
+            },
+          },
+        },
+        response: {
+          202: {
+            $ref: "StickyWire#",
+          },
+          400: {
+            $ref: "ErrorEnvelope#",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          409: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
+    },
+    async (request, reply) => {
+      const sessionId = request.query.sessionId?.trim();
+      if (!sessionId) {
+        throw new BadRequestError("missing_session_id", ERR_MISSING_SESSION_ID);
+      }
 
-    const data = await request.file();
-    if (!data) {
-      throw new BadRequestError("missing_image", ERR_MISSING_IMAGE);
-    }
+      const data = await request.file();
+      if (!data) {
+        throw new BadRequestError("missing_image", ERR_MISSING_IMAGE);
+      }
 
-    const buffer = await data.toBuffer();
+      const buffer = await data.toBuffer();
 
-    // pushToSticky throws StickyError (extends ApiError) on wrong_state /
-    // batch_full — let it bubble to the global error handler instead of
-    // catching here. Keeps the route handler focused on the happy path.
-    const snapshot = pushToSticky(sessionId, buffer);
-    return reply.status(202).send(snapshot);
-  });
+      // pushToSticky throws StickyError (extends ApiError) on wrong_state /
+      // batch_full — let it bubble to the global error handler instead of
+      // catching here. Keeps the route handler focused on the happy path.
+      const snapshot = pushToSticky(sessionId, buffer);
+      return reply.status(202).send(snapshot);
+    },
+  );
 
   app.get<{
     Params: {
@@ -47,6 +89,36 @@ export async function registerClipStickyRoutes(app: FastifyInstance) {
     "/api/v1/clip/sticky/:sessionId",
     {
       logLevel: "warn",
+      schema: {
+        tags: [
+          "sticky",
+        ],
+        summary: "Snapshot of a sticky session",
+        description:
+          "Three phases: `buffering` (collecting images), `processing` (committed to a batch), `done` (batch finished). `batchId` populated only after leaving buffering.",
+        params: {
+          type: "object",
+          required: [
+            "sessionId",
+          ],
+          properties: {
+            sessionId: {
+              type: "string",
+            },
+          },
+        },
+        response: {
+          200: {
+            $ref: "StickyWire#",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          404: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
     },
     async (request) => {
       const snapshot = getStickySnapshot(request.params.sessionId);

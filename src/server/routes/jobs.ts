@@ -12,6 +12,36 @@ export async function registerJobsRoutes(app: FastifyInstance) {
     "/api/v1/jobs/:id",
     {
       logLevel: "warn",
+      schema: {
+        tags: [
+          "jobs",
+        ],
+        summary: "Job snapshot (polling endpoint)",
+        description:
+          "Returns the current `JobWire` snapshot. State held in memory with TTL.",
+        params: {
+          type: "object",
+          required: [
+            "id",
+          ],
+          properties: {
+            id: {
+              type: "string",
+            },
+          },
+        },
+        response: {
+          200: {
+            $ref: "JobWire#",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          404: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
     },
     async (request) => {
       const job = getJob(request.params.id);
@@ -32,6 +62,37 @@ export async function registerJobsRoutes(app: FastifyInstance) {
     "/api/v1/jobs/:id/events",
     {
       logLevel: "warn",
+      schema: {
+        tags: [
+          "jobs",
+        ],
+        summary: "Job progress SSE stream",
+        description:
+          "text/event-stream — emits `step` frames per pipeline step then a terminal `done` or `error` frame. See docs/architecture/api-design.md §7 for the per-event payload shape (intentionally not enumerated here — OpenAPI is poor at describing event-stream framing).",
+        params: {
+          type: "object",
+          required: [
+            "id",
+          ],
+          properties: {
+            id: {
+              type: "string",
+            },
+          },
+        },
+        response: {
+          200: {
+            type: "string",
+            description: "text/event-stream (SSE) — see description above",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          404: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
     },
     async (request, reply) => {
       const jobId = request.params.id;
