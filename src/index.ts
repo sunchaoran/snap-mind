@@ -5,6 +5,7 @@ import { config } from "@/config.js";
 import { RateLimitError } from "@/server/errors.js";
 import authPlugin from "@/server/plugins/auth.js";
 import errorHandlerPlugin from "@/server/plugins/error-handler.js";
+import swaggerPlugin from "@/server/plugins/swagger.js";
 import { registerRoutes } from "@/server/routes/index.js";
 import { getLoggerOptions } from "@/utils/logger.js";
 
@@ -50,7 +51,29 @@ await app.register(rateLimit, {
     ),
 });
 
-await app.register(authPlugin);
+// `@fastify/swagger-ui` registers multiple sub-paths under its routePrefix
+// (UI HTML, /json spec, /yaml spec, /static/* assets). The auth plugin's
+// path-based skipping is exact-match against `req.routeOptions.url`, so we
+// extend the default skip list explicitly. Keep this in sync with
+// `swagger.ts`'s routePrefix.
+await app.register(authPlugin, {
+  skipPaths: [
+    "/health",
+    "/dev",
+    "/dev/clear-snap-mind",
+    "/api/docs",
+    "/api/docs/",
+    "/api/docs/json",
+    "/api/docs/yaml",
+    "/api/docs/static/index.html",
+    "/api/docs/static/swagger-initializer.js",
+    "/api/docs/static/*",
+  ],
+});
+
+// `@fastify/swagger` collects route schemas via the `onRoute` hook — it must
+// register *before* `registerRoutes` or it will see zero routes.
+await app.register(swaggerPlugin);
 
 await registerRoutes(app);
 

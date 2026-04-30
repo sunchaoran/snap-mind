@@ -12,6 +12,36 @@ export async function registerBatchRoutes(app: FastifyInstance) {
     "/api/v1/batch/:id",
     {
       logLevel: "warn",
+      schema: {
+        tags: [
+          "batch",
+        ],
+        summary: "Batch snapshot (polling endpoint)",
+        description:
+          "Returns the current `BatchWire` snapshot — aggregated from all child jobs.",
+        params: {
+          type: "object",
+          required: [
+            "id",
+          ],
+          properties: {
+            id: {
+              type: "string",
+            },
+          },
+        },
+        response: {
+          200: {
+            $ref: "BatchWire#",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          404: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
     },
     async (request) => {
       const batch = getBatchJob(request.params.id);
@@ -33,6 +63,37 @@ export async function registerBatchRoutes(app: FastifyInstance) {
     "/api/v1/batch/:id/events",
     {
       logLevel: "warn",
+      schema: {
+        tags: [
+          "batch",
+        ],
+        summary: "Batch progress SSE stream",
+        description:
+          "text/event-stream — emits a `progress` frame after each child job, then a terminal `done` or `error` frame. See docs/architecture/api-design.md §7 for the per-event payload (intentionally not enumerated — OpenAPI is poor at describing event-stream framing).",
+        params: {
+          type: "object",
+          required: [
+            "id",
+          ],
+          properties: {
+            id: {
+              type: "string",
+            },
+          },
+        },
+        response: {
+          200: {
+            type: "string",
+            description: "text/event-stream (SSE) — see description above",
+          },
+          401: {
+            $ref: "ErrorEnvelope#",
+          },
+          404: {
+            $ref: "ErrorEnvelope#",
+          },
+        },
+      },
     },
     async (request, reply) => {
       const batchId = request.params.id;

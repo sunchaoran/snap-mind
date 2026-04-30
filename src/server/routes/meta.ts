@@ -6,11 +6,43 @@ import { clearSnapMindVault } from "@/writer/markdown.js";
 const isDev = process.env.NODE_ENV !== "production";
 
 export async function registerMetaRoutes(app: FastifyInstance) {
-  app.get("/health", async () => {
-    return {
-      status: "ok",
-    };
-  });
+  app.get(
+    "/health",
+    {
+      schema: {
+        tags: [
+          "meta",
+        ],
+        summary: "Liveness probe",
+        description:
+          'Always returns `{ status: "ok" }` once the process is up. No auth.',
+        // Auth-skip route — opt out of the global Bearer requirement so the
+        // generated spec correctly advertises this as public.
+        security: [],
+        response: {
+          200: {
+            type: "object",
+            required: [
+              "status",
+            ],
+            properties: {
+              status: {
+                type: "string",
+                enum: [
+                  "ok",
+                ],
+              },
+            },
+          },
+        },
+      },
+    },
+    async () => {
+      return {
+        status: "ok",
+      };
+    },
+  );
 
   if (!isDev) {
     return;
