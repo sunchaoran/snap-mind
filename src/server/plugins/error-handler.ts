@@ -19,6 +19,17 @@ const isDev = process.env.NODE_ENV !== "production";
  *    response；dev 模式下打 stack 到日志，生产只打 message
  */
 async function errorHandlerPlugin(app: FastifyInstance): Promise<void> {
+  // Route-not-matched 404 — Fastify ships its own default handler with a
+  // {message, error, statusCode} shape that doesn't match the V1 envelope.
+  // Override here so unknown URLs return the same shape as everything else.
+  app.setNotFoundHandler((request, reply) => {
+    const error = new ApiError(
+      "not_found",
+      `Route ${request.method} ${request.url} not found`,
+    );
+    return reply.status(error.statusCode).send(error.toJSON());
+  });
+
   app.setErrorHandler((error, request, reply) => {
     if (error instanceof ApiError) {
       return reply.status(error.statusCode).send(error.toJSON());
