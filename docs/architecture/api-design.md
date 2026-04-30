@@ -161,6 +161,7 @@ interface ClipRecordWireFull extends ClipRecordWire {
 |---|---|---|
 | `unauthorized` | 401 | 缺失或无效的 Bearer token |
 | `forbidden` | 403 | 已认证但无权限（V2 占位）|
+| `not_found` | 404 | URL 没匹配到任何 route（vs 资源级 `<resource>_not_found`）|
 | `clip_not_found` | 404 | id 不存在；非法 id 也返这个（避免泄漏校验细节）|
 | `job_not_found` | 404 | jobId 已过期或从未存在 |
 | `batch_not_found` | 404 | batchId 已过期或从未存在 |

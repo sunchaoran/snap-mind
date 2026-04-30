@@ -42,6 +42,7 @@ export function errTooManyImages(max: number): string {
 export type ErrorCode =
   | "unauthorized"
   | "forbidden"
+  | "not_found"
   | "clip_not_found"
   | "job_not_found"
   | "batch_not_found"
@@ -58,6 +59,10 @@ export type ErrorCode =
 const CODE_TO_STATUS: Record<ErrorCode, number> = {
   unauthorized: 401,
   forbidden: 403,
+  // Generic 404 — used by the route-not-matched handler. Resource lookups
+  // (clip / job / batch / sticky) keep their own narrower codes so clients
+  // can branch on what wasn't found.
+  not_found: 404,
   clip_not_found: 404,
   job_not_found: 404,
   batch_not_found: 404,
