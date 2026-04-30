@@ -81,7 +81,7 @@ async function main(): Promise<void> {
 
   console.log(yellow(`⚠ newer version available: ${local} → ${latest}`));
   console.log(dim(`  upgrade: ${INSTALL_HINT}`));
-  process.exit(1);
+  process.exit(0);
 }
 
 main();
