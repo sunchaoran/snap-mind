@@ -1,3 +1,4 @@
+import sharp from "sharp";
 import { config } from "@/config.js";
 import type { Platform, VLMAnalysis, VLMResult } from "@/types/domain.js";
 import { parseLLMJson } from "@/utils/json.js";
@@ -26,9 +27,17 @@ export async function analyzeScreenshot(
     "▶ analyzeScreenshot start",
   );
 
-  const base64Image = imageBuffer.toString("base64");
-  const mime = detectImageMime(imageBuffer);
-  const dataUrl = `data:${mime};base64,${base64Image}`;
+  // Transcode to JPEG before sending. Vault keeps the WebP that pipeline's
+  // preprocessImage produced; LM Studio's vision pipeline rejects WebP with
+  // `400 'url' field must be a base64 encoded image.`, so we re-encode just
+  // for the model call. JPEG works across both OpenRouter and local servers.
+  const jpegBuffer = await sharp(imageBuffer)
+    .jpeg({
+      quality: 85,
+    })
+    .toBuffer();
+  const base64Image = jpegBuffer.toString("base64");
+  const dataUrl = `data:image/jpeg;base64,${base64Image}`;
 
   // Step 1: Identify platform
   const identifyStart = Date.now();
@@ -126,20 +135,4 @@ async function callVLMRaw<T>(
 
   const text = response.choices[0]?.message?.content ?? "";
   return parseLLMJson<T>(text);
-}
-
-function detectImageMime(buf: Buffer): string {
-  if (buf[0] === 0x89 && buf[1] === 0x50) {
-    return "image/png";
-  }
-  if (buf[0] === 0xff && buf[1] === 0xd8) {
-    return "image/jpeg";
-  }
-  if (buf[0] === 0x52 && buf[1] === 0x49) {
-    return "image/webp";
-  }
-  if (buf[0] === 0x47 && buf[1] === 0x49) {
-    return "image/gif";
-  }
-  return "image/png";
 }
