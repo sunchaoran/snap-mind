@@ -1,6 +1,7 @@
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import { config } from "@/config.js";
+import { extractAuthorHandle } from "@/fetcher/author.js";
 import type { Platform, VLMAnalysis } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { activeModels, llmClient } from "@/vlm/llm-client.js";
@@ -213,13 +214,16 @@ const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
 };
 
 function buildPlatformSearchUrl(vlm: VLMAnalysis): string | null {
-  const author = vlm.author?.replace(/^@/, "");
+  // Twitter's `from:` operator wants the bare handle; without this normalization
+  // an author like "Ding @dingyi" produced `from:Ding @dingyi`, which Twitter
+  // parses as "from user `Ding`" + literal text, matching nothing.
+  const handle = extractAuthorHandle(vlm.author);
 
   switch (vlm.platform) {
     case "twitter": {
       const parts: string[] = [];
-      if (author) {
-        parts.push(`from:${author}`);
+      if (handle) {
+        parts.push(`from:${handle}`);
       }
       const text = vlm.contentSnippet?.slice(0, 60) ?? vlm.title;
       if (text) {

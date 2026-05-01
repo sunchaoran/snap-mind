@@ -1,4 +1,5 @@
 import { config } from "@/config.js";
+import { extractAuthorHandle } from "@/fetcher/author.js";
 import { runOpencli } from "@/fetcher/opencli.js";
 import { searchForUrl } from "@/fetcher/search-engine.js";
 import { fetchAndExtract, findPostUrlOnPlatform } from "@/fetcher/web-fetch.js";
@@ -760,10 +761,9 @@ async function tryLevel3(
 function buildSearchQuery(vlm: VLMAnalysis): string | null {
   const parts: string[] = [];
 
-  // Extract clean username from author (e.g. "Berryxia.AI (@berryxia)" → "berryxia")
-  if (vlm.author) {
-    const handleMatch = vlm.author.match(/@(\w+)/);
-    parts.push(handleMatch ? handleMatch[1] : vlm.author);
+  const handle = extractAuthorHandle(vlm.author);
+  if (handle) {
+    parts.push(handle);
   }
 
   // Prefer keywords over full title (shorter, less noise)
