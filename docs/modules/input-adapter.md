@@ -138,7 +138,7 @@ withTimeout(handleClip(jobId, clipId, imageBuffer), config.processing.overallTim
 
 ## 服务配置
 
-- Fastify 实例，注册 `@fastify/multipart` 插件（单文件最大 10MB，单次请求最多 20 个文件）
+- Fastify 实例，注册 `@fastify/multipart` 插件（单文件最大 10MB，单次请求最多 50 个文件）
 - Dev 模式：启用 `pino-pretty` 日志格式化，提供 `/dev` 上传测试页面（支持多图选择）
 - 监听 `config.server.port`（默认 3210）和 `config.server.host`（默认 0.0.0.0）
-- 批量上传参数：`MAX_BATCH_SIZE`（默认 20）、`MAX_CONCURRENT_PIPELINES`（默认 5）
+- 批量上传参数：`MAX_BATCH_SIZE`（默认 50）、`MAX_CONCURRENT_PIPELINES`（默认 5）

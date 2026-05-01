@@ -69,7 +69,7 @@
                         </div>
                         <div class="space-y-1">
                             <p id="dropHintTitle" class="text-sm font-medium text-zinc-300">Drop here or click</p>
-                            <p id="dropHintSubtitle" class="text-xs text-zinc-500">PNG / JPG / WebP, max 20</p>
+                            <p id="dropHintSubtitle" class="text-xs text-zinc-500">PNG / JPG / WebP, max 50</p>
                         </div>
                     </div>
                 </div>
@@ -415,7 +415,7 @@
             return;
         }
         dropHintTitle.textContent = 'Drop here or click';
-        dropHintSubtitle.textContent = 'PNG / JPG / WebP, max 20';
+        dropHintSubtitle.textContent = 'PNG / JPG / WebP, max 50';
     }
 
     function selectFiles(files) {
@@ -423,9 +423,9 @@
         if (!nextFiles.length) {
             return;
         }
-        if (nextFiles.length > 20) {
-            alert('You can select up to 20 images.');
-            nextFiles = nextFiles.slice(0, 20);
+        if (nextFiles.length > 50) {
+            alert('You can select up to 50 images.');
+            nextFiles = nextFiles.slice(0, 50);
         }
 
         revokeSelectedPreviewUrls();
