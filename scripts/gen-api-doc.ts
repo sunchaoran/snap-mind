@@ -98,6 +98,9 @@ interface SchemaObject {
 async function buildSpec(): Promise<Spec> {
   // Dynamic imports — env is set, project graph safe to load now.
   const { default: Fastify } = await import("fastify");
+  const { default: sharedSchemasPlugin } = await import(
+    "@/server/plugins/shared-schemas.js"
+  );
   const { default: swaggerPlugin } = await import(
     "@/server/plugins/swagger.js"
   );
@@ -106,6 +109,10 @@ async function buildSpec(): Promise<Spec> {
   const app = Fastify({
     logger: false,
   });
+  // Same order as src/index.ts: shared-schemas → swagger → routes, so route
+  // schemas can resolve `$ref: "ErrorEnvelope#"` etc. and the OpenAPI output
+  // includes `components.schemas.<id>`.
+  await app.register(sharedSchemasPlugin);
   await app.register(swaggerPlugin);
   await registerRoutes(app);
   await app.ready();
@@ -136,7 +143,7 @@ function render(spec: Spec): string {
   out.push(`>`);
   out.push(`> Source of truth:`);
   out.push(
-    `> - Shared schemas: [\`src/server/plugins/swagger.ts\`](../../src/server/plugins/swagger.ts)`,
+    `> - Shared schemas: [\`src/server/plugins/shared-schemas.ts\`](../../src/server/plugins/shared-schemas.ts)`,
   );
   out.push(
     `> - Per-route annotations: [\`src/server/routes/\`](../../src/server/routes)`,

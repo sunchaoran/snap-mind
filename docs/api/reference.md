@@ -5,7 +5,7 @@
 > will be overwritten on next regeneration.
 >
 > Source of truth:
-> - Shared schemas: [`src/server/plugins/swagger.ts`](../../src/server/plugins/swagger.ts)
+> - Shared schemas: [`src/server/plugins/shared-schemas.ts`](../../src/server/plugins/shared-schemas.ts)
 > - Per-route annotations: [`src/server/routes/`](../../src/server/routes)
 
 - **Version**: `0.3.0`
