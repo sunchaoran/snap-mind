@@ -23,7 +23,7 @@
 | `PORT` | No | `3210` | 服务端口 |
 | `HOST` | No | `0.0.0.0` | 监听地址 |
 | `MAX_FETCH_LEVEL` | No | `4` | 最大获取级别（1-4），超出则报错不降级 |
-| `MAX_BATCH_SIZE` | No | `20` | 批量上传每次最多图片数（1-20） |
+| `MAX_BATCH_SIZE` | No | `50` | 批量上传每次最多图片数（1-50） |
 | `MAX_CONCURRENT_PIPELINES` | No | `5` | 批量上传时同时处理的最大 Pipeline 数 |
 | `SEARCH_API_KEY` | No | — | Google/Bing 搜索引擎 API Key (L3 fallback) |
 | `SEARCH_PROVIDER` | No | `google` | 搜索引擎提供商 (`google` \| `bing`) |
@@ -120,7 +120,7 @@ export const config = {
     vlmTimeout: 80_000,        // 80 秒
     similarityThreshold: 0.85,
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
-    maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 20, 20),
+    maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 50, 50),
     maxConcurrentPipelines: Number(process.env.MAX_CONCURRENT_PIPELINES) || 5,
   },
 
@@ -171,7 +171,7 @@ CDP_URL=http://localhost:9222
 
 # 可选：抓取控制
 MAX_FETCH_LEVEL=4
-MAX_BATCH_SIZE=20
+MAX_BATCH_SIZE=50
 MAX_CONCURRENT_PIPELINES=5
 
 # 可选：搜索引擎（L3 兜底）

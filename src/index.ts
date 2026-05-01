@@ -23,7 +23,7 @@ await app.register(errorHandlerPlugin);
 await app.register(multipart, {
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB max per file
-    files: 20, // max files per request (batch upload)
+    files: 50, // max files per request (batch upload); kept in sync with config.processing.maxBatchSize
   },
 });
 

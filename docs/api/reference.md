@@ -55,7 +55,7 @@ multipart/form-data with one `image` file field. Returns a `jobId` immediately; 
 
 > Upload up to MAX_BATCH_SIZE screenshots in one request
 
-multipart/form-data with multiple `image` file fields (max defined by `MAX_BATCH_SIZE`, default 20). Returns `batchId` + per-image `jobIds`. Body schema intentionally omitted — see POST /api/v1/clip.
+multipart/form-data with multiple `image` file fields (max defined by `MAX_BATCH_SIZE`, default 50). Returns `batchId` + per-image `jobIds`. Body schema intentionally omitted — see POST /api/v1/clip.
 
 - **Auth**: required (Bearer)
 - **Responses**:

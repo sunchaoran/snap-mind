@@ -133,8 +133,8 @@ describe("sticky-store", () => {
 
   test("pushing past maxBatchSize throws batch_full", () => {
     registerCommitHandler(() => "batch_x");
-    // src/config.ts default maxBatchSize is 20 (capped via Math.min).
-    for (let i = 0; i < 20; i++) {
+    // src/config.ts default maxBatchSize is 50 (capped via Math.min).
+    for (let i = 0; i < 50; i++) {
       pushToSticky("s1", FAKE_BUF);
     }
     expect(() => pushToSticky("s1", FAKE_BUF)).toThrow(StickyError);
