@@ -5,7 +5,7 @@ import { searchForUrl } from "@/fetcher/search-engine.js";
 import { fetchAndExtract, findPostUrlOnPlatform } from "@/fetcher/web-fetch.js";
 import type { FetchResult, Platform, VLMAnalysis } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
-import { textSimilarity } from "@/utils/similarity.js";
+import { bigramOverlap, textSimilarity } from "@/utils/similarity.js";
 
 const log = createLogger("fetcher");
 
@@ -258,8 +258,15 @@ async function tryAuthorFirst(
   vlm: VLMAnalysis,
   strategy: PlatformUserStrategy,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
-  // Step 1: search author name to find their profile URL
-  const authorQuery = vlm.author!.replace(/@/g, "").trim();
+  // Step 1: search opencli for the author. We search by handle (when one is
+  // present) — opencli's search treats handles and display names interchangeably,
+  // and the handle is what its returned items use for `item.author`, so matching
+  // both sides on the same handle gives clean exact-equality.
+  const authorQuery = extractAuthorHandle(vlm.author);
+  if (!authorQuery) {
+    log.warn("L1.a   no author available for search");
+    return null;
+  }
   log.debug(
     {
       authorQuery,
@@ -290,7 +297,7 @@ async function tryAuthorFirst(
   }
 
   const items = normalizeSearchResults(searchResults);
-  // Find an item with an author_url that matches the author name
+  // Find an item with an author_url whose author handle matches the query.
   const authorItem = items.find((item) => {
     if (!item.author_url) {
       return false;
@@ -845,7 +852,8 @@ function findBestMatch(
 
   const refTitle = vlm.title ?? "";
   const refSnippet = vlm.contentSnippet ?? "";
-  if (!refTitle && !refSnippet && !vlm.author) {
+  const refHandle = extractAuthorHandle(vlm.author);
+  if (!refTitle && !refSnippet && !refHandle) {
     return items[0];
   }
 
@@ -853,7 +861,7 @@ function findBestMatch(
     {
       refTitle: refTitle.slice(0, 80),
       refSnippet: refSnippet.slice(0, 80),
-      refAuthor: vlm.author,
+      refHandle,
     },
     "  match ref",
   );
@@ -864,16 +872,21 @@ function findBestMatch(
   for (let i = 0; i < items.length; i++) {
     const item = items[i];
 
-    // Compare title and snippet separately, take the better score
+    // refTitle/refSnippet are short VLM-extracted strings (often a single sentence
+    // from the post). The candidate item.text / item.content are the full body of
+    // a post, often 5-20× longer. Levenshtein normalizes by the longer length and
+    // scores ~0 even when the short ref is a verbatim substring of the body, so
+    // we use bigram overlap which measures "how much of the shorter string is
+    // contained in the longer".
     const itemText = item.text || item.content || item.title || "";
     let titleScore = 0;
     let snippetScore = 0;
     if (itemText) {
       if (refTitle) {
-        titleScore = textSimilarity(refTitle, itemText);
+        titleScore = bigramOverlap(refTitle, itemText);
       }
       if (refSnippet) {
-        snippetScore = textSimilarity(refSnippet, itemText);
+        snippetScore = bigramOverlap(refSnippet, itemText);
       }
     }
     const textScore = Math.max(titleScore, snippetScore);
@@ -886,8 +899,8 @@ function findBestMatch(
       )
       .trim();
     let authorScore = 0;
-    if (vlm.author && cleanAuthor) {
-      authorScore = textSimilarity(vlm.author, cleanAuthor);
+    if (refHandle && cleanAuthor) {
+      authorScore = textSimilarity(refHandle, cleanAuthor);
     }
 
     const score = textScore + authorScore * 0.3;
