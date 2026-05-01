@@ -1,6 +1,7 @@
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { FastifyInstance } from "fastify";
+import { deleteClip } from "@/library/clips.js";
 import { clearSnapMindVault } from "@/writer/markdown.js";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -103,6 +104,23 @@ export async function registerMetaRoutes(app: FastifyInstance) {
       success: true,
       ...cleared,
     };
+  });
+
+  // Dev-only per-clip delete. Mirrors `DELETE /api/v1/clip/:id` but skips
+  // auth so the dev-upload.html page (which has no API key) can drive it.
+  app.delete<{
+    Params: {
+      id: string;
+    };
+  }>("/dev/clip/:id", async (request, reply) => {
+    const result = await deleteClip(request.params.id);
+    if (result === "notfound") {
+      return reply.status(404).send({
+        success: false,
+        error: "clip_not_found",
+      });
+    }
+    return reply.status(204).send();
   });
 
   app.get("/dev", async (_request, reply) => {
