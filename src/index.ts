@@ -63,6 +63,7 @@ await app.register(authPlugin, {
     "/health",
     "/dev",
     "/dev/clear-snap-mind",
+    "/dev/clip/:id",
     "/api/docs",
     "/api/docs/",
     "/api/docs/json",

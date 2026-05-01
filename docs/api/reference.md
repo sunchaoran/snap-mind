@@ -244,6 +244,16 @@ Always returns `{ status: "ok" }` once the process is up. No auth.
 
 ---
 
+#### `DELETE /dev/clip/:id`
+
+- **Auth**: required (Bearer)
+- **Path params**:
+  - `id`: `string`
+- **Responses**:
+  - `200`: no body
+
+---
+
 #### `GET /dev`
 
 - **Auth**: required (Bearer)
