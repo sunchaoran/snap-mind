@@ -5,6 +5,7 @@ import { config } from "@/config.js";
 import { RateLimitError } from "@/server/errors.js";
 import authPlugin from "@/server/plugins/auth.js";
 import errorHandlerPlugin from "@/server/plugins/error-handler.js";
+import sharedSchemasPlugin from "@/server/plugins/shared-schemas.js";
 import swaggerPlugin from "@/server/plugins/swagger.js";
 import { registerRoutes } from "@/server/routes/index.js";
 import { getLoggerOptions } from "@/utils/logger.js";
@@ -71,6 +72,12 @@ await app.register(authPlugin, {
     "/api/docs/static/*",
   ],
 });
+
+// `shared-schemas` registers `app.addSchema` for every wire $id used by
+// route response/request schemas (`$ref: "ErrorEnvelope#"` etc.). Must run
+// before swagger (so OpenAPI output picks them up) and before routes (so
+// fast-json-stringify can resolve refs at route registration).
+await app.register(sharedSchemasPlugin);
 
 // `@fastify/swagger` collects route schemas via the `onRoute` hook — it must
 // register *before* `registerRoutes` or it will see zero routes.

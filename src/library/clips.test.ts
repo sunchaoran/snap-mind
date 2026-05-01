@@ -7,6 +7,7 @@ import { config } from "@/config.js";
 import { isSafeClipId } from "@/library/clips.js";
 import authPlugin from "@/server/plugins/auth.js";
 import errorHandlerPlugin from "@/server/plugins/error-handler.js";
+import sharedSchemasPlugin from "@/server/plugins/shared-schemas.js";
 import { registerRoutes } from "@/server/routes/index.js";
 import type { ClipRecord } from "@/types/domain.js";
 import type { ClipRecordWire, ClipRecordWireFull } from "@/types/wire.js";
@@ -43,9 +44,12 @@ beforeEach(async () => {
     logger: false,
   });
   // error-handler must register first so any throw — including auth —
-  // flows through the unified envelope. Same order as src/index.ts.
+  // flows through the unified envelope. shared-schemas must precede
+  // registerRoutes so route response schemas (`$ref: "ErrorEnvelope#"`)
+  // can resolve. Same order as src/index.ts.
   await app.register(errorHandlerPlugin);
   await app.register(authPlugin);
+  await app.register(sharedSchemasPlugin);
   await registerRoutes(app);
   await app.ready();
 });
