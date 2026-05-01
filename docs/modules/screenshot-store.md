@@ -42,7 +42,7 @@ async function saveScreenshot(
 async function saveSidecarJson(clipId: string, data: unknown): Promise<void>
 ```
 
-与截图同目录，存储 VLM 原始结果（`MergedVLMResult`）用于 debug。
+与截图同目录，存储 VLM 分析结果（`VLMAnalysis`）用于 debug。
 
 ### preprocessImage(imageBuffer)
 

@@ -1,68 +1,53 @@
 # 模块：VLMAnalyzer
 
-> 两阶段分析：先识别平台，再用平台特定 prompt 并发提取，投票合并出结构化信息。
+> 两阶段单模型分析：先识别平台，再用平台特定 prompt 提取结构化字段。
 
 ## 源文件
 
 - `src/vlm/analyzer.ts` — 主逻辑（两阶段分析）
-- `src/vlm/openrouter.ts` — OpenRouter API 客户端
+- `src/vlm/llm-client.ts` — OpenAI 兼容客户端工厂；按 `LLM_PROVIDER_TARGET` 选 OpenRouter 或本地 server
 - `src/vlm/prompt.ts` — prompt 加载与模板构建
-- `src/vlm/merger.ts` — 投票合并逻辑
 
 ## 输入 / 输出
 
 - **Input**: `imageBuffer: Buffer` (截图二进制)
-- **Output**: `MergedVLMResult` (see [data-model](../architecture/data-model.md))
+- **Output**: `VLMAnalysis` (see [data-model](../architecture/data-model.md))
 
 ## 两步分析流程
 
-与早期的单步分析不同，当前实现采用两阶段流程：
-
 ### 第 1 步：平台识别
 
-使用第一个 VLM 模型 + `vlm-identify.md` prompt 识别截图来源平台。
+调用 VLM 模型 + `vlm-identify.md` prompt 识别截图来源平台。
 
 ```typescript
-const identifyResult = await callVLMRaw(models[0], dataUrl, VLM_IDENTIFY_PROMPT);
+const identifyResult = await callVLMRaw(model, dataUrl, VLM_IDENTIFY_PROMPT);
 const platform = identifyResult.platform ?? "unknown";
 ```
 
 ### 第 2 步：平台特定提取
 
-根据 Step 1 识别出的平台，构建平台特定的 extract prompt，然后 **所有 VLM 模型并发调用**。
+根据 Step 1 识别出的平台，构建平台特定的 extract prompt 再次调用同一个模型：
 
 ```typescript
 const extractPrompt = buildExtractPrompt(platform);
-const settled = await Promise.allSettled(
-  models.map(model => callVLMRaw(model, dataUrl, extractPrompt))
-);
+const raw = await callVLMRaw<VLMResult>(model, dataUrl, extractPrompt);
 ```
 
-这样做的好处：每个平台有针对性的提取规则，提升关键字段的提取精度。
+每个平台有针对性的提取规则，提升关键字段的抽取精度。
+
+返回前为下游消费者填默认值（`platform` 兜底 `"unknown"`、`contentType` 兜底 `"post"`），同时把 raw 结果原样塞进 `rawResult` 留作 debug。
 
 ## 模型配置
 
-模型数量可配置，**必须为单数**（投票机制要求多数胜出）。
-
-| Config | Models | Behavior |
-|--------|--------|----------|
-| 默认 | 1 个模型 | 单模型直出，不投票 |
-| 增强模式 | 3 个模型 | 三取二投票合并 |
-| 更高精度 | 5 个模型 | 五取三投票合并 |
-
-### 默认配置
-
-通过环境变量 `VLM_MODELS` 配置，逗号分隔。默认值为 `moonshotai/kimi-k2.5`（单模型）。
+单模型，per-provider：
 
 ```bash
-# 单模型（默认）
-VLM_MODELS=moonshotai/kimi-k2.5
+# OpenRouter（默认 target）
+OPENROUTER_VLM_MODEL=moonshotai/kimi-k2.5
 
-# 三模型投票
-VLM_MODELS=anthropic/claude-sonnet-4-20250514,google/gemini-2.5-flash,openai/gpt-4o
+# 本地 server（值与 GET <LOCAL_BASE_URL>/models 一致）
+LOCAL_VLM_MODEL=qwen2.5-vl-7b-instruct
 ```
-
-> 启动时校验 `vlm.length` 必须为奇数，否则抛出配置错误。
 
 ## Prompt 设计
 
@@ -92,29 +77,8 @@ function buildExtractPrompt(platform: Platform): string {
 }
 ```
 
-## 投票与合并逻辑
-
-```typescript
-function mergeVLMResults(results: Record<string, VLMResult>): MergedVLMResult {
-  // 单模型: 直接返回，confidence 取模型自身值
-  // 多模型: 投票合并
-  // 1. Platform: 多数胜出；全不同时取 confidence 最高的
-  // 2. Author: 文本相似度 ≥ 0.8，聚类后取多数一致的
-  // 3. Title: 文本相似度 ≥ 0.7，聚类后取多数一致的
-  // 4. Keywords: 去重合并（大小写不敏感）
-  // 5. ContentType: 多数胜出
-  // 6. 整体置信度: 加权平均
-  //    - 一致性权重 40%
-  //    - 字段覆盖度 20%
-  //    - 模型置信度 40%
-}
-```
-
 ## 约束
 
-- Step 2 所有模型 **并发** 调用，不串行等待
-- 每个模型调用设 **80 秒** 超时（通过 OpenAI SDK timeout 参数）
-- 部分模型返回结果时，用可用结果合并
-- 0 个模型返回结果时，整体失败，走错误处理
-- 模型数量必须为 **奇数**（1, 3, 5...）
+- 每次调用设 **80 秒** 超时（通过 OpenAI SDK timeout 参数；本地 server 首次 JIT 加载模型可能超时，先 warmup）
+- 任一阶段调用失败 → 整体失败，走错误处理
 - 图片自动检测 MIME 类型（PNG/JPEG/WEBP/GIF），转 base64 data URL 传给模型

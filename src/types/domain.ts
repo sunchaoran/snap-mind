@@ -39,7 +39,7 @@ export type Category =
   | "career"
   | "other";
 
-/** 单个 VLM 模型的输出 */
+/** VLM 模型的原始输出（platform / contentType 可能为 null —— 模型确实可能识别不出）。 */
 export interface VLMResult {
   platform: Platform | null;
   confidence: number;
@@ -52,19 +52,22 @@ export interface VLMResult {
   contentType: ContentType | null;
 }
 
-/** N 模型投票合并后的结果 */
-export interface MergedVLMResult {
+/**
+ * 分析阶段的输出：在 {@link VLMResult} 基础上为下游消费者填上 platform / contentType 的默认值，
+ * 同时保留原始结果用于 debug。
+ */
+export interface VLMAnalysis {
   platform: Platform;
+  contentType: ContentType;
   author: string | null;
   title: string | null;
   keywords: string[];
   publishTime: string | null;
   visibleUrl: string | null;
   contentSnippet: string | null;
-  contentType: ContentType;
   confidence: number;
-  /** 各模型的原始结果，key 为模型标识 */
-  rawResults: Record<string, VLMResult>;
+  /** 模型的原始输出，便于排查 default 后丢失的信号。 */
+  rawResult: VLMResult;
 }
 
 /** ContentFetcher 的输出 */
@@ -100,5 +103,5 @@ export interface ClipRecord {
   fetchLevel: 1 | 2 | 3 | 4;
   sourceConfidence: number;
   createdAt: string;
-  rawVlmResult: MergedVLMResult;
+  rawVlmResult: VLMAnalysis;
 }

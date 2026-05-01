@@ -2,7 +2,7 @@ import { config } from "@/config.js";
 import { runOpencli } from "@/fetcher/opencli.js";
 import { searchForUrl } from "@/fetcher/search-engine.js";
 import { fetchAndExtract, findPostUrlOnPlatform } from "@/fetcher/web-fetch.js";
-import type { FetchResult, MergedVLMResult, Platform } from "@/types/domain.js";
+import type { FetchResult, Platform, VLMAnalysis } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
 import { textSimilarity } from "@/utils/similarity.js";
 
@@ -79,7 +79,7 @@ const PLATFORM_USER_STRATEGY: Partial<Record<Platform, PlatformUserStrategy>> =
  * L3: search engine fallback
  * L4: screenshot-only (all levels failed)
  */
-export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
+export async function fetchContent(vlm: VLMAnalysis): Promise<FetchResult> {
   const start = Date.now();
   log.info(
     {
@@ -232,7 +232,7 @@ export async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
  * L1.b: keyword search fallback (original strategy)
  */
 async function tryLevel1(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // L1.a: author-first strategy
   const strategy = PLATFORM_USER_STRATEGY[vlm.platform];
@@ -254,7 +254,7 @@ async function tryLevel1(
  * L1.a: Search author name → extract user id → list user posts → match title → fetch detail.
  */
 async function tryAuthorFirst(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
   strategy: PlatformUserStrategy,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // Step 1: search author name to find their profile URL
@@ -437,7 +437,7 @@ async function tryAuthorFirst(
  * L1.b: Keyword search fallback — search by keywords/title directly.
  */
 async function tryKeywordSearch(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   const query = buildSearchQuery(vlm);
   if (!query) {
@@ -510,7 +510,7 @@ async function tryKeywordSearch(
  * Strategy: visibleUrl → platform search (Playwright) → opencli URL → web fetch
  */
 async function tryLevel2(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // 2a: If VLM found a URL in the screenshot, try it directly
   if (vlm.visibleUrl) {
@@ -673,7 +673,7 @@ async function tryLevel2(
  * L3: Use search engine API to find URL, then web fetch + LLM extraction.
  */
 async function tryLevel3(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): Promise<Pick<FetchResult, "contentFull" | "originalUrl"> | null> {
   // Try visible URL from screenshot first (if L2 didn't already)
   if (vlm.visibleUrl && !PLATFORM_L2_SUPPORT.includes(vlm.platform)) {
@@ -757,7 +757,7 @@ async function tryLevel3(
   };
 }
 
-function buildSearchQuery(vlm: MergedVLMResult): string | null {
+function buildSearchQuery(vlm: VLMAnalysis): string | null {
   const parts: string[] = [];
 
   // Extract clean username from author (e.g. "Berryxia.AI (@berryxia)" → "berryxia")
@@ -837,7 +837,7 @@ function normalizeSearchResults(raw: unknown): OpencliSearchItem[] {
 
 function findBestMatch(
   items: OpencliSearchItem[],
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): OpencliSearchItem | null {
   if (items.length === 0) {
     return null;

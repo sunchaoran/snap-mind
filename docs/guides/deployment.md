@@ -31,17 +31,20 @@ cp .env.example .env
 
 ```env
 API_KEY=<32+ 字符随机串>
-OPENROUTER_API_KEY=sk-or-v1-...
+LLM_PROVIDER_TARGET=openrouter            # 或 local（任何 OpenAI 兼容的本地服务）
+OPENROUTER_API_KEY=sk-or-v1-...           # 当 LLM_PROVIDER_TARGET=openrouter
 OBSIDIAN_VAULT_PATH=/Users/<you>/Library/Mobile Documents/com~apple~CloudDocs/Obsidian
 ```
+
+> 改用本地 server：`LLM_PROVIDER_TARGET=local`，并设置 `LOCAL_VLM_MODEL` / `LOCAL_PROCESSOR_MODEL`（值与 `GET <LOCAL_BASE_URL>/models` 返回的 ID 一致）。`LOCAL_BASE_URL` 默认是 LM Studio 的 `http://localhost:1234/v1`，vLLM 改 `:8000/v1`、Ollama 改 `:11434/v1`。本地 server 通常不校验 key，OpenAI SDK 要求非空 → `LOCAL_API_KEY=local` 占位即可。
 
 可选：
 
 ```env
 PORT=3210
 HOST=127.0.0.1                  # 默认绑 localhost；下文 Tailscale 段会改
-VLM_MODELS=moonshotai/kimi-k2.5
-PROCESSOR_MODEL=moonshotai/kimi-k2.5
+OPENROUTER_VLM_MODEL=moonshotai/kimi-k2.5
+OPENROUTER_PROCESSOR_MODEL=moonshotai/kimi-k2.5
 ```
 
 ### 2. 安装 LaunchAgent
@@ -167,6 +170,7 @@ services:
     environment:
       OBSIDIAN_VAULT_PATH: /vault
       API_KEY: ${API_KEY}
+      LLM_PROVIDER_TARGET: ${LLM_PROVIDER_TARGET:-openrouter}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY}
       NODE_ENV: production
 ```

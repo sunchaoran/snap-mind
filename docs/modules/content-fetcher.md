@@ -11,7 +11,7 @@
 
 ## 输入 / 输出
 
-- **Input**: `MergedVLMResult`
+- **Input**: `VLMAnalysis`
 - **Output**: `FetchResult { contentFull, originalUrl, fetchLevel }`
 
 ## 平台能力矩阵
@@ -30,7 +30,7 @@
 ## 四级策略
 
 ```typescript
-async function fetchContent(vlm: MergedVLMResult): Promise<FetchResult> {
+async function fetchContent(vlm: VLMAnalysis): Promise<FetchResult> {
   // L1: opencli search
   if (L1_SUPPORT.includes(vlm.platform)) {
     // L1.a: author-first strategy (xiaohongshu, bilibili)

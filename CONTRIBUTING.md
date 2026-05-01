@@ -17,7 +17,7 @@ If your idea diverges from this, file an issue first to discuss before implement
 
 PRs likely to land:
 
-- Bug fixes in the pipeline (fetcher fallback paths, VLM merger, parser edge cases)
+- Bug fixes in the pipeline (fetcher fallback paths, VLM extraction, parser edge cases)
 - New platform-specific extraction prompts (`src/prompts/platforms/`)
 - Cross-platform packaging improvements (Docker, install scripts)
 - Documentation improvements
@@ -36,14 +36,14 @@ PRs likely to bounce without prior discussion:
 Prerequisites:
 - Node.js 24+
 - pnpm 10+
-- A working OpenRouter API key (for VLM)
+- An LLM provider for VLM + processor calls — either an OpenRouter API key (default) or any local OpenAI-compatible server (LM Studio, vLLM, Ollama, llama.cpp, …) reachable at `LOCAL_BASE_URL` (defaults to `http://localhost:1234/v1`)
 - A vault directory (Obsidian vault on iCloud Drive recommended for personal use)
 
 ```bash
 git clone https://github.com/<your-fork>/snap-mind
 cd snap-mind
 pnpm install
-cp .env.example .env  # fill in API_KEY, OPENROUTER_API_KEY, OBSIDIAN_VAULT_PATH
+cp .env.example .env  # fill in API_KEY, LLM_PROVIDER_TARGET, the matching provider keys, OBSIDIAN_VAULT_PATH
 pnpm dev              # tsx watch on src/index.ts
 ```
 

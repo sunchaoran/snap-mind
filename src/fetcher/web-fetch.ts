@@ -1,9 +1,9 @@
 import type { Browser, Page } from "playwright";
 import { chromium } from "playwright";
 import { config } from "@/config.js";
-import type { MergedVLMResult, Platform } from "@/types/domain.js";
+import type { Platform, VLMAnalysis } from "@/types/domain.js";
 import { createLogger, errMsg } from "@/utils/logger.js";
-import { openrouter } from "@/vlm/openrouter.js";
+import { activeModels, llmClient } from "@/vlm/llm-client.js";
 
 const log = createLogger("web-fetch");
 
@@ -64,7 +64,7 @@ export async function fetchPageHtml(url: string): Promise<string> {
  * require authentication (e.g. X/Twitter).
  */
 export async function findPostUrlOnPlatform(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ): Promise<string | null> {
   const searchUrl = buildPlatformSearchUrl(vlm);
   if (!searchUrl) {
@@ -137,7 +137,7 @@ export async function findPostUrlOnPlatform(
 
 type PostUrlExtractor = (
   page: Page,
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
 ) => Promise<string | null>;
 
 const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
@@ -212,7 +212,7 @@ const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
   },
 };
 
-function buildPlatformSearchUrl(vlm: MergedVLMResult): string | null {
+function buildPlatformSearchUrl(vlm: VLMAnalysis): string | null {
   const author = vlm.author?.replace(/^@/, "");
 
   switch (vlm.platform) {
@@ -283,13 +283,13 @@ export async function fetchAndExtract(url: string): Promise<string | null> {
   log.debug(
     {
       cleanedLength: cleaned.length,
-      model: config.openrouter.models.processor,
+      model: activeModels.processor,
     },
     "fetchAndExtract ▶ sending HTML to LLM for extraction",
   );
 
-  const response = await openrouter.chat.completions.create({
-    model: config.openrouter.models.processor,
+  const response = await llmClient.chat.completions.create({
+    model: activeModels.processor,
     messages: [
       {
         role: "system",

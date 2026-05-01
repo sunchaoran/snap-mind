@@ -1,5 +1,5 @@
 import { config } from "@/config.js";
-import type { MergedVLMResult } from "@/types/domain.js";
+import type { VLMAnalysis } from "@/types/domain.js";
 import { createLogger } from "@/utils/logger.js";
 
 const log = createLogger("search-engine");
@@ -35,7 +35,7 @@ const PLATFORM_SITE_DOMAIN: Record<string, string> = {
 };
 
 /** Build a search query from VLM result fields with site: constraint. */
-function buildQuery(vlm: MergedVLMResult): string {
+function buildQuery(vlm: VLMAnalysis): string {
   const parts: string[] = [];
 
   const siteDomain = PLATFORM_SITE_DOMAIN[vlm.platform];
@@ -62,9 +62,7 @@ function buildQuery(vlm: MergedVLMResult): string {
  * L3 fallback: use Google Custom Search API to find the original URL.
  * Returns the best matching URL or null if search is not configured / fails.
  */
-export async function searchForUrl(
-  vlm: MergedVLMResult,
-): Promise<string | null> {
+export async function searchForUrl(vlm: VLMAnalysis): Promise<string | null> {
   if (!config.searchEngine.apiKey) {
     log.warn("search engine API key not configured");
     return null;

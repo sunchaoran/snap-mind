@@ -8,7 +8,7 @@
 |-----------|--------|-----------|
 | Runtime | Node.js (>=24) | 主开发语言 |
 | HTTP Framework | Fastify 5 | 原生 multipart 支持，TypeScript 类型推导好，内置 pino 日志 |
-| LLM Gateway | OpenRouter API (via `openai` SDK) | 兼容 OpenAI API，切换 baseURL 即可调用多家模型 |
+| LLM Gateway | OpenAI 兼容 API（OpenRouter 或本地 server，via `openai` SDK） | 全局开关 `LLM_PROVIDER_TARGET`，切 baseURL 即可在云端 / 本地之间切换 |
 | Content Fetching | opencli | 55+ 平台支持，Browser 模式复用 Chrome 登录态 |
 | Web Fetch Fallback | Playwright | `connectOverCDP` 复用 Chrome 登录态，`networkidle` 等待更可靠 |
 | Image Processing | sharp (libvips) | 高性能截图压缩：缩放 + WebP 转换 |
@@ -28,24 +28,33 @@
 
 ## LLM 模型
 
-### VLM 分析（可配置 N 模型投票）
+### Provider 切换
 
-模型数量可配置，必须为奇数。通过环境变量 `VLM_MODELS`（逗号分隔）配置。
+`LLM_PROVIDER_TARGET` 是全局开关，VLM 与 processor 共享同一 provider：
+
+- `openrouter`（默认）：云端，`OPENROUTER_API_KEY` 必填
+- `local`：任何 OpenAI 兼容的本地服务（LM Studio / vLLM / Ollama / llama.cpp / …），默认 base URL `http://localhost:1234/v1`，按需用 `LOCAL_BASE_URL` 覆盖
+
+模型 ID 是 **per-provider** 的（`OPENROUTER_*` vs `LOCAL_*`），切换 target 时不会丢另一边的配置。单模型，无投票。
+
+### VLM 分析（单模型）
 
 | Provider | Model | Note |
 |----------|-------|------|
-| Moonshot | kimi-k2.5 | **默认模型** |
-| Google | gemini-2.5-flash | 可选 |
-| Anthropic | claude-sonnet-4-20250514 | 可选，增强精度 |
-| OpenAI | gpt-4o | 可选，增强精度 |
+| OpenRouter | moonshotai/kimi-k2.5 | **默认模型** |
+| OpenRouter | google/gemini-2.5-flash | 可选 |
+| OpenRouter | anthropic/claude-sonnet-4-20250514 | 可选 |
+| OpenRouter | openai/gpt-4o | 可选 |
+| Local | Qwen2.5-VL / 任意 OpenAI 兼容多模态模型 | 受本地显存限制 |
 
-> 通过环境变量 `VLM_MODELS` 调整模型列表。例：`VLM_MODELS=google/gemini-2.5-flash,anthropic/claude-sonnet-4-20250514,openai/gpt-4o`
+> 例：`OPENROUTER_VLM_MODEL=google/gemini-2.5-flash`
 
 ### 内容处理
 
 | Provider | Model | Purpose |
 |----------|-------|---------|
-| Moonshot | kimi-k2.5 | 摘要/标签/分类（默认，可通过 `PROCESSOR_MODEL` 环境变量覆盖） |
+| OpenRouter | moonshotai/kimi-k2.5 | 摘要/标签/分类（默认，可通过 `OPENROUTER_PROCESSOR_MODEL` 覆盖） |
+| Local | 任意本地文本模型 | 通过 `LOCAL_PROCESSOR_MODEL` 指定 |
 
 ## 依赖
 

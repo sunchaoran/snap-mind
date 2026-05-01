@@ -34,7 +34,17 @@ describe("renderClipMarkdown", () => {
         contentSnippet: "snippet",
         contentType: "post",
         confidence: 0.95,
-        rawResults: {},
+        rawResult: {
+          platform: "xiaohongshu",
+          confidence: 0.95,
+          author: "Karpat...",
+          title: 'Karpathy前两天刚说"应该有人做这个"，',
+          keywords: [],
+          publishTime: null,
+          visibleUrl: null,
+          contentSnippet: "snippet",
+          contentType: "post",
+        },
       },
     };
 

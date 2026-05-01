@@ -2,7 +2,7 @@
 
 > **注**：这里的类型分两层——
 >
-> - **内部类型**（`ClipRecord`、`MergedVLMResult` 等）：backend 内部流转，可自由演进
+> - **内部类型**（`ClipRecord`、`VLMAnalysis` 等）：backend 内部流转，可自由演进
 > - **Wire 类型**（`ClipRecordWire`、`ClipRecordWireFull`、错误信封等）：通过 HTTP 暴露，**对客户端是公开契约**，演进受 [api-design.md §3](./api-design.md#3-wire-format-the-public-contract) 的稳定性规则约束
 >
 > Source of truth 是 [`src/types/index.ts`](../../src/types/index.ts)（V1 后会拆成 `types/wire.ts` + `types/domain.ts`）。
@@ -52,14 +52,14 @@ interface ClipRecord {
   /** 获取策略级别 1-4 */
   fetchLevel: 1 | 2 | 3 | 4;
 
-  /** VLM 投票合并后的整体置信度 0-1 */
+  /** VLM 输出的整体置信度 0-1 */
   sourceConfidence: number;
 
   /** 创建时间 ISO 8601 */
   createdAt: string;
 
-  /** VLM 投票合并后的原始结构，debug 用 */
-  rawVlmResult: MergedVLMResult;
+  /** VLM 分析结果（含原始模型输出），debug 用 */
+  rawVlmResult: VLMAnalysis;
 }
 ```
 
@@ -149,7 +149,7 @@ type Category =
 
 ## 3. VLM 类型
 
-### VLMResult（单模型输出）
+### VLMResult（模型原始输出）
 
 ```typescript
 interface VLMResult {
@@ -165,24 +165,26 @@ interface VLMResult {
 }
 ```
 
-### MergedVLMResult（投票合并后的结果）
+### VLMAnalysis（VLMAnalyzer 输出）
+
+`VLMResult` 上面套一层默认值（`platform` 兜底 `"unknown"`、`contentType` 兜底 `"post"`），并保留原始结果。下游 fetcher / processor / writer 都吃这个类型。
 
 ```typescript
-interface MergedVLMResult {
+interface VLMAnalysis {
   platform: Platform;
+  contentType: ContentType;
   author: string | null;
   title: string | null;
   keywords: string[];
   publishTime: string | null;
   visibleUrl: string | null;
   contentSnippet: string | null;
-  contentType: ContentType;
 
   /** 整体置信度 */
   confidence: number;
 
-  /** 各模型的原始结果，用于 debug。key 为模型标识 */
-  rawResults: Record<string, VLMResult>;
+  /** 模型原始输出，便于排查 default 后丢失的信号 */
+  rawResult: VLMResult;
 }
 ```
 

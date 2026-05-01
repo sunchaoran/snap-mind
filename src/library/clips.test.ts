@@ -728,7 +728,17 @@ function makeRecord(overrides: Partial<ClipRecord> = {}): ClipRecord {
       contentSnippet: "snippet",
       contentType: "post",
       confidence: 0.9,
-      rawResults: {},
+      rawResult: {
+        platform: "twitter",
+        confidence: 0.9,
+        author: "tester",
+        title: "Test Clip",
+        keywords: [],
+        publishTime: null,
+        visibleUrl: null,
+        contentSnippet: "snippet",
+        contentType: "post",
+      },
     },
     ...overrides,
   };

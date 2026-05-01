@@ -45,12 +45,39 @@ export const config = {
     jwtSecret: process.env.JWT_SECRET!,
   },
 
-  openrouter: {
-    apiKey: process.env.OPENROUTER_API_KEY!,
-    baseUrl: "https://openrouter.ai/api/v1",
-    models: {
-      vlm: (process.env.VLM_MODELS || "moonshotai/kimi-k2.5").split(","),
-      processor: process.env.PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
+  llm: {
+    /**
+     * Active provider for both VLM and processor calls. Single global switch —
+     * `local` covers any OpenAI-compatible local server (LM Studio, vLLM,
+     * Ollama, llama.cpp, …); the only requirement is that it speaks the
+     * `/v1/chat/completions` shape the `openai` SDK uses.
+     */
+    target: (process.env.LLM_PROVIDER_TARGET || "openrouter") as
+      | "openrouter"
+      | "local",
+    providers: {
+      openrouter: {
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY,
+        models: {
+          vlm: process.env.OPENROUTER_VLM_MODEL || "moonshotai/kimi-k2.5",
+          processor:
+            process.env.OPENROUTER_PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
+        },
+      },
+      local: {
+        /**
+         * Default matches LM Studio's port (most common for desktop GPUs).
+         * vLLM users typically override to `:8000/v1`, Ollama to `:11434/v1`.
+         */
+        baseUrl: process.env.LOCAL_BASE_URL || "http://localhost:1234/v1",
+        /** Most local servers don't validate the key; OpenAI SDK requires non-empty. */
+        apiKey: process.env.LOCAL_API_KEY || "local",
+        models: {
+          vlm: process.env.LOCAL_VLM_MODEL || "",
+          processor: process.env.LOCAL_PROCESSOR_MODEL || "",
+        },
+      },
     },
   },
 
@@ -79,8 +106,6 @@ export const config = {
       l3: 50_000,
     },
     vlmTimeout: 80_000,
-    /** Re-run VLM with all configured models only when the primary result is low-confidence or missing critical fields. */
-    vlmEscalationThreshold: Number(process.env.VLM_ESCALATION_THRESHOLD) || 0.8,
     similarityThreshold: 0.85,
     /** Max fetch level to attempt (1-4). Levels beyond this will not run; if the max level fails, pipeline errors instead of falling through. */
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
