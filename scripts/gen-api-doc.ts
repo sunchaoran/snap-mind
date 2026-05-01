@@ -1,6 +1,6 @@
 // Set dummy env BEFORE any project imports.
 //
-// Some project modules (e.g. src/vlm/openrouter.ts) construct API clients
+// Some project modules (e.g. src/vlm/llm-client.ts) construct API clients
 // eagerly at module load. ESM hoists static imports above all top-level
 // statements, so anything that touches the project graph is wrapped in a
 // dynamic `import()` inside `main()` — those run after this assignment.

@@ -8,14 +8,16 @@
 
 ## 输入 / 输出
 
-- **Input**: `MergedVLMResult` + `FetchResult`
+- **Input**: `VLMAnalysis` + `FetchResult`
 - **Output**: `ProcessedContent { summary, tags, category, language }`
 
 ## 模型
 
-单模型调用（不需要交叉验证），通过 OpenRouter 调用。
+单模型调用，通过 `src/vlm/llm-client.ts` 暴露的 OpenAI 兼容客户端，provider 由全局开关 `LLM_PROVIDER_TARGET` 决定（`openrouter` | `local`）。
 
-默认模型通过环境变量 `PROCESSOR_MODEL` 配置，默认值 `moonshotai/kimi-k2.5`。
+默认模型按 active provider 取：
+- OpenRouter：`OPENROUTER_PROCESSOR_MODEL`，默认 `moonshotai/kimi-k2.5`
+- 本地 server：`LOCAL_PROCESSOR_MODEL`（无默认，必须显式设置为本地加载的模型 ID）
 
 ## Prompt 设计
 

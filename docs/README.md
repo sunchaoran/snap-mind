@@ -90,9 +90,8 @@ snap-mind/
 │   │   └── clips.ts            # 读/删：扫 vault、解析、wire format 投影、安全删除
 │   ├── vlm/
 │   │   ├── analyzer.ts         # 两阶段 VLM 分析主逻辑
-│   │   ├── openrouter.ts       # OpenRouter API 客户端
-│   │   ├── prompt.ts           # prompt 加载与模板构建
-│   │   └── merger.ts           # 投票合并逻辑
+│   │   ├── llm-client.ts       # OpenAI 兼容客户端（OpenRouter / 本地 server 切换）
+│   │   └── prompt.ts           # prompt 加载与模板构建
 │   ├── fetcher/
 │   │   ├── index.ts            # ContentFetcher（四级策略调度）
 │   │   ├── opencli.ts          # opencli 调用封装

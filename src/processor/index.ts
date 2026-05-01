@@ -1,18 +1,17 @@
-import { config } from "@/config.js";
 import { PROCESSOR_SYSTEM_PROMPT as SYSTEM_PROMPT } from "@/prompts/index.js";
 import type {
   FetchResult,
-  MergedVLMResult,
   ProcessedContent,
+  VLMAnalysis,
 } from "@/types/domain.js";
 import { parseLLMJson } from "@/utils/json.js";
 import { createLogger } from "@/utils/logger.js";
-import { openrouter } from "@/vlm/openrouter.js";
+import { activeModels, llmClient } from "@/vlm/llm-client.js";
 
 const log = createLogger("processor");
 
 export async function processContent(
-  vlm: MergedVLMResult,
+  vlm: VLMAnalysis,
   fetchResult: FetchResult,
 ): Promise<ProcessedContent> {
   const start = Date.now();
@@ -30,7 +29,7 @@ export async function processContent(
       contentSource,
       contentLength: content.length,
       fetchLevel: fetchResult.fetchLevel,
-      model: config.openrouter.models.processor,
+      model: activeModels.processor,
     },
     "▶ processContent start",
   );
@@ -40,8 +39,8 @@ export async function processContent(
 内容:
 ${content.slice(0, 32_000)}`;
 
-  const response = await openrouter.chat.completions.create({
-    model: config.openrouter.models.processor,
+  const response = await llmClient.chat.completions.create({
+    model: activeModels.processor,
     messages: [
       {
         role: "system",

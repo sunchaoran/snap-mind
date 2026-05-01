@@ -49,7 +49,17 @@ export async function handleFailure(
         contentSnippet: null,
         contentType: "post",
         confidence: 0,
-        rawResults: {},
+        rawResult: {
+          platform: null,
+          confidence: 0,
+          author: null,
+          title: null,
+          keywords: [],
+          publishTime: null,
+          visibleUrl: null,
+          contentSnippet: null,
+          contentType: null,
+        },
       },
     };
     await writeClip(failRecord);

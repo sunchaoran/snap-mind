@@ -6,14 +6,18 @@
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `OPENROUTER_API_KEY` | Yes | — | OpenRouter API Key |
+| `LLM_PROVIDER_TARGET` | No | `openrouter` | 全局 LLM provider 开关，VLM 与 processor 一起切换。可选 `openrouter` \| `local` |
+| `OPENROUTER_API_KEY` | Conditional | — | 使用 OpenRouter 时必填 |
+| `OPENROUTER_VLM_MODEL` | No | `moonshotai/kimi-k2.5` | OpenRouter VLM 模型 |
+| `OPENROUTER_PROCESSOR_MODEL` | No | `moonshotai/kimi-k2.5` | OpenRouter 内容处理模型 |
+| `LOCAL_BASE_URL` | No | `http://localhost:1234/v1` | 本地 OpenAI 兼容服务的 base URL（LM Studio 默认端口；vLLM 一般 `:8000/v1`，Ollama `:11434/v1`） |
+| `LOCAL_API_KEY` | No | `local` | 本地 server 通常不校验，但 OpenAI SDK 要求非空字符串 |
+| `LOCAL_VLM_MODEL` | Conditional | — | `LLM_PROVIDER_TARGET=local` 时必填，模型 ID 与 `GET <LOCAL_BASE_URL>/models` 返回一致 |
+| `LOCAL_PROCESSOR_MODEL` | Conditional | — | `LLM_PROVIDER_TARGET=local` 时必填 |
 | `OBSIDIAN_VAULT_PATH` | No | macOS iCloud Drive 下的 `Obsidian` | Obsidian vault 绝对路径；未设置时默认使用 `~/Library/Mobile Documents/com~apple~CloudDocs/Obsidian` |
 | `OBSIDIAN_SCREENSHOT_WIDTH` | No | `360` | Obsidian 笔记中截图的默认显示宽度（像素）；设为 `0` 或负数时不限制 |
 | `API_KEY` | Yes | — | self-host bearer token，所有 client 共用 |
 | `JWT_SECRET` | No | — | 仅 SnapMind Cloud (V3) 用于 JWT 签名；self-host 不需要 |
-| `VLM_MODELS` | No | `moonshotai/kimi-k2.5` | VLM 模型列表，逗号分隔，数量必须为奇数 |
-| `PROCESSOR_MODEL` | No | `moonshotai/kimi-k2.5` | 内容处理模型 |
-| `VLM_ESCALATION_THRESHOLD` | No | `0.8` | 主 VLM 结果低于该置信度，或缺少关键字段时，升级为多模型投票 |
 | `OPENCLI_PATH` | No | `opencli` | opencli 二进制路径 |
 | `CDP_URL` | No | `http://localhost:9222` | Chrome DevTools Protocol URL |
 | `PORT` | No | `3210` | 服务端口 |
@@ -59,14 +63,30 @@ export const config = {
     jwtSecret: process.env.JWT_SECRET!,
   },
 
-  // OpenRouter
-  openrouter: {
-    apiKey: process.env.OPENROUTER_API_KEY!,
-    baseUrl: "https://openrouter.ai/api/v1",
-    models: {
-      // VLM 模型列表，数量必须为奇数（投票机制）
-      vlm: (process.env.VLM_MODELS || "moonshotai/kimi-k2.5").split(","),
-      processor: process.env.PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
+  // LLM provider — 全局开关，VLM 和 processor 一起切。
+  // 启动时 src/vlm/llm-client.ts 会校验 active provider 的 apiKey / vlm / processor 都已设置，否则 fail fast。
+  llm: {
+    target: (process.env.LLM_PROVIDER_TARGET || "openrouter") as
+      | "openrouter"
+      | "local",
+    providers: {
+      openrouter: {
+        baseUrl: "https://openrouter.ai/api/v1",
+        apiKey: process.env.OPENROUTER_API_KEY,
+        models: {
+          vlm: process.env.OPENROUTER_VLM_MODEL || "moonshotai/kimi-k2.5",
+          processor: process.env.OPENROUTER_PROCESSOR_MODEL || "moonshotai/kimi-k2.5",
+        },
+      },
+      local: {
+        // 任何 OpenAI 兼容的本地服务（LM Studio / vLLM / Ollama / llama.cpp …）
+        baseUrl: process.env.LOCAL_BASE_URL || "http://localhost:1234/v1",
+        apiKey: process.env.LOCAL_API_KEY || "local",
+        models: {
+          vlm: process.env.LOCAL_VLM_MODEL || "",
+          processor: process.env.LOCAL_PROCESSOR_MODEL || "",
+        },
+      },
     },
   },
 
@@ -97,8 +117,7 @@ export const config = {
       l2: 50_000,   // 50 秒
       l3: 50_000,   // 50 秒
     },
-    vlmTimeout: 80_000,        // 80 秒（每个模型调用）
-    vlmEscalationThreshold: Number(process.env.VLM_ESCALATION_THRESHOLD) || 0.8,
+    vlmTimeout: 80_000,        // 80 秒
     similarityThreshold: 0.85,
     maxFetchLevel: Number(process.env.MAX_FETCH_LEVEL) || 4,
     maxBatchSize: Math.min(Number(process.env.MAX_BATCH_SIZE) || 20, 20),
@@ -118,18 +137,29 @@ export const config = {
 
 ```bash
 # 必填
+API_KEY=sk-snapmind-xxxxxxxxxxxx
+# JWT_SECRET 仅 SnapMind Cloud 用，self-host 不必设
+
+# LLM provider 全局开关：openrouter | local
+LLM_PROVIDER_TARGET=openrouter
+
+# 使用 OpenRouter 时必填
 OPENROUTER_API_KEY=sk-or-xxxxxxxxxxxx
+# 可选：模型覆写
+OPENROUTER_VLM_MODEL=moonshotai/kimi-k2.5
+OPENROUTER_PROCESSOR_MODEL=moonshotai/kimi-k2.5
+
+# 使用本地 OpenAI 兼容服务（LM Studio / vLLM / Ollama / llama.cpp …）时必填模型 ID
+# 默认 base URL 是 LM Studio 端口；vLLM 改 :8000/v1、Ollama 改 :11434/v1
+LOCAL_BASE_URL=http://localhost:1234/v1
+LOCAL_API_KEY=local
+LOCAL_VLM_MODEL=
+LOCAL_PROCESSOR_MODEL=
+
 # 可选：覆盖默认的 iCloud Drive Obsidian vault 路径
 OBSIDIAN_VAULT_PATH=/Users/chaoran/Library/Mobile Documents/com~apple~CloudDocs/Obsidian
 # 可选：生成的笔记里截图的显示宽度
 OBSIDIAN_SCREENSHOT_WIDTH=360
-API_KEY=sk-snapmind-xxxxxxxxxxxx
-# JWT_SECRET 仅 SnapMind Cloud 用，self-host 不必设
-
-# 可选：LLM 模型
-VLM_MODELS=moonshotai/kimi-k2.5
-PROCESSOR_MODEL=moonshotai/kimi-k2.5
-VLM_ESCALATION_THRESHOLD=0.8
 
 # 可选：服务端口与监听地址
 PORT=3210
