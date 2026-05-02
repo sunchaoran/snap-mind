@@ -18,10 +18,70 @@ async function getBrowser(): Promise<Browser> {
       },
       "connecting to Chrome CDP",
     );
+    await ensureChromeProfileLoaded(config.playwright.cdpUrl);
     browser = await chromium.connectOverCDP(config.playwright.cdpUrl);
     log.info("Chrome CDP connected");
   }
   return browser;
+}
+
+/**
+ * 当 Chrome 没有任何打开的标签页时，`ProfileManager::GetLastUsedProfileIfLoaded()`
+ * 返回 null（参见 chromium 源 `devtools_browser_context_manager.cc`）；
+ * 进一步导致 `Browser.setDownloadBehavior` 报 "Browser context management is
+ * not supported"，而 Playwright 的 `connectOverCDP` 启动时正好会调这个 CDP
+ * 方法 — 整个连接就废了。
+ *
+ * 修法：在 connect 之前用 Chrome 的 HTTP CDP endpoint 先点一下 `/json/list`，
+ * 如果一个 page 都没有就 `PUT /json/new?about:blank` 强制 Chrome 加载默认
+ * profile。幂等：已经有 page 时直接返回。
+ *
+ * 触发场景：用户手动关掉了 LaunchAgent Chrome 里所有标签页之后；或者 Chrome
+ * 冷启动还没显示任何 tab（罕见但可能）。
+ */
+export async function ensureChromeProfileLoaded(
+  cdpHttpUrl: string,
+): Promise<void> {
+  try {
+    const listRes = await fetch(`${cdpHttpUrl}/json/list`);
+    if (!listRes.ok) {
+      log.warn(
+        {
+          status: listRes.status,
+        },
+        "CDP /json/list returned non-ok, skipping profile preflight",
+      );
+      return;
+    }
+    const targets = (await listRes.json()) as Array<{
+      type?: string;
+    }>;
+    const pageCount = targets.filter((t) => t.type === "page").length;
+    if (pageCount > 0) {
+      return;
+    }
+    log.info(
+      "Chrome has 0 open pages, seeding about:blank to load default profile",
+    );
+    const newRes = await fetch(`${cdpHttpUrl}/json/new?about:blank`, {
+      method: "PUT",
+    });
+    if (!newRes.ok) {
+      log.warn(
+        {
+          status: newRes.status,
+        },
+        "CDP /json/new failed, connectOverCDP will likely fail too",
+      );
+    }
+  } catch (err) {
+    log.warn(
+      {
+        error: errMsg(err),
+      },
+      "ensureChromeProfileLoaded failed, proceeding to connectOverCDP anyway",
+    );
+  }
 }
 
 async function openPage(): Promise<Page> {
