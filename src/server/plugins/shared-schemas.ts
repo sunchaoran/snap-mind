@@ -163,6 +163,8 @@ const SHARED_SCHEMAS: ReadonlyArray<Record<string, unknown>> = [
     required: [
       "id",
       "title",
+      "aiTitle",
+      "originalTitle",
       "platform",
       "author",
       "originalUrl",
@@ -182,6 +184,21 @@ const SHARED_SCHEMAS: ReadonlyArray<Record<string, unknown>> = [
       },
       title: {
         type: "string",
+        description:
+          "Primary display title — equals aiTitle for new clips, original VLM title for legacy clips. Always present.",
+      },
+      aiTitle: {
+        type: [
+          "string",
+          "null",
+        ],
+        description:
+          "LLM-rewritten objective title. null for legacy clips and failure placeholders.",
+      },
+      originalTitle: {
+        type: "string",
+        description:
+          "Raw VLM-extracted title (potentially clickbait). For legacy clips, falls back to the legacy `title` field.",
       },
       platform: {
         $ref: "Platform#",
@@ -243,6 +260,8 @@ const SHARED_SCHEMAS: ReadonlyArray<Record<string, unknown>> = [
     required: [
       "id",
       "title",
+      "aiTitle",
+      "originalTitle",
       "platform",
       "author",
       "originalUrl",
@@ -263,6 +282,21 @@ const SHARED_SCHEMAS: ReadonlyArray<Record<string, unknown>> = [
       },
       title: {
         type: "string",
+        description:
+          "Primary display title — equals aiTitle for new clips, original VLM title for legacy clips. Always present.",
+      },
+      aiTitle: {
+        type: [
+          "string",
+          "null",
+        ],
+        description:
+          "LLM-rewritten objective title. null for legacy clips and failure placeholders.",
+      },
+      originalTitle: {
+        type: "string",
+        description:
+          "Raw VLM-extracted title (potentially clickbait). For legacy clips, falls back to the legacy `title` field.",
       },
       platform: {
         $ref: "Platform#",

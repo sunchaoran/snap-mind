@@ -231,9 +231,12 @@ export async function handleClip(
     },
     "── Step 6/7: Assemble Record ──",
   );
+  const originalTitle = vlmResult.title ?? "未知标题";
   const record: ClipRecord = await timed("assembleMs", timings, async () => ({
     id: clipId,
-    title: vlmResult.title ?? "未知标题",
+    title: processed.aiTitle, // primary display title = AI-rewritten on new clips
+    aiTitle: processed.aiTitle,
+    originalTitle,
     platform: vlmResult.platform,
     author: vlmResult.author ?? "未知作者",
     originalUrl: fetchResult.originalUrl,

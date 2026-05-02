@@ -315,7 +315,9 @@ Always returns `{ status: "ok" }` once the process is up. No auth.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | `string` | ✓ |  |
-| `title` | `string` | ✓ |  |
+| `title` | `string` | ✓ | Primary display title — equals aiTitle for new clips, original VLM title for legacy clips. Always present. |
+| `aiTitle` | `null` \| `string` | ✓ | LLM-rewritten objective title. null for legacy clips and failure placeholders. |
+| `originalTitle` | `string` | ✓ | Raw VLM-extracted title (potentially clickbait). For legacy clips, falls back to the legacy `title` field. |
 | `platform` | [`Platform`](#platform) | ✓ |  |
 | `author` | `string` | ✓ |  |
 | `originalUrl` | `null` \| `string` | ✓ |  |
@@ -338,7 +340,9 @@ Always returns `{ status: "ok" }` once the process is up. No auth.
 | Field | Type | Required | Notes |
 |---|---|---|---|
 | `id` | `string` | ✓ |  |
-| `title` | `string` | ✓ |  |
+| `title` | `string` | ✓ | Primary display title — equals aiTitle for new clips, original VLM title for legacy clips. Always present. |
+| `aiTitle` | `null` \| `string` | ✓ | LLM-rewritten objective title. null for legacy clips and failure placeholders. |
+| `originalTitle` | `string` | ✓ | Raw VLM-extracted title (potentially clickbait). For legacy clips, falls back to the legacy `title` field. |
 | `platform` | [`Platform`](#platform) | ✓ |  |
 | `author` | `string` | ✓ |  |
 | `originalUrl` | `null` \| `string` | ✓ |  |

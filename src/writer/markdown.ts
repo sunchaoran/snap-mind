@@ -24,7 +24,13 @@ import { renderClipMarkdown } from "@/writer/template.js";
 interface ClipIndexEntry {
   id: string;
   platform: string;
-  title: string | null;
+  /**
+   * 用于 dedup 匹配的标题。这里特意用 VLM 提取的原始标题 (`originalTitle`)
+   * 而不是 `title`：同一张截图重传两次，VLM 提取出来的标题稳定；而新的
+   * `title` 等于 LLM 重写的 aiTitle，不同次跑可能漂移，用它做相似度匹配
+   * 容易漏。
+   */
+  originalTitle: string | null;
   author: string | null;
   vaultPath: string;
   absolutePath: string;
@@ -127,7 +133,7 @@ export async function writeClip(record: ClipRecord): Promise<string> {
   upsertClipIndexEntry({
     id: record.id,
     platform: record.platform,
-    title: record.title,
+    originalTitle: record.originalTitle,
     author: record.author,
     vaultPath: `${config.vault.clippingsDir}/${filename}`,
     absolutePath: join(dir, filename),
@@ -227,11 +233,11 @@ export async function findSimilarClip(
 
   for (const id of candidateIds) {
     const entry = clipIndexById.get(id);
-    if (!entry?.title) {
+    if (!entry?.originalTitle) {
       continue;
     }
 
-    const titleSim = textSimilarity(entry.title, title);
+    const titleSim = textSimilarity(entry.originalTitle, title);
     if (titleSim < threshold) {
       continue;
     }
@@ -358,10 +364,19 @@ function buildClipIndexEntryFromFile(
     return null;
   }
 
+  // Prefer the new `originalTitle` field; fall back to legacy `title` so that
+  // clips written before the ai-title feature still dedup correctly.
+  const originalTitle =
+    typeof data.originalTitle === "string"
+      ? data.originalTitle
+      : typeof data.title === "string"
+        ? data.title
+        : null;
+
   return {
     id,
     platform: typeof data.platform === "string" ? data.platform : "unknown",
-    title: typeof data.title === "string" ? data.title : null,
+    originalTitle,
     author: typeof data.author === "string" ? data.author : null,
     vaultPath: `${config.vault.clippingsDir}/${file}`,
     absolutePath: join(clippingsDir(), file),

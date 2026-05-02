@@ -123,9 +123,12 @@ export async function handleRetry(
 
   // 6. Assemble (preserve clipId + screenshotPath, refresh createdAt)
   stepStart(jobId, 5, "组装记录…");
+  const originalTitle = vlmResult.title ?? "未知标题";
   const record: ClipRecord = {
     id: clipId,
-    title: vlmResult.title ?? "未知标题",
+    title: processed.aiTitle,
+    aiTitle: processed.aiTitle,
+    originalTitle,
     platform: vlmResult.platform,
     author: vlmResult.author ?? "未知作者",
     originalUrl: fetchResult.originalUrl,

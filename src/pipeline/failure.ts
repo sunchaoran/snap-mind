@@ -26,6 +26,8 @@ export async function handleFailure(
     const failRecord: ClipRecord = {
       id: clipId,
       title: "处理失败 - 待重试",
+      aiTitle: null,
+      originalTitle: "处理失败 - 待重试",
       platform: "unknown",
       author: "unknown",
       originalUrl: null,

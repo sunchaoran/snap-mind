@@ -8,6 +8,8 @@ describe("renderClipMarkdown", () => {
     const record: ClipRecord = {
       id: "clip_20260407_143955_-cM5NE",
       title: 'Karpathy前两天刚说"应该有人做这个"，',
+      aiTitle: 'Karpathy前两天刚说"应该有人做这个"，',
+      originalTitle: 'Karpathy前两天刚说"应该有人做这个"，',
       platform: "xiaohongshu",
       author: 'Karpat..."foo"',
       originalUrl: null,
