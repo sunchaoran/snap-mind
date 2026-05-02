@@ -18,7 +18,7 @@
 
 | Platform | L1: opencli search | L2: web fetch | L3: 搜索引擎兜底 |
 |----------|------|------|------|
-| xiaohongshu | ✅ L1.a author-first + L1.b keyword | ✅ visibleUrl / Playwright / opencli→URL | ✅ |
+| xiaohongshu | ✅ L1.a author-first + L1.b keyword | ❌ 单设备 session 冲突，CDP Chrome 不登 xhs，让 L1 独占 | ✅ |
 | twitter | ✅ L1.b keyword search | ✅ visibleUrl / Playwright | ✅ |
 | zhihu | ✅ L1.b keyword search | ✅ visibleUrl / Playwright | ✅ |
 | bilibili | ✅ L1.a author-first + L1.b keyword | ✅ visibleUrl / Playwright | ✅ |

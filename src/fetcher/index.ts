@@ -17,9 +17,12 @@ const PLATFORM_L1_SUPPORT: Platform[] = [
   "weixin",
 ];
 
+// xiaohongshu 故意不在这里：xhs 强制单设备 session，登录态只能保持在一个
+// Chrome profile。daily Chrome 跑 opencli extension（L1 走它），CDP Chrome
+// 跑 Playwright（L2 走它）—— 两边都登 xhs 会互踢。把 xhs 留给 L1，CDP
+// Chrome 永远不登它，避免运维风险。L1 抓不到时直接降级 L4 截图。
 const PLATFORM_L2_SUPPORT: Platform[] = [
   "twitter",
-  "xiaohongshu",
   "zhihu",
   "bilibili",
   "weibo",
