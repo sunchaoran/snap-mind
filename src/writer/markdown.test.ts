@@ -133,9 +133,14 @@ async function writeStubAsset(path: string, contents: string) {
 
 function makeRecord(overrides: Partial<ClipRecord> = {}): ClipRecord {
   const id = overrides.id ?? "clip_test";
+  // Mirror title into aiTitle / originalTitle so fixtures that only set
+  // `title` still drive dedup (which matches on originalTitle).
+  const baseTitle = overrides.title ?? "Test Clip";
   return {
     id,
-    title: "Test Clip",
+    title: baseTitle,
+    aiTitle: baseTitle,
+    originalTitle: baseTitle,
     platform: "twitter",
     author: "tester",
     originalUrl: null,

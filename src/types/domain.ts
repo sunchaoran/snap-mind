@@ -79,6 +79,8 @@ export interface FetchResult {
 
 /** ContentProcessor 的输出 */
 export interface ProcessedContent {
+  /** LLM 基于正文内容重写的客观标题，去除标题党语气。L4 时基于 VLM snippet 生成，仍非空。 */
+  aiTitle: string;
   summary: string;
   tags: string[];
   category: Category;
@@ -89,7 +91,18 @@ export interface ProcessedContent {
 export interface ClipRecord {
   /** 全局唯一 ID，格式: clip_{yyyyMMdd}_{HHmmss}_{4位短hash} */
   id: string;
+  /**
+   * 主展示标题。新 clip 等于 `aiTitle`（去标题党后的版本）；老 clip 是 VLM
+   * 提取的原始标题（兼容字段，前端读 `title` 永远拿到"最干净的可用标题"）。
+   */
   title: string;
+  /** LLM 基于正文重写的标题。处理失败的占位记录里为 null；老 clip 为 null。 */
+  aiTitle: string | null;
+  /**
+   * VLM 从截图直接提取的标题（可能带标题党/夸张语气）。新写入的 clip 总是非空；
+   * 老 clip 通过 frontmatter 里的旧 `title` 字段回退得到。
+   */
+  originalTitle: string;
   platform: Platform;
   author: string;
   originalUrl: string | null;

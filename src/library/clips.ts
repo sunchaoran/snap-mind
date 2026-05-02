@@ -344,6 +344,12 @@ export function parseClipFile(
   const contentType = readEnum(frontmatter.contentType, CONTENT_TYPES);
   const category = readEnum(frontmatter.category, CATEGORIES);
   const title = readString(frontmatter.title);
+  // aiTitle: explicit `null` in frontmatter or absent → null. Only honored
+  // when the frontmatter actually has a string value.
+  const aiTitle = readString(frontmatter.aiTitle);
+  // originalTitle: prefer the new field; fall back to the legacy `title`
+  // field for clips written before this feature.
+  const originalTitle = readString(frontmatter.originalTitle) ?? title;
   const author = readString(frontmatter.author);
   const language = readString(frontmatter.language);
   const fetchLevel = readFetchLevel(frontmatter.fetchLevel);
@@ -355,6 +361,7 @@ export function parseClipFile(
     !contentType ||
     !category ||
     title === null ||
+    originalTitle === null ||
     author === null ||
     language === null ||
     fetchLevel === null ||
@@ -380,6 +387,8 @@ export function parseClipFile(
   return {
     id,
     title,
+    aiTitle,
+    originalTitle,
     platform,
     author,
     originalUrl,

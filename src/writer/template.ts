@@ -39,6 +39,8 @@ export function renderClipMarkdown(record: ClipRecord): string {
     "---",
     `id: ${record.id}`,
     `title: ${yamlString(record.title)}`,
+    `aiTitle: ${record.aiTitle === null ? "null" : yamlString(record.aiTitle)}`,
+    `originalTitle: ${yamlString(record.originalTitle)}`,
     `platform: ${record.platform}`,
     `author: ${yamlString(record.author)}`,
     `originalUrl: ${record.originalUrl ? yamlString(record.originalUrl) : "null"}`,

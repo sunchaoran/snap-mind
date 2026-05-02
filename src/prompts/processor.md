@@ -3,6 +3,7 @@
 请返回以下 JSON 格式：
 
 {
+  "aiTitle": "基于正文内容重写的客观标题，10-25 个字符。要求：去掉标题党语气、感叹号、emoji、'震惊'/'必看'/'真相'等夸张词汇。直接概括正文最核心的信息。如果正文内容不足以提炼，可以适度使用原标题作为参考，但仍需要去掉夸张表达。",
   "summary": "3-5 句话的核心摘要，概括文章最重要的信息和观点",
   "tags": ["3-5个具体标签，偏具体而非抽象，如 'Rust' 而非 'Programming'。标签使用大驼峰命名且不含空格，如 'MachineLearning'、'WebDev'、'React'"],
   "category": "从以下枚举中选一个最匹配的: tech | design | product | business | finance | science | life | culture | career | other",

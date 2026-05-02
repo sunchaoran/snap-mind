@@ -224,6 +224,10 @@ describe("GET /clip", () => {
     expect(body.clips[0]).toEqual({
       id: "clip_full_test",
       title: 'Title with "quotes" and 中文',
+      // Legacy fixture lacks aiTitle / originalTitle in frontmatter →
+      // aiTitle is null; originalTitle falls back to the legacy title.
+      aiTitle: null,
+      originalTitle: 'Title with "quotes" and 中文',
       platform: "twitter",
       author: "tester",
       originalUrl: "https://example.com/post/1",
@@ -243,6 +247,53 @@ describe("GET /clip", () => {
     // Must not leak internal/heavy fields
     expect(body.clips[0]).not.toHaveProperty("contentFull");
     expect(body.clips[0]).not.toHaveProperty("rawVlmResult");
+  });
+
+  it("surfaces aiTitle + originalTitle from frontmatter for new clips", async () => {
+    // Hand-rolled fixture writes both new fields, simulating what the writer
+    // template emits today. The legacy fallback path is covered by the
+    // "preserves wire format fields" test above (which omits both fields).
+    const dir = join(vaultRoot, config.vault.clippingsDir);
+    await mkdir(dir, {
+      recursive: true,
+    });
+    const frontmatter = [
+      "---",
+      "id: clip_new_titles",
+      'title: "AI 重写后的客观标题"',
+      'aiTitle: "AI 重写后的客观标题"',
+      'originalTitle: "震惊！这个新闻你绝对没看过！"',
+      "platform: twitter",
+      'author: "tester"',
+      "originalUrl: null",
+      "contentType: post",
+      "tags:",
+      '  - "test"',
+      "category: tech",
+      "language: zh",
+      "fetchLevel: 1",
+      "sourceConfidence: 0.95",
+      "createdAt: 2026-04-26T12:00:00.000Z",
+      "---",
+      "",
+      "## 摘要",
+      "",
+      "summary",
+      "",
+    ].join("\n");
+    await writeFile(join(dir, "2026-04-26_tw_titles.md"), frontmatter, "utf-8");
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_new_titles",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(200);
+    const body = res.json() as ClipRecordWireFull;
+    expect(body.title).toBe("AI 重写后的客观标题");
+    expect(body.aiTitle).toBe("AI 重写后的客观标题");
+    expect(body.originalTitle).toBe("震惊！这个新闻你绝对没看过！");
   });
 
   it("falls back to <assetsDir>/<id>.webp when body has no embed", async () => {
@@ -704,9 +755,15 @@ async function writeClipUsingTemplate(record: ClipRecord) {
 
 function makeRecord(overrides: Partial<ClipRecord> = {}): ClipRecord {
   const id = overrides.id ?? "clip_test";
+  // When a fixture specifies just `title`, mirror it into the new aiTitle /
+  // originalTitle fields so dedup (which matches on originalTitle) keeps
+  // working with the historical "title only" override style.
+  const baseTitle = overrides.title ?? "Test Clip";
   return {
     id,
-    title: "Test Clip",
+    title: baseTitle,
+    aiTitle: baseTitle,
+    originalTitle: baseTitle,
     platform: "twitter",
     author: "tester",
     originalUrl: null,

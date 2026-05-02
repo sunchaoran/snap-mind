@@ -42,7 +42,27 @@ export type StepStatus = "pending" | "running" | "done" | "skipped" | "error";
  */
 export interface ClipRecordWire {
   id: string;
+  /**
+   * 主展示标题：新 clip 等于 `aiTitle`（去标题党后的版本），老 clip 是
+   * 原 VLM 标题。`title` 字段保留是为了向后兼容 — 客户端读它能始终拿到
+   * "最干净的可用标题"，无需关心 clip 是新是旧。
+   */
   title: string;
+  /**
+   * LLM 基于正文重写的客观标题。
+   *
+   * - 新写入的 clip：永远非空（即使 fetchLevel=4，也基于 VLM snippet 生成）
+   * - 老 clip（feature 之前写入的）：null — 客户端 fallback 到 `title`
+   * - 处理失败的占位 record：null
+   */
+  aiTitle: string | null;
+  /**
+   * VLM 从截图直接提取的原始标题（可能带标题党、夸张语气）。
+   *
+   * 新 clip 总是非空。老 clip 通过 frontmatter 旧 `title` 字段回退得到，
+   * 因此对所有 clip 都是非 null 的字符串。
+   */
+  originalTitle: string;
   platform: Platform;
   author: string;
   originalUrl: string | null;
