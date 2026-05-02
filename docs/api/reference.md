@@ -97,6 +97,22 @@ Removes the .md and assets from the vault. 204 on success.
 
 ---
 
+#### `POST /api/v1/clip/:id/retry`
+
+> Retry fetch + process for an existing clip
+
+Re-runs the pipeline (fetch + process + write) against the screenshot already stored in the vault. Reuses the cached VLM sidecar when available; otherwise re-runs VLM. Skips dedup. Refreshes `createdAt` to now. Returns a `jobId` immediately; track via `GET /api/v1/jobs/:id`.
+
+- **Auth**: required (Bearer)
+- **Path params**:
+  - `id`: `string`
+- **Responses**:
+  - `202`: object `{ jobId }`
+  - `401`: [`ErrorEnvelope`](#errorenvelope)
+  - `404`: [`ErrorEnvelope`](#errorenvelope)
+
+---
+
 ### jobs
 
 > 异步 job 快照与 SSE 进度流
