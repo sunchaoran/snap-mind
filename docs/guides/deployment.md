@@ -58,7 +58,7 @@ pnpm build
 
 卸载：`./scripts/uninstall-launchd.sh`。
 
-> **L2 web fetch 需要 CDP**：snap-mind 的 L2 抓取通过 CDP 连本地 Chrome 复用平台登录态。要让 L2 走通，**额外**装一个 Chrome LaunchAgent：`./scripts/install-chrome-launchd.sh`。设置细节、首次登录工作流、安全要点见 [chrome-cdp.md](./chrome-cdp.md)。
+> **L2 web fetch 需要 CDP**：snap-mind 的 L2 抓取通过 CDP 连本地 Chrome 复用平台登录态。要让 L2 走通，**额外**装一个 Chrome LaunchAgent：`node scripts/install-chrome-launchd.mjs`。设置细节、首次登录工作流、安全要点见 [chrome-cdp.md](./chrome-cdp.md)。
 
 <details>
 <summary><strong>手动安装（高级）</strong></summary>
