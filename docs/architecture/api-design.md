@@ -384,13 +384,13 @@ cp .env.example .env  # 填 API_KEY、LLM_PROVIDER_TARGET（默认 openrouter，
 pnpm build
 
 # 装成 LaunchAgent（自启 + KeepAlive）
-./scripts/install-launchd.sh
+node scripts/install-launchd.mjs
 
 # 验证
 curl http://localhost:3210/health
 ```
 
-`install-launchd.sh` 写 `~/Library/LaunchAgents/dev.snap-mind.server.plist` 然后 `launchctl load`。
+`install-launchd.mjs` 写 `~/Library/LaunchAgents/dev.snap-mind.server.plist` 然后 `launchctl load`。
 
 其它设备通过 Tailscale 访问：`https://<mac-name>.<tailnet>.ts.net:3210`（Tailscale Serve 处理 TLS）。
 
@@ -402,7 +402,7 @@ curl http://localhost:3210/health
 - Onboarding 收集 API key、vault path、LLM provider 选择（OpenRouter token 或本地 server 配置），写 LaunchAgent
 - 自更新机制（Sparkle 或类似）
 
-V1 不做；`install-launchd.sh` 是过渡。
+V1 不做；`install-launchd.mjs` 是过渡。
 
 ### Mode 3：Linux / Docker self-host（V2）
 
@@ -512,7 +512,7 @@ V1 是从零搭，不做 V0 → V1 的兼容迁移。下面是把工作切成可
 7. **`feat/sse-job-events`** — 加 `/api/v1/jobs/:id/events` 和 `/api/v1/batch/:id/events`。原 polling 端点不变。
 8. **`feat/rate-limit-and-logging`** — 加 `@fastify/rate-limit` + pino redaction。
 9. **`feat/openapi-swagger`** — `@fastify/swagger` + `/api/docs` UI；OpenAPI spec 在 build 时落到 `docs/api/openapi.yaml`。
-10. **`feat/install-launchd-script`** — `scripts/install-launchd.sh` + plist 模板 + 部署文档。
+10. **`feat/install-launchd-script`** — `scripts/install-launchd.mjs` + plist 模板 + 部署文档。
 
 每个分支 1-3 个 commit 体量。顺序不强制，但 1-3 落完才能让客户端开始切到 V1。9 在前面稳定后做最有意义。
 

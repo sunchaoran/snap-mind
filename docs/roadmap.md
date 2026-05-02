@@ -19,7 +19,7 @@
 - [ ] SSE：`GET /api/v1/jobs/:id/events`、`GET /api/v1/batch/:id/events`
 - [ ] `@fastify/rate-limit` + pino redaction
 - [ ] OpenAPI spec via `@fastify/swagger` + `/api/docs` UI
-- [ ] `scripts/install-launchd.sh` + plist template + 部署文档
+- [ ] `scripts/install-launchd.mjs` + plist template + 部署文档
 - [ ] Tailscale 部署文档（可选用，但 doc 涵盖）
 - [ ] LICENSE (AGPL-3.0) + CONTRIBUTING.md ✅ 已完成
 - [ ] README + docs 全部更新到 V1 设计 ✅ 进行中

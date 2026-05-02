@@ -51,12 +51,12 @@ OPENROUTER_PROCESSOR_MODEL=moonshotai/kimi-k2.5
 
 ```bash
 pnpm build
-./scripts/install-launchd.sh
+node scripts/install-launchd.mjs
 ```
 
 脚本会渲染 plist 模板到 `~/Library/LaunchAgents/dev.snap-mind.server.plist`、`launchctl load`、并 `curl /health` 验活。幂等——升级（见 §1.4）直接重跑即可。
 
-卸载：`./scripts/uninstall-launchd.sh`。
+卸载：`node scripts/uninstall-launchd.mjs`。
 
 > **L2 web fetch 需要 CDP**：snap-mind 的 L2 抓取通过 CDP 连本地 Chrome 复用平台登录态。要让 L2 走通，**额外**装一个 Chrome LaunchAgent：`node scripts/install-chrome-launchd.mjs`。设置细节、首次登录工作流、安全要点见 [chrome-cdp.md](./chrome-cdp.md)。
 
@@ -145,7 +145,7 @@ curl https://<mac-name>.<tailnet>.ts.net/health
 git pull
 pnpm install
 pnpm build
-./scripts/install-launchd.sh    # 幂等：自动 unload + reload
+node scripts/install-launchd.mjs    # 幂等：自动 unload + reload
 ```
 
 ---
