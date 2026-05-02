@@ -8,7 +8,7 @@
 > - Shared schemas: [`src/server/plugins/shared-schemas.ts`](../../src/server/plugins/shared-schemas.ts)
 > - Per-route annotations: [`src/server/routes/`](../../src/server/routes)
 
-- **Version**: `0.3.0`
+- **Version**: `0.4.0`
 - **Base URL**: `http://127.0.0.1:3210`
 - **Auth**: `Authorization: Bearer <API_KEY>` (V1 ApiKeyStrategy)
 - **Interactive UI**: `/api/docs` (Swagger UI, served by backend)
@@ -92,6 +92,22 @@ Removes the .md and assets from the vault. 204 on success.
   - `id`: `string`
 - **Responses**:
   - `204`: no body — Deleted (no body)
+  - `401`: [`ErrorEnvelope`](#errorenvelope)
+  - `404`: [`ErrorEnvelope`](#errorenvelope)
+
+---
+
+#### `GET /api/v1/clip/:id/screenshot`
+
+> Get the raw screenshot bytes for a clip
+
+Streams the on-disk screenshot for the given clip id. Content-Type matches the stored image format (png/jpeg/webp/gif). Returns 404 if either the clip or its screenshot file is missing — callers should fall back to a placeholder. Invalid ids (path-traversal attempts, etc.) are rejected as 404 to match other clip-by-id routes.
+
+- **Auth**: required (Bearer)
+- **Path params**:
+  - `id`: `string`
+- **Responses**:
+  - `200`: `string` — Raw image bytes (Content-Type per stored format)
   - `401`: [`ErrorEnvelope`](#errorenvelope)
   - `404`: [`ErrorEnvelope`](#errorenvelope)
 

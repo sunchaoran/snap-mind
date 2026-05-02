@@ -553,6 +553,201 @@ describe("DELETE /clip/:id", () => {
   });
 });
 
+describe("GET /clip/:id/screenshot", () => {
+  // 8-byte PNG signature followed by an arbitrary tail. Writing real PNG
+  // bytes (rather than "fake png") lets the route's mime-by-magic-bytes
+  // path actually match `image/png`.
+  const PNG_MAGIC = Buffer.from([
+    0x89,
+    0x50,
+    0x4e,
+    0x47,
+    0x0d,
+    0x0a,
+    0x1a,
+    0x0a,
+  ]);
+  // RIFF....WEBP — minimal magic for ext detection in `detectImageExt`.
+  // (`detectImageExt` only checks the first two bytes `R I`, so anything
+  // starting with `RI` will be classified webp.)
+  const WEBP_MAGIC = Buffer.from([
+    0x52,
+    0x49,
+    0x46,
+    0x46,
+    0x00,
+    0x00,
+    0x00,
+    0x00,
+    0x57,
+    0x45,
+    0x42,
+    0x50,
+  ]);
+
+  function pngFixture(): Buffer {
+    return Buffer.concat([
+      PNG_MAGIC,
+      Buffer.from("payload-bytes-here"),
+    ]);
+  }
+
+  async function writeAsset(filename: string, buf: Buffer): Promise<void> {
+    await writeFile(join(vaultRoot, config.vault.assetsDir, filename), buf);
+  }
+
+  it("returns 200 + image/png + exact bytes for a stored PNG", async () => {
+    await writeClipMarkdown("2026-04-26_tw_shot.md", {
+      id: "clip_shot",
+    });
+    const fixture = pngFixture();
+    await writeAsset("clip_shot.png", fixture);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_shot/screenshot",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("image/png");
+    expect(res.headers["content-length"]).toBe(String(fixture.byteLength));
+    expect(res.headers["cache-control"]).toBe("private, max-age=3600");
+    // Bytes must round-trip identically — the PNG signature alone proves
+    // the route isn't accidentally JSON-stringifying the buffer.
+    expect(res.rawPayload.equals(fixture)).toBe(true);
+  });
+
+  it("serves the matching mime type for non-PNG stored formats", async () => {
+    await writeClipMarkdown("2026-04-26_tw_webp.md", {
+      id: "clip_webp",
+    });
+    await writeAsset("clip_webp.webp", WEBP_MAGIC);
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_webp/screenshot",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(200);
+    expect(res.headers["content-type"]).toBe("image/webp");
+  });
+
+  it("returns 404 when the clip id is unknown", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_does_not_exist/screenshot",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({
+      error: {
+        code: "clip_not_found",
+        message: "Clip not found",
+      },
+    });
+  });
+
+  it("returns 404 when the clip exists but the screenshot file is missing", async () => {
+    // Simulates the historical `screenshotSaved: false` case: the .md is
+    // present but no `assets/<id>.<ext>` was ever written. Spec calls for
+    // a plain 404 — clients fall back to a placeholder.
+    await writeClipMarkdown("2026-04-26_tw_md_only.md", {
+      id: "clip_md_only",
+    });
+
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_md_only/screenshot",
+      headers: VALID_AUTH,
+    });
+
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toEqual({
+      error: {
+        code: "clip_not_found",
+        message: "Clip not found",
+      },
+    });
+  });
+
+  it.each([
+    [
+      "embedded dot-dot",
+      "clip..with..dots",
+    ],
+    [
+      "literal dot",
+      "clip.x",
+    ],
+    [
+      "leading dotdot",
+      "..foo",
+    ],
+    [
+      "backslash",
+      "clip\\bar",
+    ],
+  ])("rejects malicious id (%s) with 404 and never reads off-vault", async (_label, badId) => {
+    // Plant a sibling outside of the vault root that a successful
+    // traversal would reach. We can't easily prove "no read" with
+    // certainty here, but if the traversal worked the response payload
+    // would contain this sentinel — the equality check below would fail.
+    const sentinelPath = join(vaultRoot, "..", "outside-the-vault.txt");
+    await writeFile(sentinelPath, "DO_NOT_LEAK", "utf-8");
+    try {
+      const res = await app.inject({
+        method: "GET",
+        url: `/api/v1/clip/${encodeURIComponent(badId)}/screenshot`,
+        headers: VALID_AUTH,
+      });
+
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toEqual({
+        error: {
+          code: "clip_not_found",
+          message: "Clip not found",
+        },
+      });
+      expect(res.rawPayload.toString("utf-8")).not.toContain("DO_NOT_LEAK");
+    } finally {
+      const { rm } = await import("node:fs/promises");
+      await rm(sentinelPath, {
+        force: true,
+      });
+    }
+  });
+
+  it("returns 401 with no Authorization header", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_x/screenshot",
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: "unauthorized",
+      },
+    });
+  });
+
+  it("returns 401 with a wrong token", async () => {
+    const res = await app.inject({
+      method: "GET",
+      url: "/api/v1/clip/clip_x/screenshot",
+      headers: INVALID_AUTH,
+    });
+    expect(res.statusCode).toBe(401);
+    expect(res.json()).toMatchObject({
+      error: {
+        code: "unauthorized",
+      },
+    });
+  });
+});
+
 describe("isSafeClipId", () => {
   it.each([
     "clip_20260426_120000_aaaaaa",
