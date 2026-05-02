@@ -10,6 +10,12 @@
     Headed Chrome instance dedicated to snap-mind: separate user-data-dir
     so platform logins don't mix with your daily Chrome, and CDP bound to
     127.0.0.1 only so no other host on the LAN can drive it.
+
+    Note: the trailing `about:blank` is intentional. With 0 open tabs
+    Chrome unloads its default profile, and `Browser.setDownloadBehavior`
+    (called by Playwright on connectOverCDP) then fails with
+    "Browser context management is not supported". Seeding a tab keeps
+    the profile loaded.
   -->
   <key>ProgramArguments</key>
   <array>
@@ -20,6 +26,7 @@
     <string>--no-first-run</string>
     <string>--no-default-browser-check</string>
     <string>--disable-features=GlobalMediaControls</string>
+    <string>about:blank</string>
   </array>
 
   <key>RunAtLoad</key>
