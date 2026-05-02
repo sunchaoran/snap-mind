@@ -26,8 +26,16 @@ export default defineConfig({
     js: "#!/usr/bin/env node",
   }),
   onSuccess() {
-    cpSync("src/prompts", "dist/prompts", {
+    // Copy prompt assets next to the bundled entry, NOT into a `prompts/`
+    // subdir. The bundled `loadPrompt()` reads via
+    // `resolve(import.meta.dirname, filename)`, where `import.meta.dirname`
+    // is `dist/` post-bundle — so files must sit at `dist/<name>.md` and
+    // `dist/platforms/<name>.md`, not under `dist/prompts/`.
+    cpSync("src/prompts", "dist", {
       recursive: true,
+      // Skip src/prompts/index.ts — it's already inlined into dist/index.js
+      // by tsup; copying would just dump a stray .ts into dist/.
+      filter: (src) => !src.endsWith(".ts"),
     });
     const cliPath = join("dist", "cli.js");
     if (existsSync(cliPath)) {
