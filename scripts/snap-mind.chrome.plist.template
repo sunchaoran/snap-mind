@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>dev.snap-mind.chrome</string>
+
+  <!--
+    Headed Chrome instance dedicated to snap-mind: separate user-data-dir
+    so platform logins don't mix with your daily Chrome, and CDP bound to
+    127.0.0.1 only so no other host on the LAN can drive it.
+  -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__CHROME_BIN__</string>
+    <string>--user-data-dir=__USER_DATA_DIR__</string>
+    <string>--remote-debugging-port=__CDP_PORT__</string>
+    <string>--remote-debugging-address=127.0.0.1</string>
+    <string>--no-first-run</string>
+    <string>--no-default-browser-check</string>
+    <string>--disable-features=GlobalMediaControls</string>
+  </array>
+
+  <key>RunAtLoad</key>
+  <true/>
+
+  <key>KeepAlive</key>
+  <true/>
+
+  <key>StandardOutPath</key>
+  <string>__HOME__/Library/Logs/snap-mind/chrome.log</string>
+
+  <key>StandardErrorPath</key>
+  <string>__HOME__/Library/Logs/snap-mind/chrome.err.log</string>
+</dict>
+</plist>
