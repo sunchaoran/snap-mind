@@ -25,7 +25,7 @@
 ### 1. 装 Chrome LaunchAgent
 
 ```bash
-./scripts/install-chrome-launchd.sh
+node scripts/install-chrome-launchd.mjs
 ```
 
 脚本做的事：
@@ -37,7 +37,7 @@
 
 幂等——cookie 过期 / 升级 Chrome / 改 plist 时直接重跑。
 
-卸载：`./scripts/uninstall-chrome-launchd.sh`（plist 删掉，profile 保留——里面有 cookie，要清空手动删）。
+卸载：`node scripts/uninstall-chrome-launchd.mjs`（plist 删掉，profile 保留——里面有 cookie，要清空手动删）。
 
 ### 2. 首次登录平台
 
