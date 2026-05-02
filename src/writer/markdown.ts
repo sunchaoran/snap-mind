@@ -4,6 +4,7 @@ import {
   readdir,
   readFile,
   rm,
+  unlink,
   writeFile,
 } from "node:fs/promises";
 import { join } from "node:path";
@@ -167,6 +168,24 @@ export async function clearSnapMindVault(): Promise<{
 export async function clipExists(id: string): Promise<boolean> {
   await ensureClipIndexReady();
   return clipIndexById.has(id);
+}
+
+/**
+ * 删掉一条 clip 的 markdown 文件并把它从内存 dedup index 里摘掉，但**不动**
+ * `assets/<id>.*`（截图 + sidecar）。retry pipeline 用它在重写新 markdown
+ * 之前清掉旧文件 —— writeClip 每次按 createdAt+platform+slug 生成新文件名，
+ * 不删旧的会留 orphan。
+ */
+export async function removeClipMarkdownFile(id: string): Promise<void> {
+  await ensureClipIndexReady();
+  const entry = clipIndexById.get(id);
+  if (!entry) {
+    return;
+  }
+  await unlink(entry.absolutePath).catch(() => {
+    // File already gone — index will still be cleaned below.
+  });
+  removeClipFromIndex(id);
 }
 
 /**
