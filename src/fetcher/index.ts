@@ -505,15 +505,44 @@ async function tryKeywordSearch(
   );
 
   const content = best.text || best.content;
-  if (!content) {
-    log.warn("L1.b   matched item has no text/content field");
-    return null;
+  if (content) {
+    return {
+      contentFull: content,
+      originalUrl: best.url ?? null,
+    };
   }
 
-  return {
-    contentFull: content,
-    originalUrl: best.url ?? null,
-  };
+  // Some platforms' opencli `search` returns only metadata stubs (zhihu's
+  // `search` returns the question, not specific answers; weixin search has
+  // historically been title-only). If the stub still carries a URL, hand it
+  // to fetchAndExtract — without this, the URL is wasted because L2.c skips
+  // re-running opencli for any platform already in PLATFORM_L1_SUPPORT.
+  if (best.url) {
+    log.info(
+      {
+        url: best.url,
+      },
+      "L1.b   match has URL but no body, fetching page",
+    );
+    const fetched = await fetchAndExtract(best.url).catch((err) => {
+      log.warn(
+        {
+          error: errMsg(err),
+        },
+        "L1.b ✗ URL fetch failed",
+      );
+      return null;
+    });
+    if (fetched) {
+      return {
+        contentFull: fetched,
+        originalUrl: best.url,
+      };
+    }
+  }
+
+  log.warn("L1.b   matched item has no body and URL fallback failed");
+  return null;
 }
 
 /**
