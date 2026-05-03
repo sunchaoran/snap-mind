@@ -206,6 +206,22 @@ type PostUrlExtractor = (
   vlm: VLMAnalysis,
 ) => Promise<string | null>;
 
+/**
+ * Resolve an `href` attribute against a base origin, handling all the forms
+ * search-results pages emit:
+ *   - absolute:           "https://example.com/x"     → unchanged
+ *   - protocol-relative:  "//zhuanlan.zhihu.com/p/1"  → "https://zhuanlan.zhihu.com/p/1"
+ *   - root-relative:      "/question/123"             → "https://www.zhihu.com/question/123"
+ *
+ * The earlier `startsWith("http") ? href : base + href` shortcut produced
+ * `https://www.zhihu.com//zhuanlan.zhihu.com/...` for protocol-relative
+ * hrefs (zhihu's column links are emitted as `//zhuanlan.zhihu.com/...`),
+ * which then 404'd or redirected to a login wall.
+ */
+export function resolveUrl(href: string, base: string): string {
+  return new URL(href, base).toString();
+}
+
 const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
   twitter: async (page) => {
     log.debug('waiting for tweet link (a[href*="/status/"])');
@@ -220,25 +236,34 @@ const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
     if (!href) {
       return null;
     }
-    return href.startsWith("http") ? href : `https://x.com${href}`;
+    return resolveUrl(href, "https://x.com");
   },
 
   zhihu: async (page) => {
     log.debug("waiting for zhihu content link");
+    // Wait for either selector to appear, then prefer /question/ over /p/.
+    // /question/ is the canonical Q&A page (what most zhihu screenshots
+    // are); /p/ is a zhuanlan column article — usually a less-relevant
+    // keyword match when both surface for the same query, and zhuanlan
+    // pages frequently land on a partial-content paywall when fetched
+    // headlessly.
     await page
       .waitForSelector('a[href*="/question/"], a[href*="/p/"]', {
         timeout: 8_000,
       })
       .catch(() => null);
-    const href = await page
-      .$eval('a[href*="/question/"], a[href*="/p/"]', (el) =>
-        el.getAttribute("href"),
-      )
+    const questionHref = await page
+      .$eval('a[href*="/question/"]', (el) => el.getAttribute("href"))
       .catch(() => null);
+    const href =
+      questionHref ??
+      (await page
+        .$eval('a[href*="/p/"]', (el) => el.getAttribute("href"))
+        .catch(() => null));
     if (!href) {
       return null;
     }
-    return href.startsWith("http") ? href : `https://www.zhihu.com${href}`;
+    return resolveUrl(href, "https://www.zhihu.com");
   },
 
   bilibili: async (page) => {
@@ -254,7 +279,7 @@ const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
     if (!href) {
       return null;
     }
-    return href.startsWith("http") ? href : `https://www.bilibili.com${href}`;
+    return resolveUrl(href, "https://www.bilibili.com");
   },
 
   xiaohongshu: async (page) => {
@@ -272,9 +297,7 @@ const POST_URL_EXTRACTORS: Partial<Record<Platform, PostUrlExtractor>> = {
     if (!href) {
       return null;
     }
-    return href.startsWith("http")
-      ? href
-      : `https://www.xiaohongshu.com${href}`;
+    return resolveUrl(href, "https://www.xiaohongshu.com");
   },
 };
 
