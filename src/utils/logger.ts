@@ -46,7 +46,10 @@ export function getLoggerOptions(): LoggerOptions {
         target: "pino-pretty",
         options: {
           colorize: true,
-          translateTime: "HH:MM:ss",
+          // `SYS:` prefix tells pino-pretty to render in the host TZ
+          // (CST/UTC+8 for us) instead of its UTC default. The raw `time`
+          // field stays UTC epoch ms — only the dev terminal output changes.
+          translateTime: "SYS:HH:MM:ss",
           ignore: "pid,hostname",
         },
       },
