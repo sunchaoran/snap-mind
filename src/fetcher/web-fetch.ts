@@ -148,8 +148,13 @@ export async function findPostUrlOnPlatform(
   const page = await openPage();
 
   try {
+    // `networkidle` rarely fires on JS-heavy social platforms (constant
+    // background polling means the network is never quiet for 500ms),
+    // making this a near-guaranteed timeout. The downstream extractor uses
+    // its own `waitForSelector(...)` to wait for the post link, so we just
+    // need the DOM to be parsed here, not the network to be idle.
     await page.goto(searchUrl, {
-      waitUntil: "networkidle",
+      waitUntil: "domcontentloaded",
       timeout: 15_000,
     });
     log.debug("platform search page loaded");
